@@ -1,1 +1,1 @@
-# CEC_FRONTEND
+Responsive landing page done.
