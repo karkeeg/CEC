@@ -1,30 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { FaGraduationCap, FaHospitalSymbol } from "react-icons/fa";
 
 const associations = [
   {
     name: "Central Engineering College",
     icon: <FaGraduationCap size={48} />,
-    highlighted: true,
   },
   {
     name: "Nepal Technical Institute",
     icon: <FaGraduationCap size={48} />,
-    highlighted: false,
   },
   {
     name: "Central Management College",
     icon: <FaGraduationCap size={48} />,
-    highlighted: false,
   },
   {
     name: "Central Hospital",
     icon: <FaHospitalSymbol size={48} />,
-    highlighted: false,
   },
 ];
 
 const AssociationsSection = () => {
+  const [activeIndex, setActiveIndex] = useState(0); // First card active by default
+
   return (
     <section className="bg-[#CEEAFB] w-full py-16 px-4 sm:px-8 md:px-10 lg:px-[120px]">
       <div className="max-w-[1440px] mx-auto flex flex-col gap-10">
@@ -38,25 +36,33 @@ const AssociationsSection = () => {
 
         {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          {associations.map((item, index) => (
-            <div
-              key={index}
-              className={`flex flex-col items-center justify-center text-center transition-all duration-300 rounded-[24px] border ${
-                item.highlighted
-                  ? "bg-[#143b82] text-white border-transparent"
-                  : "bg-white text-black border-gray-300"
-              } p-6 sm:p-8 w-full h-[240px] md:h-[260px] lg:h-[282px]`}
-            >
+          {associations.map((item, index) => {
+            const isActive = index === activeIndex;
+
+            return (
               <div
-                className={`mb-4 ${
-                  item.highlighted ? "text-white" : "text-black"
-                }`}
+                key={index}
+                onClick={() => setActiveIndex(index)}
+                className={`flex flex-col items-center justify-center text-center transition-all duration-300 ease-in-out rounded-[24px] border cursor-pointer transform
+                  ${
+                    isActive
+                      ? "bg-blue-900 text-white border-transparent"
+                      : "bg-white text-black border-gray-300"
+                  }
+                  hover:scale-105 hover:shadow-xl hover:border-blue-600
+                  p-6 sm:p-8 w-full h-[240px] md:h-[260px] lg:h-[282px]`}
               >
-                {item.icon}
+                <div
+                  className={`mb-4 ${
+                    isActive ? "text-white" : "text-blue-800"
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                <p className="text-lg font-semibold">{item.name}</p>
               </div>
-              <p className="text-lg font-semibold">{item.name}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

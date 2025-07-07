@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaPlay } from "react-icons/fa";
 
-const mainVideoId = "dQw4w9WgXcQ"; // replace with your actual main video ID
+import video from "../assets/collegevodeo.mp4";
 
 const recommendations = [
   {
@@ -43,7 +43,7 @@ const CampusSection = () => {
           <div className="aspect-video">
             <iframe
               className="w-full h-full rounded-xl"
-              src={`https://www.youtube.com/embed/${mainVideoId}`}
+              src={video}
               title="YouTube video"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -102,7 +102,7 @@ const CampusSection = () => {
           <div className="w-[90%] md:w-[60%] aspect-video">
             <iframe
               className="w-full h-full rounded-lg"
-              src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1`}
+              src={video}
               title="Selected Video"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
