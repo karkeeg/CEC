@@ -24,14 +24,14 @@ const AdminSidebar = () => {
         <NavItem icon={<FaBook />} label="Students" to="/admin/student" />
         <NavItem icon={<SlCalender />} label="Teachers" to="/admin/teacher" />
         <NavItem
-          icon={<FaClipboardList />}
-          label="Assignments"
-          to="/assignment"
-        />
-        <NavItem
           icon={<IoAnalytics />}
           label="Departments"
           to="/admin/department"
+        />
+        <NavItem
+          icon={<FaClipboardList />}
+          label="Assignments"
+          to="/assignment"
         />
         <NavItem icon={<MdFeedback />} label="Feedback" to="/admin/" />
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/" />

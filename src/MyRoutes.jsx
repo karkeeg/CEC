@@ -28,7 +28,7 @@ const MyRoutes = () => {
 
         {/* <Route path="/students" element={<StudentList />} /> */}
 
-        <Route path="/user" element={<UserDasboardLayout />}>
+        <Route path="/student" element={<UserDasboardLayout />}>
           <Route path="dashboard" element={<DashboardCard />} />
           <Route path="assignment" element={<Assignment />} />
           <Route path="classes" element={<Classes />} />

@@ -1,20 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase from "../supabaseConfig/supabaseClient"; // adjust path as needed
 
 import img1 from "../assets/image 19.png";
 import img2 from "../assets/person.png";
 import img3 from "../assets/logo.png";
-import { FaGraduationCap } from "react-icons/fa";
-import { IoBookSharp } from "react-icons/io5";
-import {
-  FaUser,
-  FaLink,
-  FaChevronDown,
-  FaSearch,
-  FaCalendarAlt,
-  FaFilePdf,
-} from "react-icons/fa";
 
 const carouselImages = [img1, img2, img3];
 
@@ -32,7 +21,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -65,7 +53,7 @@ const Login = () => {
     setErrors(validate());
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
 
@@ -73,43 +61,10 @@ const Login = () => {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      setSubmitting(true);
-
-      try {
-        let tableName = "";
-        if (role === "Admin") tableName = "admin";
-        else if (role === "Student") tableName = "students";
-        else if (role === "Faculty") tableName = "faculty";
-
-        const { data, error } = await supabase
-          .from(tableName)
-          .select("*")
-          .eq("email", email)
-          .single();
-
-        if (error || !data) {
-          setErrors({ email: "User not found." });
-          setSubmitting(false);
-          return;
-        }
-
-        // Simple password check
-        if (data.hashed_password !== password) {
-          setErrors({ password: "Incorrect password." });
-          setSubmitting(false);
-          return;
-        }
-
-        // ✅ Login success → Redirect
-        if (role === "Admin") navigate("/admin-dashboard");
-        else if (role === "Student") navigate("/student");
-        else if (role === "Faculty") navigate("/faculty");
-      } catch (err) {
-        console.error(err);
-        setErrors({ general: "Login failed. Please try again." });
-      } finally {
-        setSubmitting(false);
-      }
+      // TEMP: Direct route based on selected role
+      if (role === "Admin") navigate("/admin");
+      else if (role === "Student") navigate("/student");
+      else if (role === "Faculty") navigate("/faculty");
     }
   };
 
@@ -215,18 +170,11 @@ const Login = () => {
               <option>Faculty</option>
             </select>
 
-            {errors.general && (
-              <div className="text-red-500 text-sm text-center">
-                {errors.general}
-              </div>
-            )}
-
             <button
               type="submit"
               className="w-full bg-[#b6e6fa] text-gray-800 font-semibold py-2 xs:py-3 rounded-full mt-2 hover:bg-[#6ed0e0] transition disabled:opacity-60 disabled:cursor-not-allowed text-sm xs:text-base"
-              disabled={submitting}
             >
-              {submitting ? "Logging in..." : "Continue"}
+              Continue
             </button>
           </form>
         </div>

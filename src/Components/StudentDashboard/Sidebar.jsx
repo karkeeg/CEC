@@ -23,27 +23,35 @@ const Sidebar = () => {
         <NavItem
           icon={<FaTachometerAlt />}
           label="Dashboard"
-          to="/user/dashboard"
+          to="/student/dashboard"
         />
-        <NavItem icon={<FaBook />} label="Classes" to="/user/classes" />
+        <NavItem icon={<FaBook />} label="Classes" to="/student/classes" />
         <NavItem
           icon={<FaClipboardList />}
           label="Assignments"
-          to="/user/assignment"
+          to="/student/assignment"
         />
         <NavItem
           icon={<SlCalender />}
           label="Attendance"
-          to="/user/attendance"
+          to="/student/attendance"
         />
         <NavItem
           icon={<IoAnalytics />}
           label="Analytics"
-          to="/user/analytics"
+          to="/student/analytics"
         />
-        <NavItem icon={<MdFeedback />} label="Feedback" to="/user/feedback" />
-        <NavItem icon={<FiSettings />} label="Settings" to="/user/settings" />
-        <NavItem icon={<FaSignOutAlt />} label="Logout" to="/user/logout" />
+        <NavItem
+          icon={<MdFeedback />}
+          label="Feedback"
+          to="/student/feedback"
+        />
+        <NavItem
+          icon={<FiSettings />}
+          label="Settings"
+          to="/student/settings"
+        />
+        <NavItem icon={<FaSignOutAlt />} label="Logout" to="/student/logout" />
       </nav>
     </aside>
   );
