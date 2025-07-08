@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import supabase from "../../supabaseConfig/supabaseClient";
+
 import {
   FaUser,
   FaBookOpen,
@@ -9,103 +11,40 @@ import {
   FaFilePdf,
 } from "react-icons/fa";
 
-const classes = [
-  {
-    course: "MSC Engineering (Proposed)",
-    code: "MSC001",
-    teacher: "Dr. Sharma",
-    resources: "View materials",
-  },
-  {
-    course: "Bachelor In Civil Engineering",
-    code: "BCE001",
-    teacher: "Prof. Singh",
-    resources: "View materials",
-  },
-  {
-    course: "Bachelor in Electrical Engineering",
-    code: "BEE001",
-    teacher: "Dr. Rai",
-    resources: "View materials",
-  },
-  {
-    course: "Bachelor of Information Technology",
-    code: "BIT001",
-    teacher: "Prof. Joshi",
-    resources: "View materials",
-  },
-  {
-    course: "Diploma In Civil Engineering",
-    code: "DCE001",
-    teacher: "Mr. Thapa",
-    resources: "View materials",
-  },
-  {
-    course: "Diploma In Electrical Engineering",
-    code: "DEE001",
-    teacher: "Ms. Lama",
-    resources: "View materials",
-  },
-  {
-    course: "Pre Diploma in Electrical Engineering",
-    code: "PDEE001",
-    teacher: "Mr. Karki",
-    resources: "View materials",
-  },
-  {
-    course: "Pre Diploma In Civil Engineering",
-    code: "PDCE001",
-    teacher: "Ms. Shrestha",
-    resources: "View materials",
-  },
-  {
-    course: "Pre Diploma In Computer Engineering",
-    code: "PDCompE001",
-    teacher: "Mr. Bista",
-    resources: "View materials",
-  },
-  {
-    course: "General Medicine (HA)",
-    code: "HA001",
-    teacher: "Dr. Basnet",
-    resources: "View materials",
-  },
-  {
-    course: "Diploma in Radiography",
-    code: "DR001",
-    teacher: "Ms. Gurung",
-    resources: "View materials",
-  },
-  {
-    course: "PCL Health Lab Technician",
-    code: "PCLHLT001",
-    teacher: "Dr. Yadav",
-    resources: "View materials",
-  },
-  {
-    course: "Masters In Business Administration",
-    code: "MBA001",
-    teacher: "Prof. Mishra",
-    resources: "View materials",
-  },
-  {
-    course: "Bachelor Of Business Administration",
-    code: "BBA001",
-    teacher: "Prof. Pandey",
-    resources: "View materials",
-  },
-  {
-    course: "Diploma in Pharmacy",
-    code: "DPH001",
-    teacher: "Ms. Kafle",
-    resources: "View materials",
-  },
-];
-
 const Classes = () => {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      const { data, error } = await supabase.from("classes").select(`
+          id,
+          subject_id,
+          room_no,
+          teacher_department:teacher_id (
+            teacher:teacher_id (
+              first_name,
+              middle_name,
+              last_name
+            )
+          )
+        `);
+
+      if (error) {
+        console.error("Error fetching classes:", error);
+        setError(error);
+      } else {
+        setClasses(data);
+      }
+      setLoading(false);
+    };
+
+    fetchClasses();
+  }, []);
+
   return (
-    <div className="ml-64  md:ml-64  p-4 text-black bg-white">
-      {/* Section Title */}
+    <div className="ml-64 md:ml-64 p-4 text-black bg-white">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
         Class Schedule Overview
       </h1>
@@ -132,42 +71,53 @@ const Classes = () => {
 
       {/* Table */}
       <div className="overflow-x-auto shadow-lg rounded-md border">
-        <table className="min-w-full text-left border-collapse">
-          <thead className="bg-[#1E6C7B] text-white">
-            <tr>
-              <th className="py-3 px-4 whitespace-nowrap">Course</th>
-              <th className="py-3 px-4 whitespace-nowrap">Code</th>
-              <th className="py-3 px-4 whitespace-nowrap">Teacher</th>
-              <th className="py-3 px-4 whitespace-nowrap">Resources</th>
-            </tr>
-          </thead>
-          <tbody>
-            {classes.map((cls, idx) => (
-              <tr
-                key={idx}
-                className={`${
-                  cls.course === "Physics" && idx === 3
-                    ? "bg-indigo-100"
-                    : "bg-blue-50"
-                } hover:bg-blue-200 transition border-t`}
-              >
-                <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
-                  <FaBookOpen /> {cls.course}
-                </td>
-                <td className="py-3 px-4 whitespace-nowrap">{cls.code}</td>
-                <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
-                  <FaUser /> {cls.teacher}
-                </td>
-                <td className="py-3 px-4 whitespace-nowrap">
-                  <button className="flex items-center gap-2 text-blue-600 hover:underline">
-                    <FaLink /> View materials
-                    <FaChevronDown className="text-xs" />
-                  </button>
-                </td>
+        {loading ? (
+          <p className="p-4">Loading classes...</p>
+        ) : error ? (
+          <p className="p-4 text-red-600">Error: {error.message}</p>
+        ) : (
+          <table className="min-w-full text-left border-collapse">
+            <thead className="bg-[#1E6C7B] text-white">
+              <tr>
+                <th className="py-3 px-4 whitespace-nowrap">Class ID</th>
+                <th className="py-3 px-4 whitespace-nowrap">Teacher Name</th>
+                <th className="py-3 px-4 whitespace-nowrap">Subject</th>
+                <th className="py-3 px-4 whitespace-nowrap">Room</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {classes.map((cls, idx) => {
+                const teacher = cls.teacher_department?.teacher;
+                const fullName = teacher
+                  ? `${teacher.first_name ?? ""} ${teacher.middle_name ?? ""} ${
+                      teacher.last_name ?? ""
+                    }`.trim()
+                  : "Unknown";
+
+                return (
+                  <tr
+                    key={idx}
+                    className="bg-blue-50 hover:bg-blue-200 transition border-t"
+                  >
+                    <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
+                      <FaBookOpen /> {cls.id}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">{fullName}</td>
+                    <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
+                      <FaUser /> {cls.subject_id}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <button className="flex items-center gap-2 text-blue-600 hover:underline">
+                        {cls.room_no}
+                        <FaChevronDown className="text-xs" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

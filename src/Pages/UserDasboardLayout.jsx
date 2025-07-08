@@ -3,7 +3,7 @@ import Sidebar from "../Components/StudentDashboard/Sidebar";
 import { Outlet } from "react-router-dom";
 import Header from "../Components/StudentDashboard/Header";
 
-const AdminLayout = () => {
+const UserDasboardLayout = () => {
   return (
     <>
       <Sidebar />
@@ -15,4 +15,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default UserDasboardLayout;

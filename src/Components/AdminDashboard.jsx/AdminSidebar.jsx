@@ -13,37 +13,29 @@ import { MdFeedback } from "react-icons/md";
 import { SlCalender } from "react-icons/sl";
 import { NavLink } from "react-router-dom";
 
-const Sidebar = () => {
+const AdminSidebar = () => {
   return (
     <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex flex-col shadow-lg">
       <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
         Navigation
       </div>
       <nav className="flex flex-col mt-6 space-y-2 px-4">
-        <NavItem
-          icon={<FaTachometerAlt />}
-          label="Dashboard"
-          to="/user/dashboard"
-        />
-        <NavItem icon={<FaBook />} label="Classes" to="/user/classes" />
+        <NavItem icon={<FaTachometerAlt />} label="Dashboard" to="" />
+        <NavItem icon={<FaBook />} label="Students" to="/admin/student" />
+        <NavItem icon={<SlCalender />} label="Teachers" to="/admin/teacher" />
         <NavItem
           icon={<FaClipboardList />}
           label="Assignments"
-          to="/user/assignment"
-        />
-        <NavItem
-          icon={<SlCalender />}
-          label="Attendance"
-          to="/user/attendance"
+          to="/assignment"
         />
         <NavItem
           icon={<IoAnalytics />}
-          label="Analytics"
-          to="/user/analytics"
+          label="Departments"
+          to="/admin/department"
         />
-        <NavItem icon={<MdFeedback />} label="Feedback" to="/user/feedback" />
-        <NavItem icon={<FiSettings />} label="Settings" to="/user/settings" />
-        <NavItem icon={<FaSignOutAlt />} label="Logout" to="/user/logout" />
+        <NavItem icon={<MdFeedback />} label="Feedback" to="/admin/" />
+        <NavItem icon={<FiSettings />} label="Settings" to="/admin/" />
+        <NavItem icon={<FaSignOutAlt />} label="Logout" to="/admin/" />
       </nav>
     </aside>
   );
@@ -64,4 +56,4 @@ const NavItem = ({ icon, label, to }) => (
   </NavLink>
 );
 
-export default Sidebar;
+export default AdminSidebar;

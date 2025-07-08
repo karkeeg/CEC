@@ -1,59 +1,51 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import supabase from "../../supabaseConfig/supabaseClient"; // adjust path
 import { FaLink, FaSearch, FaDownload, FaCheck } from "react-icons/fa";
 import { IoMdArrowDropdown } from "react-icons/io";
 import { BiReset } from "react-icons/bi";
 import { MdAssignmentLate } from "react-icons/md";
 import { IoBookOutline } from "react-icons/io5";
 
-const assignments = [
-  {
-    title: "Essay on climates",
-    subject: "English",
-    dueDate: "12-07-2025",
-    status: "Pending",
-    action: "Upload",
-  },
-  {
-    title: "Physics numerical",
-    subject: "Physics",
-    dueDate: "27-07-2025",
-    status: "Submitted on time",
-    action: "View Submission",
-  },
-  {
-    title: "Essay on climates",
-    subject: "English",
-    dueDate: "27-07-2025",
-    status: "Late Submission",
-    action: "View Submission",
-  },
-  {
-    title: "Grammar",
-    subject: "English",
-    dueDate: "12-07-2025",
-    status: "Pending",
-    action: "Upload",
-  },
-  {
-    title: "Chemistry practical",
-    subject: "Chemistry",
-    dueDate: "12-07-2025",
-    status: "Pending",
-    action: "Upload",
-  },
-  {
-    title: "Derivates",
-    subject: "Mathematics",
-    dueDate: "27-07-2025",
-    status: "Late Submission",
-    action: "View Submission",
-  },
-];
-
-const Assignment = () => {
+const Assignments = () => {
+  const [assignments, setAssignments] = useState([]);
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("2025-01-01");
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("assignments")
+        .select(
+          `
+          id,
+          title,
+          due_date,
+          teacher_id,
+          
+          description,
+          subject:subject_id (
+            name
+          )
+          /* optionally include teacher info here if needed */
+        `
+        )
+        .gte("due_date", date) // filter due_date >= selected date
+        .order("due_date", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching assignments:", error);
+      } else {
+        setAssignments(data);
+      }
+      setLoading(false);
+    };
+
+    fetchAssignments();
+  }, [date]);
+
+  // Filter assignments by search term on title (case-insensitive)
   const filteredAssignments = assignments.filter((a) =>
     a.title.toLowerCase().includes(search.toLowerCase())
   );
@@ -85,7 +77,7 @@ const Assignment = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search by title..."
               className="w-full px-3 py-2 rounded-md pl-10 border border-gray-300 text-black"
             />
             <FaSearch className="absolute left-3 top-3 text-gray-400" />
@@ -97,52 +89,69 @@ const Assignment = () => {
 
         {/* Table */}
         <div className="overflow-x-auto bg-white rounded-lg shadow">
-          <table className="min-w-full text-sm text-left">
-            <thead>
-              <tr className="bg-cyan-900 text-white text-sm">
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Due Date</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAssignments.map((a, i) => (
-                <tr
-                  key={i}
-                  className={`border-b ${
-                    i % 2 === 0
-                      ? "bg-blue-100 text-black"
-                      : "bg-indigo-100 text-black"
-                  }`}
-                >
-                  <td className="px-4 py-3">{a.title}</td>
-                  <td className="px-4 py-3 flex items-center gap-2">
-                    <IoBookOutline /> {a.subject}
-                  </td>
-                  <td className="px-4 py-3">{a.dueDate}</td>
-                  <td className="px-4 py-3 flex items-center gap-2">
-                    {a.status.includes("Pending") && <BiReset />}
-                    {a.status.includes("Late") && <MdAssignmentLate />}
-                    {a.status.includes("Submitted") && <FaCheck />}
-                    {a.status}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="flex items-center gap-2 text-blue-700 hover:underline">
-                      <FaLink />
-                      {a.action}
-                      <IoMdArrowDropdown />
-                    </button>
-                  </td>
+          {loading ? (
+            <p className="p-4 text-center text-gray-500">
+              Loading assignments...
+            </p>
+          ) : (
+            <table className="min-w-full text-sm text-left">
+              <thead>
+                <tr className="bg-cyan-900 text-white text-sm">
+                  <th className="px-4 py-3">Title</th>
+                  <th className="px-4 py-3">Subject</th>
+                  <th className="px-4 py-3">Due Date</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredAssignments.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-3 text-center text-gray-600"
+                    >
+                      No assignments found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAssignments.map((a, i) => (
+                    <tr
+                      key={a.id}
+                      className={`border-b ${
+                        i % 2 === 0
+                          ? "bg-blue-100 text-black"
+                          : "bg-indigo-100 text-black"
+                      }`}
+                    >
+                      <td className="px-4 py-3">{a.title}</td>
+                      <td className="px-4 py-3 flex items-center gap-2">
+                        <IoBookOutline />
+                        {a.subject?.name ?? "Unknown"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {new Date(a.due_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 flex items-center gap-2">
+                        {a.teacher_id}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button className="flex items-center gap-2 text-blue-700 hover:underline">
+                          <FaLink />
+                          {a.action ?? "View Submission"}
+                          <IoMdArrowDropdown />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
     </div>
   );
 };
 
-export default Assignment;
+export default Assignments;
