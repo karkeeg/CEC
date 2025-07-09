@@ -84,8 +84,8 @@ const Login = () => {
         const user = data.user;
         const role = user?.user_metadata?.role?.toLowerCase();
 
-        if (role === "admin") navigate("/admin");
-        else if (role === "student") navigate("/student");
+        if (role === "admin") navigate("/admin/dashboard");
+        else if (role === "student") navigate("/student/dashboard");
         else if (role === "teacher") navigate("/teacher");
         else navigate("/");
       }
