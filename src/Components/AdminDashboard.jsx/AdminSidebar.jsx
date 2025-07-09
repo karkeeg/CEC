@@ -20,7 +20,11 @@ const AdminSidebar = () => {
         Navigation
       </div>
       <nav className="flex flex-col mt-6 space-y-2 px-4">
-        <NavItem icon={<FaTachometerAlt />} label="Dashboard" to="" />
+        <NavItem
+          icon={<FaTachometerAlt />}
+          label="Dashboard"
+          to="/admin/dashboard"
+        />
         <NavItem icon={<FaBook />} label="Students" to="/admin/student" />
         <NavItem icon={<SlCalender />} label="Teachers" to="/admin/teacher" />
         <NavItem
@@ -30,10 +34,16 @@ const AdminSidebar = () => {
         />
         <NavItem
           icon={<FaClipboardList />}
-          label="Assignments"
-          to="/assignment"
+          label="Attendance"
+          to="/admin/attendance"
         />
-        <NavItem icon={<MdFeedback />} label="Feedback" to="/admin/" />
+        <NavItem
+          icon={<FaClipboardList />}
+          label="Assignments"
+          to="/admin/assignment"
+        />
+        <NavItem icon={<MdFeedback />} label="Analytics" to="/admin/analytics" />
+        <NavItem icon={<MdFeedback />} label="Fees" to="/admin/fee" />
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/" />
         <NavItem icon={<FaSignOutAlt />} label="Logout" to="/admin/" />
       </nav>

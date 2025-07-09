@@ -1,14 +1,10 @@
+// Register.jsx
 import React, { useState } from "react";
-import bcrypt from "bcryptjs";
 import supabase from "../supabaseConfig/supabaseClient";
 
-const Register = () => {
+const RegisterPage = () => {
   const [role, setRole] = useState("student");
   const [form, setForm] = useState({
-    reg_no: "",
-    first_name: "",
-    middle_name: "",
-    last_name: "",
     email: "",
     password: "",
   });
@@ -26,56 +22,33 @@ const Register = () => {
     setMsg("");
     setLoading(true);
 
-    const { reg_no, first_name, middle_name, last_name, email, password } =
-      form;
+    const { email, password } = form;
 
-    if (!reg_no || !first_name || !last_name || !email || !password) {
-      setMsg("Please fill all required fields.");
+    if (!email || !password) {
+      setMsg("Email and password are required.");
       setLoading(false);
       return;
     }
 
     try {
-      // Hash the password
-      const salt = bcrypt.genSaltSync(10);
-      const hashedPassword = bcrypt.hashSync(password, salt);
-
-      // Determine table
-      const table =
-        role === "admin"
-          ? "admins"
-          : role === "teacher"
-          ? "teachers"
-          : "students";
-
-      // Prepare data to insert
-      const dataToInsert = {
-        reg_no,
-        first_name,
-        middle_name,
-        last_name,
+      const { data, error } = await supabase.auth.signUp({
         email,
-        hashed_password: hashedPassword,
-      };
-
-      const { error } = await supabase.from(table).insert([dataToInsert]);
+        password,
+        options: {
+          data: {
+            role: role,
+          },
+        },
+      });
 
       if (error) {
-        console.error("Insert error:", error);
-        setMsg("Registration failed: " + error.message);
+        setMsg("Signup failed: " + error.message);
       } else {
-        setMsg(`Successfully registered as ${role}`);
-        setForm({
-          reg_no: "",
-          first_name: "",
-          middle_name: "",
-          last_name: "",
-          email: "",
-          password: "",
-        });
+        setMsg("Signup successful! Check your email to confirm your account.");
+        setForm({ email: "", password: "" });
       }
     } catch (err) {
-      console.error("Hashing error:", err);
+      console.error("Unexpected error:", err);
       setMsg("Something went wrong.");
     }
 
@@ -104,41 +77,6 @@ const Register = () => {
           <option value="admin">Admin</option>
         </select>
 
-        <input
-          name="reg_no"
-          type="text"
-          placeholder="Registration Number"
-          value={form.reg_no}
-          onChange={handleChange}
-          className="w-full border px-4 py-2 rounded-md"
-          required
-        />
-        <input
-          name="first_name"
-          type="text"
-          placeholder="First Name"
-          value={form.first_name}
-          onChange={handleChange}
-          className="w-full border px-4 py-2 rounded-md"
-          required
-        />
-        <input
-          name="middle_name"
-          type="text"
-          placeholder="Middle Name (optional)"
-          value={form.middle_name}
-          onChange={handleChange}
-          className="w-full border px-4 py-2 rounded-md"
-        />
-        <input
-          name="last_name"
-          type="text"
-          placeholder="Last Name"
-          value={form.last_name}
-          onChange={handleChange}
-          className="w-full border px-4 py-2 rounded-md"
-          required
-        />
         <input
           name="email"
           type="email"
@@ -170,4 +108,4 @@ const Register = () => {
   );
 };
 
-export default Register;
+export default RegisterPage;

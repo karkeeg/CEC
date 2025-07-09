@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import supabase from "../supabaseConfig/supabaseClient";
 import img1 from "../assets/image 19.png";
 import img2 from "../assets/person.png";
 import img3 from "../assets/logo.png";
+import Swal from "sweetalert2";
 
 const carouselImages = [img1, img2, img3];
 
@@ -53,7 +54,7 @@ const Login = () => {
     setErrors(validate());
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
 
@@ -61,10 +62,33 @@ const Login = () => {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      // TEMP: Direct route based on selected role
-      if (role === "Admin") navigate("/admin");
-      else if (role === "Student") navigate("/student");
-      else if (role === "Faculty") navigate("/faculty");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        const result = await Swal.fire({
+          icon: "error",
+          title: "Login Failed",
+          text: "User not found or invalid credentials. Do you want to register instead?",
+          showCancelButton: true,
+          confirmButtonText: "Register",
+          cancelButtonText: "Try Again",
+        });
+
+        if (result.isConfirmed) {
+          navigate("/register");
+        }
+      } else {
+        const user = data.user;
+        const role = user?.user_metadata?.role?.toLowerCase();
+
+        if (role === "admin") navigate("/admin");
+        else if (role === "student") navigate("/student");
+        else if (role === "teacher") navigate("/teacher");
+        else navigate("/");
+      }
     }
   };
 
@@ -160,7 +184,7 @@ const Login = () => {
               </a>
             </div>
 
-            <select
+            {/* <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="w-full p-4 xs:p-3 border border-[#6ed0e0] rounded-full bg-white text-gray-700 focus:outline-none text-sm xs:text-base"
@@ -168,7 +192,7 @@ const Login = () => {
               <option>Admin</option>
               <option>Student</option>
               <option>Faculty</option>
-            </select>
+            </select> */}
 
             <button
               type="submit"
@@ -176,6 +200,9 @@ const Login = () => {
             >
               Continue
             </button>
+            <p>
+              Haven't you registered yet ? <Link to={"/register"}>Go on!</Link>{" "}
+            </p>
           </form>
         </div>
       </div>

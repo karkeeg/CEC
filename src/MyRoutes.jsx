@@ -15,6 +15,11 @@ import AdminDasboardLayout from "./Pages/AdminDashboardLayout";
 import AdminStudents from "./Components/AdminDashboard.jsx/AdminStudents";
 import TeacherDashboard from "./Components/AdminDashboard.jsx/TeacherDashboard";
 import DepartmentsPage from "./Components/AdminDashboard.jsx/DeparmentsPage";
+import AdminAttandancePage from "./Components/AdminDashboard.jsx/AdminAttandencePage";
+import AdminAssignmentsPage from "./Components/AdminDashboard.jsx/AdminAssignments";
+import MainDashboard from "./Components/AdminDashboard.jsx/MainDashboard";
+import AnalyticsDashboard from "./Components/AdminDashboard.jsx/AnalyticsDashboard";
+import FeeDashboard from "./Components/AdminDashboard.jsx/FeeDashboard";
 
 const MyRoutes = () => {
   return (
@@ -24,7 +29,7 @@ const MyRoutes = () => {
           <Route index element={<HomePage />} />
         </Route>
         <Route path="/login" element={<Login />} />
-        {/* <Route path="/register" element={<Register />} /> */}
+        <Route path="/register" element={<Register />} />
 
         {/* <Route path="/students" element={<StudentList />} /> */}
 
@@ -36,9 +41,14 @@ const MyRoutes = () => {
         </Route>
 
         <Route path="/admin" element={<AdminDasboardLayout />}>
+          <Route path="dashboard" element={<MainDashboard />} />
           <Route path="student" element={<AdminStudents />} />
           <Route path="teacher" element={<TeacherDashboard />} />
           <Route path="department" element={<DepartmentsPage />} />
+          <Route path="attendance" element={<AdminAttandancePage />} />
+          <Route path="assignment" element={<AdminAssignmentsPage />} />
+          <Route path="analytics" element={<AnalyticsDashboard />} />
+          <Route path="fee" element={<FeeDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>
