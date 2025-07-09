@@ -64,8 +64,8 @@ const TeacherDashboard = () => {
   );
 
   return (
-    <div className="ml-64 p-6">
-      <h1 className="text-2xl font-bold mb-4">Teachers Dashboard</h1>
+    <div className="ml-64 p-4 bg-white">
+      <h1 className="text-3xl font-bold mb-4">Teachers Dashboard</h1>
 
       <input
         type="text"

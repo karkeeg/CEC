@@ -16,7 +16,7 @@ import { NavLink } from "react-router-dom";
 const AdminSidebar = () => {
   return (
     <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex flex-col shadow-lg">
-      <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
+      <div className="text-2xl font-bold py-4 px-4 border-b border-white/20">
         Navigation
       </div>
       <nav className="flex flex-col mt-6 space-y-2 px-4">

@@ -20,6 +20,7 @@ import AdminAssignmentsPage from "./Components/AdminDashboard.jsx/AdminAssignmen
 import MainDashboard from "./Components/AdminDashboard.jsx/MainDashboard";
 import AnalyticsDashboard from "./Components/AdminDashboard.jsx/AnalyticsDashboard";
 import FeeDashboard from "./Components/AdminDashboard.jsx/FeeDashboard";
+import Feedback from "./Components/StudentDashboard/Feedback";
 
 const MyRoutes = () => {
   return (
@@ -38,6 +39,7 @@ const MyRoutes = () => {
           <Route path="assignment" element={<Assignment />} />
           <Route path="classes" element={<Classes />} />
           <Route path="attendance" element={<Attendance />} />
+          <Route path="feedback" element={<Feedback />} />
         </Route>
 
         <Route path="/admin" element={<AdminDasboardLayout />}>

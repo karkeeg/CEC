@@ -74,16 +74,7 @@ const AnalyticsDashboard = () => {
 
   return (
     <div className="ml-64 min-h-screen bg-white text-gray-500 p-6">
-      {/* Top Bar */}
-      <div className="bg-[#1F4EB4] text-white flex items-center justify-between px-6 py-4 rounded-md mb-6">
-        <p className="text-lg font-semibold">
-          Welcome Back, <span className="font-bold">John !</span>
-        </p>
-        <div className="flex items-center gap-6">
-          <FaBell className="text-lg" />
-          <FaUserCircle className="text-2xl" />
-        </div>
-      </div>
+      <h1 className="font-bold text-3xl p-2">Analytical Dashboard</h1>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 justify-end mb-6">

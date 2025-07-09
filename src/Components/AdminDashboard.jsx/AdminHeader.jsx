@@ -4,7 +4,7 @@ import avatar from "../../assets/logo.png";
 
 const AdminHeader = () => {
   return (
-    <header className="fixed top-0 left-64 right-0 z-50 flex justify-between items-center pl-10 pr-12 py-5 bg-[#1E449D] text-white shadow">
+    <header className="fixed top-0 left-64 right-0 z-50 flex justify-between items-center pl-10 pr-12 py-3 bg-[#1E449D] text-white shadow">
       <h1 className="text-xl font-semibold">Welcome back, Admin!</h1>
       <div className="flex items-center gap-4">
         <FaBell className="text-white text-lg cursor-pointer" />
