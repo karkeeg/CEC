@@ -5,10 +5,15 @@ import {
   FaSignInAlt,
   FaUserPlus,
   FaEnvelope,
+  FaUser,
+  FaSignOutAlt,
+  FaCog,
+  FaTachometerAlt,
 } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
+import { useUser } from "../contexts/UserContext";
 
 const navItems = [
   {
@@ -72,10 +77,44 @@ const navItems = [
 ];
 
 const Navbar = () => {
+  const { user, profile, signOut } = useUser();
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openSubDropdown, setOpenSubDropdown] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [openMobileSubDropdown, setOpenMobileSubDropdown] = useState(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  const getUserDisplayName = () => {
+    if (profile) {
+      if (profile.first_name && profile.last_name) {
+        return `${profile.first_name} ${profile.last_name}`;
+      } else if (profile.first_name) {
+        return profile.first_name;
+      }
+    }
+    return user?.email?.split("@")[0] || "User";
+  };
+
+  const getUserRole = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return "Administrator";
+    if (role === "student") return "Student";
+    if (role === "teacher") return "Teacher";
+    return "User";
+  };
+
+  const getDashboardLink = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return "/admin/dashboard";
+    if (role === "student") return "/student/dashboard";
+    if (role === "teacher") return "/teacher/dashboard";
+    return "/login";
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = "/";
+  };
 
   return (
     <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow">
@@ -97,46 +136,46 @@ const Navbar = () => {
               <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-700 text-xs" />
             </div>
 
-            {/* Nav Links */}
-            <ul className="flex items-center gap-2 xl:gap-2">
+            {/* Navigation Items */}
+            <ul className="flex items-center gap-1">
               {navItems.map((item, idx) => (
-                <li
-                  key={item.label}
-                  className="relative group"
-                  onMouseEnter={() => setOpenDropdown(idx)}
-                  onMouseLeave={() => {
-                    setOpenDropdown(null);
-                    setOpenSubDropdown(null);
-                  }}
-                >
+                <li key={item.label} className="relative">
                   {item.label === "Departments" ? (
                     <>
-                      <button className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center ">
+                      <button
+                        className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1"
+                        onMouseEnter={() => setOpenDropdown(idx)}
+                        onMouseLeave={() => setOpenDropdown(null)}
+                      >
                         {item.label} <span className="ml-1">▾</span>
                       </button>
 
                       {openDropdown === idx && (
-                        <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20">
+                        <div
+                          className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
+                          onMouseEnter={() => setOpenDropdown(idx)}
+                          onMouseLeave={() => setOpenDropdown(null)}
+                        >
                           {item.dropdown.map((cat) => {
                             const catKey = cat.replace(/ ▸$/, "");
                             return (
-                              <div
-                                key={cat}
-                                className="relative group"
-                                onMouseEnter={() => setOpenSubDropdown(catKey)}
-                                onMouseLeave={() => setOpenSubDropdown(null)}
-                              >
-                                <div className="flex justify-between items-center px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] cursor-pointer">
+                              <div key={cat} className="relative group">
+                                <div
+                                  className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer flex justify-between items-center"
+                                  onMouseEnter={() =>
+                                    setOpenSubDropdown(catKey)
+                                  }
+                                  onMouseLeave={() => setOpenSubDropdown(null)}
+                                >
                                   {catKey} <span>▸</span>
                                 </div>
-
                                 {openSubDropdown === catKey && (
-                                  <div className="absolute left-full top-0 min-w-[220px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-30">
+                                  <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg py-2 ml-1">
                                     {item.subDropdown[catKey].map(
                                       (course, cidx) => (
                                         <div
                                           key={cidx}
-                                          className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] cursor-pointer whitespace-nowrap"
+                                          className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
                                         >
                                           {course}
                                         </div>
@@ -152,12 +191,20 @@ const Navbar = () => {
                     </>
                   ) : item.dropdown ? (
                     <>
-                      <button className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1">
+                      <button
+                        className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1"
+                        onMouseEnter={() => setOpenDropdown(idx)}
+                        onMouseLeave={() => setOpenDropdown(null)}
+                      >
                         {item.label} <span className="ml-1">▾</span>
                       </button>
 
                       {openDropdown === idx && (
-                        <div className="absolute left-0 top-full min-w-[160px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20">
+                        <div
+                          className="absolute left-0 top-full min-w-[160px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
+                          onMouseEnter={() => setOpenDropdown(idx)}
+                          onMouseLeave={() => setOpenDropdown(null)}
+                        >
                           {item.dropdown.map((sub, subIdx) => (
                             <Link
                               to={`/${item.label
@@ -188,21 +235,96 @@ const Navbar = () => {
 
             {/* Right Buttons Container */}
             <div className="flex items-center border border-white rounded-full p-1 ml-auto">
-              <Link to="/login" title="Login">
-                <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
-                  <FaSignInAlt size={22} />
-                </button>
-              </Link>
-              <Link to="/register" title="Register">
-                <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
-                  <FaUserPlus size={22} />
-                </button>
-              </Link>
-              <a href="#contact" title="Contact" className="scroll-smooth">
-                <button className="p-2 rounded-full hover:bg-[#fbbf24] transition">
-                  <FaEnvelope size={22} />
-                </button>
-              </a>
+              {user ? (
+                <>
+                  {/* Dashboard Button */}
+                  <Link to={getDashboardLink()} title="Dashboard">
+                    <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
+                      <FaTachometerAlt size={22} />
+                    </button>
+                  </Link>
+
+                  {/* User Profile Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserDropdown(!showUserDropdown)}
+                      className="flex items-center gap-2 hover:bg-[#3cb4d4] rounded-full p-1 transition"
+                      title="Profile"
+                    >
+                      <img
+                        src={logo}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full object-cover border border-white"
+                      />
+                    </button>
+
+                    {showUserDropdown && (
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                        {/* User Info */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={logo}
+                              alt="Profile"
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                            <div>
+                              <p className="font-semibold text-gray-800">
+                                {getUserDisplayName()}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {user?.email}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {getUserRole()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Menu Items */}
+                        <div className="py-1">
+                          <Link to={getDashboardLink()}>
+                            <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
+                              <FaTachometerAlt className="text-gray-500" />
+                              <span>Dashboard</span>
+                            </button>
+                          </Link>
+                          <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
+                            <FaUser className="text-gray-500" />
+                            <span>Profile</span>
+                          </button>
+                          <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
+                            <FaCog className="text-gray-500" />
+                            <span>Settings</span>
+                          </button>
+                          <hr className="my-1" />
+                          <button
+                            onClick={handleSignOut}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-left text-red-600 hover:bg-red-50 transition"
+                          >
+                            <FaSignOutAlt />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" title="Login">
+                    <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
+                      <FaSignInAlt size={22} />
+                    </button>
+                  </Link>
+                  <a href="#contact" title="Contact" className="scroll-smooth">
+                    <button className="p-2 rounded-full hover:bg-[#fbbf24] transition">
+                      <FaEnvelope size={22} />
+                    </button>
+                  </a>
+                </>
+              )}
             </div>
           </div>
 
@@ -218,10 +340,30 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {mobileMenu && (
           <div className="lg:hidden bg-[#1b3e94] w-full py-4 px-2 rounded-b-xl shadow-xl z-30">
+            {/* User Info for Mobile */}
+            {user && (
+              <div className="px-4 py-3 border-b border-white/20 mb-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={logo}
+                    alt="Profile"
+                    className="h-12 w-12 rounded-full object-cover border border-white"
+                  />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {getUserDisplayName()}
+                    </p>
+                    <p className="text-sm text-blue-200">{user?.email}</p>
+                    <p className="text-xs text-blue-300">{getUserRole()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <ul className="flex flex-col gap-2">
               {navItems.map((item, idx) => (
                 <li key={item.label} className="relative">
-                  {item.label === "Academic Program" ? (
+                  {item.label === "Departments" ? (
                     <>
                       <button
                         className="w-full text-left px-3 py-2 hover:bg-[#3cb4d4] rounded flex justify-between items-center"
@@ -312,25 +454,46 @@ const Navbar = () => {
             </ul>
 
             <div className="flex gap-2 mt-4">
-              <Link to="/login" className="flex-1">
-                <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
-                  <FaSignInAlt size={22} className="mx-auto" />
-                </button>
-              </Link>
-              <Link to="/register" className="flex-1">
-                <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
-                  <FaUserPlus size={22} className="mx-auto" />
-                </button>
-              </Link>
-              <a href="#contact" className="flex-1">
-                <button className="w-full p-2 rounded-full hover:bg-[#fbbf24]">
-                  <FaEnvelope size={22} className="mx-auto" />
-                </button>
-              </a>
+              {user ? (
+                <>
+                  <Link to={getDashboardLink()} className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
+                      <FaTachometerAlt size={22} className="mx-auto" />
+                    </button>
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex-1 p-2 rounded-full hover:bg-red-600"
+                  >
+                    <FaSignOutAlt size={22} className="mx-auto" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
+                      <FaSignInAlt size={22} className="mx-auto" />
+                    </button>
+                  </Link>
+                  <a href="#contact" className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#fbbf24]">
+                      <FaEnvelope size={22} className="mx-auto" />
+                    </button>
+                  </a>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Backdrop to close user dropdown */}
+      {showUserDropdown && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowUserDropdown(false)}
+        />
+      )}
     </nav>
   );
 };

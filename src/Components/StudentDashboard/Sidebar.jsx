@@ -11,9 +11,18 @@ import { HiCalendarDateRange } from "react-icons/hi2";
 import { IoAnalytics } from "react-icons/io5";
 import { MdFeedback } from "react-icons/md";
 import { SlCalender } from "react-icons/sl";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useUser } from "../../contexts/UserContext";
 
 const Sidebar = () => {
+  const { signOut } = useUser();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
   return (
     <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex flex-col shadow-lg">
       <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
@@ -51,7 +60,13 @@ const Sidebar = () => {
           label="Settings"
           to="/student/settings"
         />
-        <NavItem icon={<FaSignOutAlt />} label="Logout" to="/student/logout" />
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition mt-2"
+        >
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
       </nav>
     </aside>
   );

@@ -1,11 +1,11 @@
-
 import Routes from "./MyRoutes";
+import { UserProvider } from "./contexts/UserContext";
 
 function App() {
   return (
-    <>
-     <Routes/>
-    </>
+    <UserProvider>
+      <Routes />
+    </UserProvider>
   );
 }
 

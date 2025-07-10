@@ -21,6 +21,7 @@ import MainDashboard from "./Components/AdminDashboard.jsx/MainDashboard";
 import AnalyticsDashboard from "./Components/AdminDashboard.jsx/AnalyticsDashboard";
 import FeeDashboard from "./Components/AdminDashboard.jsx/FeeDashboard";
 import Feedback from "./Components/StudentDashboard/Feedback";
+import AuthGuard from "./components/AuthGuard";
 
 const MyRoutes = () => {
   return (
@@ -32,9 +33,15 @@ const MyRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* <Route path="/students" element={<StudentList />} /> */}
-
-        <Route path="/student" element={<UserDasboardLayout />}>
+        {/* Student Routes - Protected */}
+        <Route
+          path="/student"
+          element={
+            <AuthGuard requiredRole="student">
+              <UserDasboardLayout />
+            </AuthGuard>
+          }
+        >
           <Route path="dashboard" element={<DashboardCard />} />
           <Route path="assignment" element={<Assignment />} />
           <Route path="classes" element={<Classes />} />
@@ -42,7 +49,15 @@ const MyRoutes = () => {
           <Route path="feedback" element={<Feedback />} />
         </Route>
 
-        <Route path="/admin" element={<AdminDasboardLayout />}>
+        {/* Admin Routes - Protected */}
+        <Route
+          path="/admin"
+          element={
+            <AuthGuard requiredRole="admin">
+              <AdminDasboardLayout />
+            </AuthGuard>
+          }
+        >
           <Route path="dashboard" element={<MainDashboard />} />
           <Route path="student" element={<AdminStudents />} />
           <Route path="teacher" element={<TeacherDashboard />} />
