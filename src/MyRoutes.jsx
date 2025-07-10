@@ -21,7 +21,7 @@ import MainDashboard from "./Components/AdminDashboard.jsx/MainDashboard";
 import AnalyticsDashboard from "./Components/AdminDashboard.jsx/AnalyticsDashboard";
 import FeeDashboard from "./Components/AdminDashboard.jsx/FeeDashboard";
 import Feedback from "./Components/StudentDashboard/Feedback";
-import AuthGuard from "./components/AuthGuard";
+import AuthGuard from "../src/Components/AuthGuard";
 
 const MyRoutes = () => {
   return (
