@@ -14,6 +14,7 @@ import { IoMdClose } from "react-icons/io";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
+import { MdDashboard } from "react-icons/md";
 
 const navItems = [
   {
@@ -118,26 +119,42 @@ const Navbar = () => {
 
   return (
     <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex items-center h-[94px] gap-x-6">
-          <Link to="/" className="flex items-center gap-2 min-w-[64px]">
-            <img src={logo} alt="Logo" className="w-24 h-24 object-contain" />
+      <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex items-center h-[94px] gap-x-2 w-full">
+          <Link
+            to="/"
+            className="flex items-center  min-w-[120px] hover:opacity-90 transition-all duration-300 group"
+            aria-label="Go to homepage"
+          >
+            <img
+              src={logo}
+              alt="Central Engineering College logo"
+              className="w-24 h-24 object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
+            />
+            <div className="flex flex-col leading-tight">
+              <span className="text-xl md:text-2xl font-bold text-white drop-shadow-sm">
+                Central Engineering
+              </span>
+              <span className="text-sm md:text-base font-medium text-white/80 tracking-wide">
+                College
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex flex-1 items-center justify-between">
+          <div className="hidden lg:flex flex-1 items-center justify-start ml-2 space-x-2 ">
             {/* Search */}
-            <div className="relative mr-4">
+            <div className="relative w-[154px]">
               <input
                 type="text"
                 placeholder="Search"
-                className="pl-4 pr-8 py-1.5 rounded-full bg-[#b3e3f7] text-black placeholder:text-gray-600 focus:outline-none text-sm"
+                className="pl-4 pr-6 py-1.5 rounded-full bg-[#b3e3f7] text-black placeholder:text-gray-600 focus:outline-none text-sm w-full"
               />
               <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-700 text-xs" />
             </div>
 
             {/* Navigation Items */}
-            <ul className="flex items-center gap-1">
+            <ul className="flex items-center">
               {navItems.map((item, idx) => (
                 <li key={item.label} className="relative">
                   {item.label === "Departments" ? (
@@ -234,13 +251,13 @@ const Navbar = () => {
             </ul>
 
             {/* Right Buttons Container */}
-            <div className="flex items-center border border-white rounded-full p-1 ml-auto">
+            <div className="flex items-center border border-white rounded-full p-1">
               {user ? (
                 <>
                   {/* Dashboard Button */}
                   <Link to={getDashboardLink()} title="Dashboard">
                     <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
-                      <FaTachometerAlt size={22} />
+                      <MdDashboard size={22} />
                     </button>
                   </Link>
 
@@ -286,7 +303,7 @@ const Navbar = () => {
                         <div className="py-1">
                           <Link to={getDashboardLink()}>
                             <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
-                              <FaTachometerAlt className="text-gray-500" />
+                              <MdDashboard className="text-gray-500" />
                               <span>Dashboard</span>
                             </button>
                           </Link>
@@ -329,12 +346,14 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <button
-            className="lg:hidden p-2 rounded hover:bg-[#3cb4d4]"
-            onClick={() => setMobileMenu((prev) => !prev)}
-          >
-            {mobileMenu ? <IoMdClose size={24} /> : <FaBars size={20} />}
-          </button>
+          <div className="flex-1 flex lg:hidden justify-end">
+            <button
+              className="p-2 text-end rounded hover:bg-[#3cb4d4]"
+              onClick={() => setMobileMenu((prev) => !prev)}
+            >
+              {mobileMenu ? <IoMdClose size={24} /> : <FaBars size={20} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
@@ -458,7 +477,7 @@ const Navbar = () => {
                 <>
                   <Link to={getDashboardLink()} className="flex-1">
                     <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
-                      <FaTachometerAlt size={22} className="mx-auto" />
+                      <MdDashboard size={22} className="mx-auto" />
                     </button>
                   </Link>
                   <button

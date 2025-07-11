@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import personImage from "../assets/person.png";
+import supabase from "../supabaseConfig/supabaseClient";
 
 const IntroSection = () => {
-  const [activeIndex, setActiveIndex] = useState(null);
+  let [activeIndex, setActiveIndex] = useState(null);
+  const [chairman, setChairman] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const stats = [
     { number: "25+", label: "Legacy" },
@@ -11,6 +15,25 @@ const IntroSection = () => {
     { number: "50+", label: "Faculty Members" },
     { number: "PU & CTEVTC", label: "Affiliated" },
   ];
+
+  useEffect(() => {
+    const fetchChairman = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("articles")
+        .select("*")
+        .eq("slug", "chairmans-message")
+        .maybeSingle();
+      if (error) {
+        setError(error.message);
+        setChairman(null);
+      } else {
+        setChairman(data);
+      }
+      setLoading(false);
+    };
+    fetchChairman();
+  }, []);
 
   return (
     <section
@@ -39,27 +62,32 @@ const IntroSection = () => {
           <div className="flex flex-col lg:flex-row items-center gap-10">
             {/* Left Text Section */}
             <div className="flex-1 text-[#1f1f1f]">
-              <h3 className="text-2xl font-bold mb-2">
-                First commitment of our college is <br />
-                <span className="italic font-extrabold text-2xl text-black">
-                  "QUALITY EDUCATION IS OUR COMMITMENT"
-                </span>
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed text-gray-800">
-                Established in 2053 B.S. with the guiding principle “Quality
-                Education is Our Commitment,” our institution began its journey
-                as Nepal Technical Institute Pvt. Ltd., offering a range of
-                technical courses in engineering and health sciences. Today, as
-                Central Engineering College, we proudly continue this legacy by
-                offering a Bachelor in Civil Engineering (4 years) affiliated
-                with Purbanchal University, along with Diploma programs in Civil
-                Engineering and Electrical Engineering (3 years each), and
-                short-term programs in Electrical Sub-Overseer and Survey
-                Engineering (15 months) affiliated with CTEVT. As the Chairman,
-                I extend my best wishes to all aspiring students and invite you
-                to be a part of our mission to empower the next generation of
-                skilled professionals.
-              </p>
+              {loading ? (
+                <div className="text-gray-500">
+                  Loading chairman's message...
+                </div>
+              ) : error ? (
+                <div className="text-red-600">{error}</div>
+              ) : chairman ? (
+                <>
+                  <h3 className="text-2xl font-bold mb-2">{chairman.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed text-gray-800">
+                    {chairman.summary}
+                  </p>
+                  <div className="mt-4">
+                    <a
+                      href="/articles/chairmans-message"
+                      className="inline-block px-5 py-2 bg-[#1b3e94] text-white rounded-full font-semibold shadow hover:bg-[#2a4bd7] transition"
+                    >
+                      Read More
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500">
+                  No chairman's message found.
+                </div>
+              )}
             </div>
 
             {/* Right Image Section */}

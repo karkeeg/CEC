@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import supabase from "../supabaseConfig/supabaseClient";
-import img1 from "../assets/image 19.png";
+import img1 from "../assets/image1.png";
 import img2 from "../assets/person.png";
 import img3 from "../assets/logo.png";
 import Swal from "sweetalert2";

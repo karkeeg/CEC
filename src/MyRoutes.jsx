@@ -22,6 +22,8 @@ import AnalyticsDashboard from "./Components/AdminDashboard.jsx/AnalyticsDashboa
 import FeeDashboard from "./Components/AdminDashboard.jsx/FeeDashboard";
 import Feedback from "./Components/StudentDashboard/Feedback";
 import AuthGuard from "../src/Components/AuthGuard";
+import Articles from "./Pages/Articles";
+import ArticleDetail from "./Pages/ArticleDetail";
 
 const MyRoutes = () => {
   return (
@@ -29,9 +31,13 @@ const MyRoutes = () => {
       <Routes>
         <Route path="/" element={<LayoutPage />}>
           <Route index element={<HomePage />} />
+          <Route path="/articles" element={<Articles />} />
+          <Route path="/articles/:id" element={<ArticleDetail />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        <Route path="/st" element={<StudentList />} />
 
         {/* Student Routes - Protected */}
         <Route

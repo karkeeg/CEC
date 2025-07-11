@@ -39,11 +39,9 @@ const Header = () => {
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center gap-2 hover:bg-blue-700 rounded-full p-1 transition"
           >
-            <img
-              src={avatar}
-              alt="Profile"
-              className="h-10 w-10 rounded-full object-cover border-2 border-white"
-            />
+            <div className="flex items-center gap-3">
+              <FaCircleUser className="text-5xl text-gray-950" />
+            </div>
           </button>
 
           {showDropdown && (
@@ -59,7 +57,7 @@ const Header = () => {
                     <p className="text-sm text-gray-600">{user?.email}</p>
                     {profile && (
                       <p className="text-xs text-gray-500">
-                        {profile.faculty}  {profile.department}
+                        {profile.faculty} {profile.department}
                       </p>
                     )}
                   </div>

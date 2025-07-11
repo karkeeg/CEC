@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FaPlay } from "react-icons/fa";
 
 import video from "../assets/collegevodeo.mp4";
+import thumbnail from "../assets/thumbnail.png";
 
 const recommendations = [
   {
@@ -38,20 +39,22 @@ const CampusSection = () => {
         </h2>
       </div>
 
+      {/* Main Video and Text Section */}
       <div className="flex flex-col lg:flex-row items-start justify-center gap-10 max-w-7xl mx-auto">
+        {/* Local College Video */}
         <div className="w-full lg:w-1/2 rounded-xl overflow-hidden">
           <div className="aspect-video">
-            <iframe
+            <video
               className="w-full h-full rounded-xl"
+              controls
               src={video}
-              title="YouTube video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
+              poster={thumbnail} // 👈 thumbnail image shown before play
+              preload="none"
             />
           </div>
         </div>
 
+        {/* Description */}
         <div className="lg:w-1/2 text-justify">
           <h3 className="text-xl font-semibold mb-4">
             First commitment of our college is <br />
@@ -68,7 +71,7 @@ const CampusSection = () => {
         </div>
       </div>
 
-      {/* Recommendations */}
+      {/* Recommendations Section */}
       <div className="mt-12 max-w-7xl mx-auto">
         <h4 className="font-semibold text-lg mb-4">Recommendation</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -99,13 +102,17 @@ const CampusSection = () => {
           className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center"
           onClick={() => setSelectedVideo(null)}
         >
-          <div className="w-[90%] md:w-[60%] aspect-video">
+          <div
+            className="w-[90%] md:w-[60%] aspect-video"
+            onClick={(e) => e.stopPropagation()}
+          >
             <iframe
               className="w-full h-full rounded-lg"
-              src={video}
+              src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1`}
               title="Selected Video"
               frameBorder="0"
-              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              poster={thumbnail}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
           </div>
