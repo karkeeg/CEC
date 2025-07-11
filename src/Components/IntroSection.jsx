@@ -105,10 +105,7 @@ const IntroSection = () => {
             {stats.map((item, index) => (
               <div
                 key={index}
-                onClick={() => setActiveIndex(index)}
-                className={`flex-1 min-w-[120px] cursor-pointer rounded-md p-3 transition-all duration-300 ${
-                  activeIndex === index ? "bg-[#2a4bd7]" : "bg-transparent"
-                }`}
+                className={`flex-1 min-w-[120px] cursor-pointer rounded-md p-3 transition-all duration-300 hover:bg-[#2a4bd7]`}
               >
                 <p className="text-xl font-bold">{item.number}</p>
                 <p className="text-sm">{item.label}</p>

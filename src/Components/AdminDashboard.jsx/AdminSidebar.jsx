@@ -61,7 +61,7 @@ const AdminSidebar = () => {
           to="/admin/analytics"
         />
         <NavItem icon={<CiMoneyBill />} label="Fees" to="/admin/fee" />
-        <NavItem icon={<FiSettings />} label="Settings" to="/admin/" />
+        <NavItem icon={<FiSettings />} label="Settings" to="/admin/settings" />
         <button
           onClick={handleLogout}
           className="flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition mt-2"

@@ -18,14 +18,12 @@ const highlights = [
   {
     title: "Objective",
     description:
-      "Provide experienced faculty and dedicated mentors to foster innovation and creativity across engineering and medical sciences.",
+      "Provide experienced faculty and dedicated on something mentors to foster innovation and creativity across engineering and medical sciences.",
     icon: <FaUsers size={64} className="text-yellow-500" />,
   },
 ];
 
 const HighlightsSection = () => {
-  const [activeIndex, setActiveIndex] = useState(1);
-
   return (
     <div
       className="py-14 px-4"
@@ -42,13 +40,8 @@ const HighlightsSection = () => {
         {highlights.map((item, index) => (
           <div
             key={index}
-            onClick={() => setActiveIndex(index)}
-            className={`transition-all cursor-pointer p-6 rounded-xl shadow-md w-full sm:w-[90%] md:w-[400px] lg:w-[30%] text-center
-              ${
-                activeIndex === index
-                  ? "bg-blue-900 text-white scale-105"
-                  : "bg-white text-black hover:scale-105"
-              }`}
+            className={`transition-all cursor-pointer p-6 rounded-xl bg-white hover:bg-blue-900 shadow-md w-full sm:w-[90%] md:w-[400px] lg:w-[30%] text-center
+             `}
           >
             <div className="mb-4 flex items-center justify-center h-[100px] w-full">
               {item.icon}

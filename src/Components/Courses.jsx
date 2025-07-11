@@ -1,21 +1,36 @@
 import React from "react";
+import {
+  FaTools,
+  FaHardHat,
+  FaBolt,
+  FaLaptopCode,
+  FaUserMd,
+  FaXRay,
+  FaVial,
+  FaBusinessTime,
+  FaUserGraduate,
+  FaMicroscope,
+  FaUserNurse,
+  FaBriefcase,
+  FaCapsules,
+} from "react-icons/fa";
 
 const courses = [
-  "MSC Engineering (Proposed)",
-  "Bachelor In Civil Engineering",
-  "Bachelor in Electrical Engineering",
-  "Bachelor of Information Technology",
-  "Diploma In Civil Engineering",
-  "Diploma In Electrical Engineering",
-  "Pre Diploma in Electrical Engineering",
-  "Pre Diploma In Civil Engineering",
-  "Pre Diploma In Computer Engineering",
-  "General Medicine (HA)",
-  "Diploma in Radiography",
-  "PCL Health Lab Technician",
-  "Masters In Business Administration",
-  "Bachelor Of Business Administration",
-  "Diploma in Pharmacy",
+  { name: "MSC Engineering (Proposed)", icon: <FaTools /> },
+  { name: "Bachelor In Civil Engineering", icon: <FaHardHat /> },
+  { name: "Bachelor in Electrical Engineering", icon: <FaBolt /> },
+  { name: "Bachelor of Information Technology", icon: <FaLaptopCode /> },
+  { name: "Diploma In Civil Engineering", icon: <FaHardHat /> },
+  { name: "Diploma In Electrical Engineering", icon: <FaBolt /> },
+  { name: "Pre Diploma in Electrical Engineering", icon: <FaBolt /> },
+  { name: "Pre Diploma In Civil Engineering", icon: <FaHardHat /> },
+  { name: "Pre Diploma In Computer Engineering", icon: <FaLaptopCode /> },
+  { name: "General Medicine (HA)", icon: <FaUserMd /> },
+  { name: "Diploma in Radiography", icon: <FaXRay /> },
+  { name: "PCL Health Lab Technician", icon: <FaMicroscope /> },
+  { name: "Masters In Business Administration", icon: <FaBusinessTime /> },
+  { name: "Bachelor Of Business Administration", icon: <FaBriefcase /> },
+  { name: "Diploma in Pharmacy", icon: <FaCapsules /> },
 ];
 
 const Courses = () => {
@@ -31,16 +46,28 @@ const Courses = () => {
         </div>
 
         {/* Card  */}
-        <div className="h-[660px] overflow-y-auto pr-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="h-[380px] overflow-y-auto pr-2 scrollbar-none">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+            style={{
+              gridAutoRows: "1fr",
+              maxHeight: "calc(2 * 180px)",
+              overflowY: "auto",
+            }}
+          >
             {courses.map((course, index) => (
               <div
                 key={index}
-                className="bg-white border rounded-[24px] p-6 hover:shadow-xl transition text-center flex flex-col justify-center items-center"
+                className="bg-white border rounded-[24px] p-8 hover:shadow-xl cursor-pointer transition text-center flex flex-col justify-center items-center"
               >
-                <h3 className="text-lg font-bold text-blue-700 mb-2 bg-gradient-to-r from-[#1E449D] to-[rgba(77,167,204,0.5)] bg-clip-text text-transparent p-2 rounded-lg">
-                  {course}
-                </h3>
+                <div className="flex flex-row items-center  justify-center mb-2">
+                  <span className="text-2xl text-blue-700 m-0 p-0 leading-none">
+                    {course.icon}
+                  </span>
+                  <h3 className="text-lg font-bold text-blue-700 m-0 p-0 leading-none">
+                    {course.name}
+                  </h3>
+                </div>
               </div>
             ))}
           </div>

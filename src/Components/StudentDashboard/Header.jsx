@@ -10,12 +10,8 @@ const Header = () => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const getUserDisplayName = () => {
-    if (profile) {
-      if (profile.first_name && profile.last_name) {
-        return `${profile.first_name} ${profile.last_name}`;
-      } else if (profile.first_name) {
-        return profile.first_name;
-      }
+    if (user?.user_metadata?.display_name) {
+      return user.user_metadata.display_name;
     }
     return user?.email?.split("@")[0] || "Student";
   };
@@ -26,7 +22,7 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-64 right-0 z-50 flex justify-between items-center pl-10 pr-12 py-5 bg-[#1E449D] text-white shadow">
+    <header className="fixed top-0 left-64 right-0 h-[80px] z-50 flex justify-between items-center pl-10 pr-12 py-5 bg-[#1E449D] text-white shadow">
       <h1 className="text-xl font-semibold">
         Welcome back, {getUserDisplayName()}!
       </h1>
@@ -40,7 +36,7 @@ const Header = () => {
             className="flex items-center gap-2 hover:bg-blue-700 rounded-full p-1 transition"
           >
             <div className="flex items-center gap-3">
-              <FaCircleUser className="text-5xl text-gray-950" />
+              <FaCircleUser className="text-4xl text-gray-950" />
             </div>
           </button>
 

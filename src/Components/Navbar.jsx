@@ -27,7 +27,7 @@ const navItems = [
   },
   {
     label: "Departments",
-    dropdown: ["Engineering ▸", "Management ▸", "Health/Medical/IT ▸"],
+    dropdown: ["Engineering ", "Management ", "Health/Medical/IT "],
     subDropdown: {
       Engineering: [
         "MSC Engineering (Proposed)",
@@ -120,152 +120,152 @@ const Navbar = () => {
   return (
     <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow">
       <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="flex items-center h-[94px] gap-x-2 w-full">
-          <Link
-            to="/"
-            className="flex items-center  min-w-[120px] hover:opacity-90 transition-all duration-300 group"
-            aria-label="Go to homepage"
-          >
-            <img
-              src={logo}
-              alt="Central Engineering College logo"
-              className="w-24 h-24 object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
-            />
-            <div className="flex flex-col leading-tight">
-              <span className="text-xl md:text-2xl font-bold text-white drop-shadow-sm">
-                Central Engineering
-              </span>
-              <span className="text-sm md:text-base font-medium text-white/80 tracking-wide">
-                College
-              </span>
+        <div className="flex items-center h-[94px] gap-x-6 w-full">
+          {/* Three-part flex layout */}
+          <div className="flex w-full">
+            {/* Left: Logo (30%) */}
+            <div className="flex items-center min-w-0 w-[30%]">
+              <Link
+                to="/"
+                className="flex items-center min-w-[180px] hover:opacity-90 transition-all duration-300 group"
+                aria-label="Go to homepage"
+              >
+                <img
+                  src={logo}
+                  alt="Central Engineering College logo"
+                  className="w-24 h-24 object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
+                />
+                <div className="flex flex-col leading-tight">
+                  <span className="text-2xl md:text-2xl font-bold text-white drop-shadow-sm">
+                    Central Engineering
+                  </span>
+                  <span className="text-sm md:text-base font-medium text-white/80 tracking-wide">
+                    College
+                  </span>
+                </div>
+              </Link>
             </div>
-          </Link>
-
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex flex-1 items-center justify-start ml-2 space-x-2 ">
-            {/* Search */}
-            <div className="relative w-[154px]">
-              <input
-                type="text"
-                placeholder="Search"
-                className="pl-4 pr-6 py-1.5 rounded-full bg-[#b3e3f7] text-black placeholder:text-gray-600 focus:outline-none text-sm w-full"
-              />
-              <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-700 text-xs" />
-            </div>
-
-            {/* Navigation Items */}
-            <ul className="flex items-center">
-              {navItems.map((item, idx) => (
-                <li key={item.label} className="relative">
-                  {item.label === "Departments" ? (
-                    <>
-                      <button
-                        className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1"
+            {/* Center: Nav Items (55%) - hidden on mobile */}
+            <div className="hidden md:flex items-center justify-center w-[55%]">
+              <ul className="flex items-center ">
+                {navItems.map((item, idx) => (
+                  <li key={item.label} className="relative">
+                    {item.label === "Departments" ? (
+                      <div
+                        className="relative"
                         onMouseEnter={() => setOpenDropdown(idx)}
                         onMouseLeave={() => setOpenDropdown(null)}
                       >
-                        {item.label} <span className="ml-1">▾</span>
-                      </button>
-
-                      {openDropdown === idx && (
-                        <div
-                          className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
-                          onMouseEnter={() => setOpenDropdown(idx)}
-                          onMouseLeave={() => setOpenDropdown(null)}
-                        >
-                          {item.dropdown.map((cat) => {
-                            const catKey = cat.replace(/ ▸$/, "");
-                            return (
-                              <div key={cat} className="relative group">
+                        <button className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1">
+                          {item.label} <span className="ml-1">▾</span>
+                        </button>
+                        {openDropdown === idx && (
+                          <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20">
+                            {item.dropdown.map((cat) => {
+                              const catKey = cat.replace(/ $/, "");
+                              return (
                                 <div
-                                  className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer flex justify-between items-center"
+                                  key={cat}
+                                  className="relative group"
                                   onMouseEnter={() =>
                                     setOpenSubDropdown(catKey)
                                   }
                                   onMouseLeave={() => setOpenSubDropdown(null)}
                                 >
-                                  {catKey} <span>▸</span>
-                                </div>
-                                {openSubDropdown === catKey && (
-                                  <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg py-2 ml-1">
-                                    {item.subDropdown[catKey].map(
-                                      (course, cidx) => (
-                                        <div
-                                          key={cidx}
-                                          className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
-                                        >
-                                          {course}
-                                        </div>
-                                      )
-                                    )}
+                                  <div className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer flex justify-between items-center">
+                                    {catKey} <span>▸</span>
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  ) : item.dropdown ? (
-                    <>
-                      <button
-                        className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1"
-                        onMouseEnter={() => setOpenDropdown(idx)}
-                        onMouseLeave={() => setOpenDropdown(null)}
-                      >
-                        {item.label} <span className="ml-1">▾</span>
-                      </button>
-
-                      {openDropdown === idx && (
-                        <div
-                          className="absolute left-0 top-full min-w-[160px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
+                                  {openSubDropdown === catKey && (
+                                    <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg ">
+                                      {item.subDropdown[catKey].map(
+                                        (course, cidx) => (
+                                          <div
+                                            key={cidx}
+                                            className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
+                                          >
+                                            {course}
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : item.dropdown ? (
+                      <>
+                        <button
+                          className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1"
                           onMouseEnter={() => setOpenDropdown(idx)}
                           onMouseLeave={() => setOpenDropdown(null)}
                         >
-                          {item.dropdown.map((sub, subIdx) => (
-                            <Link
-                              to={`/${item.label
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}/${sub
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}`}
-                              key={subIdx}
-                              className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                            >
-                              {sub}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Link
-                      to={item.link}
-                      className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
+                          {item.label} <span className="ml-1"></span>
+                        </button>
 
-            {/* Right Buttons Container */}
-            <div className="flex items-center border border-white rounded-full p-1">
+                        {openDropdown === idx && (
+                          <div
+                            className="absolute left-0 top-full min-w-[160px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
+                            onMouseEnter={() => setOpenDropdown(idx)}
+                            onMouseLeave={() => setOpenDropdown(null)}
+                          >
+                            {item.dropdown.map((sub, subIdx) => (
+                              <Link
+                                to={`/${item.label
+                                  .toLowerCase()
+                                  .replace(/\s/g, "-")}/${sub
+                                  .toLowerCase()
+                                  .replace(/\s/g, "-")}`}
+                                key={subIdx}
+                                className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                              >
+                                {sub}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <Link
+                        to={item.link}
+                        className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition"
+                      >
+                        {item.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+                {/* Add Notices item */}
+                <li className="relative">
+                  <Link
+                    to="/notices"
+                    className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition"
+                  >
+                    Notices
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            {/* Right: Icons (remaining 15%) - hidden on mobile */}
+            <div className="hidden md:flex items-center justify-end flex-1 ml-2">
               {user ? (
                 <>
                   {/* Dashboard Button */}
-                  <Link to={getDashboardLink()} title="Dashboard">
-                    <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
-                      <MdDashboard size={22} />
-                    </button>
-                  </Link>
-
+                  <div className="flex flex-col items-center">
+                    <Link to={getDashboardLink()} title="Dashboard">
+                      <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition flex flex-col items-center">
+                        <MdDashboard size={26} />
+                        <span className="text-xs mt-1">Dashboard</span>
+                      </button>
+                    </Link>
+                  </div>
                   {/* User Profile Dropdown */}
-                  <div className="relative">
+                  <div className="relative flex flex-col items-center">
                     <button
                       onClick={() => setShowUserDropdown(!showUserDropdown)}
-                      className="flex items-center gap-2 hover:bg-[#3cb4d4] rounded-full p-1 transition"
+                      className="flex flex-col items-center gap-1 hover:bg-[#3cb4d4] rounded-full p-1 transition"
                       title="Profile"
                     >
                       <img
@@ -273,6 +273,7 @@ const Navbar = () => {
                         alt="Profile"
                         className="h-8 w-8 rounded-full object-cover border border-white"
                       />
+                      <span className="text-xs mt-1">Profile</span>
                     </button>
 
                     {showUserDropdown && (
@@ -330,35 +331,44 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  <Link to="/login" title="Login">
-                    <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition">
-                      <FaSignInAlt size={22} />
-                    </button>
-                  </Link>
-                  <a href="#contact" title="Contact" className="scroll-smooth">
-                    <button className="p-2 rounded-full hover:bg-[#fbbf24] transition">
-                      <FaEnvelope size={22} />
-                    </button>
-                  </a>
+                  <div className="flex flex-col items-center">
+                    <Link to="/login" title="Login">
+                      <button className="p-2 rounded-full hover:bg-[#3cb4d4] transition flex flex-col items-center">
+                        <FaSignInAlt size={26} />
+                        <span className="text-xs mt-1">Login</span>
+                      </button>
+                    </Link>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <a
+                      href="#contact"
+                      title="Contact"
+                      className="scroll-smooth"
+                    >
+                      <button className="p-2 rounded-full hover:bg-[#fbbf24] transition flex flex-col items-center">
+                        <FaEnvelope size={26} />
+                        <span className="text-xs mt-1">Contact</span>
+                      </button>
+                    </a>
+                  </div>
                 </>
               )}
             </div>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="flex-1 flex lg:hidden justify-end">
-            <button
-              className="p-2 text-end rounded hover:bg-[#3cb4d4]"
-              onClick={() => setMobileMenu((prev) => !prev)}
-            >
-              {mobileMenu ? <IoMdClose size={24} /> : <FaBars size={20} />}
-            </button>
+            {/* Hamburger for mobile */}
+            <div className="flex md:hidden flex-1 justify-end">
+              <button
+                className="p-2 text-end rounded hover:bg-[#3cb4d4]"
+                onClick={() => setMobileMenu((prev) => !prev)}
+              >
+                {mobileMenu ? <IoMdClose size={24} /> : <FaBars size={20} />}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenu && (
-          <div className="lg:hidden bg-[#1b3e94] w-full py-4 px-2 rounded-b-xl shadow-xl z-30">
+          <div className="md:hidden bg-[#1b3e94] w-full py-4 px-2 rounded-b-xl shadow-xl z-30">
             {/* User Info for Mobile */}
             {user && (
               <div className="px-4 py-3 border-b border-white/20 mb-4">
@@ -470,6 +480,15 @@ const Navbar = () => {
                   )}
                 </li>
               ))}
+              {/* Add Notices item */}
+              <li className="relative">
+                <Link
+                  to="/notices"
+                  className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition block"
+                >
+                  Notices
+                </Link>
+              </li>
             </ul>
 
             <div className="flex gap-2 mt-4">

@@ -1,19 +1,88 @@
 import React from "react";
+import {
+  LineChart as ReLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart as ReBarChart,
+  Bar,
+  Legend,
+} from "recharts";
 
-// Placeholder chart components
-const LineChart = () => (
-  <div className="w-full h-48 bg-blue-100 rounded-lg flex items-center justify-center text-blue-400">
-    Line Chart
-  </div>
+// Mock data
+const studentPerformanceData = [
+  { month: "Jan", marks: 20 },
+  { month: "Feb", marks: 35 },
+  { month: "Mar", marks: 40 },
+  { month: "Apr", marks: 60 },
+  { month: "May", marks: 65 },
+  { month: "Jun", marks: 65 },
+  { month: "Jul", marks: 60 },
+  { month: "Aug", marks: 55 },
+  { month: "Sep", marks: 70 },
+  { month: "Oct", marks: 80 },
+];
+
+const gradeTrendsData = [
+  { course: "Math", A: 40, B: 30 },
+  { course: "C programming", A: 30, B: 20 },
+  { course: "English", A: 75, B: 60 },
+  { course: "Statistics", A: 77, B: 30 },
+];
+
+const courseWiseData = [
+  { course: "Math", days: 50 },
+  { course: "C", days: 90 },
+  { course: "English", days: 45 },
+  { course: "Statistics", days: 65 },
+  { course: "Statistics", days: 30 },
+  { course: "Statistics", days: 75 },
+  { course: "Statistics", days: 55 },
+];
+
+// Attendance heatmap mock data (7 days x 31 days)
+const attendanceHeatmap = Array.from({ length: 7 }, (_, row) =>
+  Array.from({ length: 31 }, (_, col) => {
+    // 0: Present, 1: Absent, 2: Public Holiday
+    if ((col + row) % 13 === 0) return 2;
+    if ((col + row) % 5 === 0) return 1;
+    return 0;
+  })
 );
-const BarChart = () => (
-  <div className="w-full h-48 bg-blue-100 rounded-lg flex items-center justify-center text-blue-400">
-    Bar Chart
-  </div>
-);
+const daysShort = ["S", "M", "T", "W", "T", "F", "S"];
+
 const Heatmap = () => (
-  <div className="w-full h-48 bg-blue-100 rounded-lg flex items-center justify-center text-blue-400">
-    Heatmap
+  <div className="overflow-x-auto">
+    <div className="grid grid-cols-32 gap-0.5">
+      <div></div>
+      {Array.from({ length: 31 }, (_, i) => (
+        <div key={i} className="text-[10px] text-center text-gray-500">
+          {i + 1}
+        </div>
+      ))}
+    </div>
+    {attendanceHeatmap.map((row, i) => (
+      <div key={i} className="grid grid-cols-32 gap-0.5">
+        <div className="text-[10px] text-gray-500 flex items-center justify-center h-4">
+          {daysShort[i]}
+        </div>
+        {row.map((cell, j) => (
+          <div
+            key={j}
+            className={`w-4 h-4 rounded ${
+              cell === 0
+                ? "bg-green-200"
+                : cell === 1
+                ? "bg-red-200"
+                : "bg-yellow-200"
+            }`}
+          ></div>
+        ))}
+      </div>
+    ))}
   </div>
 );
 
@@ -48,7 +117,26 @@ const AdminAnalytics = () => {
             <span className="text-xl">📈</span>
             <span className="font-bold text-xl">Student Performance</span>
           </div>
-          <LineChart />
+          <div className="w-full h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReLineChart
+                data={studentPerformanceData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="marks"
+                  stroke="#1b3e94"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                />
+              </ReLineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         {/* Grade Trends */}
         <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
@@ -57,7 +145,22 @@ const AdminAnalytics = () => {
             <span className="font-bold text-xl">Grade Trends</span>
             <span className="ml-auto text-gray-400 text-lg">^</span>
           </div>
-          <BarChart />
+          <div className="w-full h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReBarChart
+                data={gradeTrendsData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="course" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="A" fill="#1b3e94" />
+                <Bar dataKey="B" fill="#60a5fa" />
+              </ReBarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         {/* Course-wise Reports */}
         <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
@@ -65,7 +168,20 @@ const AdminAnalytics = () => {
             <span className="text-xl">📑</span>
             <span className="font-bold text-xl">Course-wise Reports</span>
           </div>
-          <BarChart />
+          <div className="w-full h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReBarChart
+                data={courseWiseData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="course" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="days" fill="#60a5fa" />
+              </ReBarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
         {/* Attendance Heatmap */}
         <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">

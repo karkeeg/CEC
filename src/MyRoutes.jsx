@@ -5,7 +5,7 @@ import HomePage from "./Pages/HomePage";
 import Login from "./Pages/Login";
 import DashboardCard from "./Components/StudentDashboard/DashboardCards";
 import Assignment from "./Components/StudentDashboard/Assignments";
-import AdminLayout from "./Pages/UserDasboardLayout";
+// import AdminLayout from "./Pages/UserDasboardLayout";
 import Classes from "./Components/StudentDashboard/Classes";
 import Attendance from "./Components/StudentDashboard/Attendance";
 import StudentList from "./Components/StudentList";
@@ -24,6 +24,9 @@ import Feedback from "./Components/StudentDashboard/Feedback";
 import AuthGuard from "../src/Components/AuthGuard";
 import Articles from "./Pages/Articles";
 import ArticleDetail from "./Pages/ArticleDetail";
+import AdminAnalytics from "./Components/AdminDashboard.jsx/AdminAnalytics";
+import Settings from "./Components/Settings";
+import StudentAnalytics from "./Components/StudentDashboard/StudentAnalytics";
 
 const MyRoutes = () => {
   return (
@@ -53,6 +56,8 @@ const MyRoutes = () => {
           <Route path="classes" element={<Classes />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="feedback" element={<Feedback />} />
+          <Route path="analytics" element={<StudentAnalytics />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* Admin Routes - Protected */}
@@ -72,6 +77,8 @@ const MyRoutes = () => {
           <Route path="assignment" element={<AdminAssignmentsPage />} />
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="fee" element={<FeeDashboard />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

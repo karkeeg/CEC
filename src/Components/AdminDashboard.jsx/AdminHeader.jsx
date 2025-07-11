@@ -9,12 +9,8 @@ const AdminHeader = () => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const getUserDisplayName = () => {
-    if (profile) {
-      if (profile.first_name && profile.last_name) {
-        return `${profile.first_name} ${profile.last_name}`;
-      } else if (profile.first_name) {
-        return profile.first_name;
-      }
+    if (user?.user_metadata?.display_name) {
+      return user.user_metadata.display_name;
     }
     return user?.email?.split("@")[0] || "Admin";
   };
