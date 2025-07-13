@@ -118,7 +118,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow sticky top-0 z-50">
+    <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow top-0 z-50">
       <div className="max-w-8xl mx-auto px-2 sm:px-4 md:px-6 xl:px-8">
         <div className="flex items-center h-[60px] md:h-[64px] xl:h-[70px] gap-x-2 md:gap-x-4 w-full justify-between">
           {/* Left: Logo */}
@@ -144,7 +144,7 @@ const Navbar = () => {
             </Link>
           </div>
           {/* Center: Nav Items (hidden on xl and below) */}
-          <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 overflow-x-auto">
+          <div className="hidden xl:flex items-center justify-center flex-1 min-w-0">
             <ul className="flex items-center flex-wrap gap-x-2">
               {navItems.map((item, idx) => (
                 <li key={item.label} className="relative">
@@ -158,7 +158,7 @@ const Navbar = () => {
                         {item.label} <span className="ml-1">▾</span>
                       </button>
                       {openDropdown === idx && (
-                        <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20">
+                        <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-50 overflow-visible">
                           {item.dropdown.map((cat) => {
                             const catKey = cat.replace(/ $/, "");
                             return (
@@ -172,7 +172,7 @@ const Navbar = () => {
                                   {catKey} <span>▸</span>
                                 </div>
                                 {openSubDropdown === catKey && (
-                                  <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg ">
+                                  <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg z-50 overflow-visible">
                                     {item.subDropdown[catKey].map(
                                       (course, cidx) => (
                                         <div
@@ -359,160 +359,178 @@ const Navbar = () => {
       </div>
       {/* Mobile Menu (xl and below) */}
       {mobileMenu && (
-        <div className="xl:hidden bg-[#1b3e94] w-full py-6 px-2 md:px-6 rounded-b-xl shadow-xl z-30">
-          {/* User Info for Mobile */}
-          {user && (
-            <div className="px-4 py-3 border-b border-white/20 mb-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src={logo}
-                  alt="Profile"
-                  className="h-12 w-12 rounded-full object-cover border border-white"
-                />
-                <div>
-                  <p className="font-semibold text-white">
-                    {getUserDisplayName()}
-                  </p>
-                  <p className="text-sm text-blue-200">{user?.email}</p>
-                  <p className="text-xs text-blue-300">{getUserRole()}</p>
+        <>
+          {/* Backdrop only below the navbar */}
+          <div
+            className="fixed left-0 w-full z-40 bg-black bg-opacity-40"
+            style={{
+              top: "60px",
+              height: "calc(100vh - 60px)",
+            }}
+            onClick={() => setMobileMenu(false)}
+          />
+          {/* Mobile Menu Overlay below the navbar */}
+          <div
+            className="fixed left-0 w-full z-50 bg-[#1b3e94] py-6 px-2 md:px-6 rounded-b-xl shadow-xl overflow-y-auto"
+            style={{
+              top: "60px",
+              height: "calc(100vh - 60px)",
+            }}
+          >
+            {/* User Info for Mobile */}
+            {user && (
+              <div className="px-4 py-3 border-b border-white/20 mb-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={logo}
+                    alt="Profile"
+                    className="h-12 w-12 rounded-full object-cover border border-white"
+                  />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {getUserDisplayName()}
+                    </p>
+                    <p className="text-sm text-blue-200">{user?.email}</p>
+                    <p className="text-xs text-blue-300">{getUserRole()}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          <ul className="flex flex-col gap-2">
-            {navItems.map((item, idx) => (
-              <li key={item.label} className="relative">
-                {item.label === "Departments" ? (
-                  <>
-                    <button
-                      className="w-full text-left px-3 py-2 hover:bg-[#3cb4d4] rounded flex justify-between items-center"
-                      onClick={() =>
-                        setOpenDropdown(openDropdown === idx ? null : idx)
-                      }
-                    >
-                      {item.label} <span>▾</span>
-                    </button>
-                    {openDropdown === idx && (
-                      <div className="pl-4 py-1">
-                        {item.dropdown.map((cat) => {
-                          const catKey = cat.replace(/ ▸$/, "");
-                          return (
-                            <div key={cat}>
-                              <button
-                                className="w-full flex justify-between items-center px-4 py-2 hover:bg-[#e6f7ff]"
-                                onClick={() =>
-                                  setOpenMobileSubDropdown(
-                                    openMobileSubDropdown === catKey
-                                      ? null
-                                      : catKey
-                                  )
-                                }
-                              >
-                                {catKey} <span>▾</span>
-                              </button>
-                              {openMobileSubDropdown === catKey && (
-                                <div className="pl-4">
-                                  {item.subDropdown[catKey].map(
-                                    (course, cidx) => (
-                                      <div
-                                        key={cidx}
-                                        className="px-4 py-2 hover:bg-[#e6f7ff] text-white text-sm"
-                                      >
-                                        {course}
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                ) : item.dropdown ? (
-                  <>
-                    <button
-                      className="w-full text-left px-3 py-2 hover:bg-[#3cb4d4] rounded flex justify-between items-center"
-                      onClick={() =>
-                        setOpenDropdown(openDropdown === idx ? null : idx)
-                      }
-                    >
-                      {item.label} <span>▾</span>
-                    </button>
-                    {openDropdown === idx && (
-                      <div className="pl-4 py-1">
-                        {item.dropdown.map((sub, subIdx) => (
-                          <Link
-                            to={`/${item.label
-                              .toLowerCase()
-                              .replace(/\s/g, "-")}/${sub
-                              .toLowerCase()
-                              .replace(/\s/g, "-")}`}
-                            key={subIdx}
-                            className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
-                            onClick={() => setMobileMenu(false)}
-                          >
-                            {sub}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Link
-                    to={item.link}
-                    className="block px-3 py-2 hover:bg-[#3cb4d4] rounded"
-                    onClick={() => setMobileMenu(false)}
-                  >
-                    {item.label}
-                  </Link>
-                )}
-              </li>
-            ))}
-            {/* Add Notices item */}
-            <li className="relative">
-              <Link
-                to="/notices"
-                className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition block"
-              >
-                Notices
-              </Link>
-            </li>
-          </ul>
-
-          <div className="flex gap-2 mt-4">
-            {user ? (
-              <>
-                <Link to={getDashboardLink()} className="flex-1">
-                  <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
-                    <MdDashboard size={22} className="mx-auto" />
-                  </button>
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="flex-1 p-2 rounded-full hover:bg-red-600"
-                >
-                  <FaSignOutAlt size={22} className="mx-auto" />
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="flex-1">
-                  <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
-                    <FaSignInAlt size={22} className="mx-auto" />
-                  </button>
-                </Link>
-                <a href="#contact" className="flex-1">
-                  <button className="w-full p-2 rounded-full hover:bg-[#fbbf24]">
-                    <FaEnvelope size={22} className="mx-auto" />
-                  </button>
-                </a>
-              </>
             )}
+
+            <ul className="flex flex-col gap-2">
+              {navItems.map((item, idx) => (
+                <li key={item.label} className="relative">
+                  {item.label === "Departments" ? (
+                    <>
+                      <button
+                        className="w-full text-left px-3 py-2 hover:bg-[#3cb4d4] rounded flex justify-between items-center"
+                        onClick={() =>
+                          setOpenDropdown(openDropdown === idx ? null : idx)
+                        }
+                      >
+                        {item.label} <span>▾</span>
+                      </button>
+                      {openDropdown === idx && (
+                        <div className="pl-4 py-1">
+                          {item.dropdown.map((cat) => {
+                            const catKey = cat.replace(/ ▸$/, "");
+                            return (
+                              <div key={cat}>
+                                <button
+                                  className="w-full flex justify-between items-center px-4 py-2 hover:bg-[#e6f7ff]"
+                                  onClick={() =>
+                                    setOpenMobileSubDropdown(
+                                      openMobileSubDropdown === catKey
+                                        ? null
+                                        : catKey
+                                    )
+                                  }
+                                >
+                                  {catKey} <span>▾</span>
+                                </button>
+                                {openMobileSubDropdown === catKey && (
+                                  <div className="pl-4">
+                                    {item.subDropdown[catKey].map(
+                                      (course, cidx) => (
+                                        <div
+                                          key={cidx}
+                                          className="px-4 py-2 hover:bg-[#e6f7ff] text-white text-sm"
+                                        >
+                                          {course}
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : item.dropdown ? (
+                    <>
+                      <button
+                        className="w-full text-left px-3 py-2 hover:bg-[#3cb4d4] rounded flex justify-between items-center"
+                        onClick={() =>
+                          setOpenDropdown(openDropdown === idx ? null : idx)
+                        }
+                      >
+                        {item.label} <span>▾</span>
+                      </button>
+                      {openDropdown === idx && (
+                        <div className="pl-4 py-1">
+                          {item.dropdown.map((sub, subIdx) => (
+                            <Link
+                              to={`/${item.label
+                                .toLowerCase()
+                                .replace(/\s/g, "-")}/${sub
+                                .toLowerCase()
+                                .replace(/\s/g, "-")}`}
+                              key={subIdx}
+                              className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
+                              onClick={() => setMobileMenu(false)}
+                            >
+                              {sub}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Link
+                      to={item.link}
+                      className="block px-3 py-2 hover:bg-[#3cb4d4] rounded"
+                      onClick={() => setMobileMenu(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+              {/* Add Notices item */}
+              <li className="relative">
+                <Link
+                  to="/notices"
+                  className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition block"
+                >
+                  Notices
+                </Link>
+              </li>
+            </ul>
+
+            <div className="flex gap-2 mt-4">
+              {user ? (
+                <>
+                  <Link to={getDashboardLink()} className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
+                      <MdDashboard size={22} className="mx-auto" />
+                    </button>
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex-1 p-2 rounded-full hover:bg-red-600"
+                  >
+                    <FaSignOutAlt size={22} className="mx-auto" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#3cb4d4]">
+                      <FaSignInAlt size={22} className="mx-auto" />
+                    </button>
+                  </Link>
+                  <a href="#contact" className="flex-1">
+                    <button className="w-full p-2 rounded-full hover:bg-[#fbbf24]">
+                      <FaEnvelope size={22} className="mx-auto" />
+                    </button>
+                  </a>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
       {/* Backdrop to close user dropdown */}
       {showUserDropdown && (
