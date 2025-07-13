@@ -51,7 +51,7 @@ const Assignments = () => {
   );
 
   return (
-    <div className="ml-64 flex flex-col lg:flex-row min-h-screen bg-white">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-white">
       <main className="w-full p-4 sm:p-6">
         {/* Page Header */}
         <div className="mb-6">

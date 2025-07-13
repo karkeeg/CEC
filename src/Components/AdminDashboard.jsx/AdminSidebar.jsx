@@ -29,10 +29,10 @@ const AdminSidebar = () => {
 
   return (
     <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex flex-col shadow-lg">
-      <div className="text-2xl font-bold py-4 px-4 border-b border-white/20">
+      <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
         Navigation
       </div>
-      <nav className="flex flex-col mt-4 space-y-2 px-4">
+      <nav className="flex flex-col mt-6 space-y-2 px-4">
         <NavItem
           icon={<FaTachometerAlt />}
           label="Dashboard"
@@ -64,7 +64,7 @@ const AdminSidebar = () => {
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/settings" />
         <button
           onClick={handleLogout}
-          className="flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition mt-2"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition mt-2"
         >
           <FaSignOutAlt />
           <span>Logout</span>
@@ -78,7 +78,7 @@ const NavItem = ({ icon, label, to }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
-      `flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition ${
+      `flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition ${
         isActive ? "bg-white text-[#2C3E50] font-semibold" : ""
       }`
     }

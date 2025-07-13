@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { useUser } from "../contexts/UserContext";
+import React, { useState } from "react";
+import { useUser } from "../../contexts/UserContext";
+import supabase from "../../supabaseConfig/supabaseClient";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
-import supabase from "../supabaseConfig/supabaseClient";
 
-const Settings = () => {
-  const { user, profile, signOut } = useUser();
+const TeacherSettings = () => {
+  const { user } = useUser();
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    display_name: user?.user_metadata?.display_name || "",
+    first_name: user?.first_name || "",
+    middle_name: user?.middle_name || "",
+    last_name: user?.last_name || "",
     email: user?.email || "",
-    phone: user?.user_metadata?.Phone || "",
+    phone: user?.phone || "",
+    department: user?.department || "",
   });
 
   // Password form state
@@ -31,30 +34,25 @@ const Settings = () => {
     grade_updates: true,
   });
 
-  // Fetch latest profile data from Auth on mount
-  useEffect(() => {
-    if (!user) return;
-    setProfileForm({
-      display_name: user.user_metadata?.display_name || "",
-      email: user.email || "",
-      phone: user.user_metadata?.Phone || "",
-    });
-  }, [user]);
-
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          display_name: profileForm.display_name,
-          Phone: profileForm.phone,
-        },
-      });
+      const { error } = await supabase
+        .from("teachers")
+        .update({
+          first_name: profileForm.first_name,
+          middle_name: profileForm.middle_name,
+          last_name: profileForm.last_name,
+          phone: profileForm.phone,
+        })
+        .eq("id", user.id);
 
       if (error) throw error;
+
+      // Note: User context will be updated automatically on next auth state change
 
       setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (error) {
@@ -172,16 +170,51 @@ const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Display Name
+                    First Name
                   </label>
                   <input
                     type="text"
                     required
-                    value={profileForm.display_name}
+                    value={profileForm.first_name}
                     onChange={(e) =>
                       setProfileForm({
                         ...profileForm,
-                        display_name: e.target.value,
+                        first_name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Middle Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.middle_name}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        middle_name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileForm.last_name}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        last_name: e.target.value,
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -219,16 +252,16 @@ const Settings = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
+                    Department
                   </label>
                   <input
                     type="text"
                     disabled
-                    value={user?.user_metadata?.role?.toUpperCase() || "USER"}
+                    value={profileForm.department}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Role is managed by admin
+                    Department is managed by admin
                   </p>
                 </div>
               </div>
@@ -399,7 +432,7 @@ const Settings = () => {
                         Grade Updates
                       </h4>
                       <p className="text-sm text-gray-600">
-                        Get notified about grade changes and updates
+                        Get notified when students submit assignments
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -439,4 +472,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default TeacherSettings;

@@ -70,7 +70,7 @@ const Attendance = () => {
   ];
 
   return (
-    <div className="ml-64 min-h-screen text-white p-4">
+    <div className="min-h-screen text-white p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
         Attendance
       </h1>

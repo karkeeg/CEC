@@ -41,9 +41,13 @@ const StudentForm = ({ onClose }) => {
     dob: "",
     address: "",
     gender: "Male",
-    semester: "",
+    year: "",
     reg_no: "",
+    email: "",
+    password: "",
+    confirm_password: "",
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -52,30 +56,67 @@ const StudentForm = ({ onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Use correct field names for validation
     const required = [
       "first_name",
       "last_name",
       "dob",
       "address",
-      "semester",
+      "year",
       "reg_no",
+      "email",
+      "password",
+      "confirm_password",
     ];
     if (required.some((field) => !form[field])) {
       alert("Please fill all required fields.");
       return;
     }
 
-    const { error } = await supabase.from("students").insert([form]);
-    if (error) {
-      alert("Failed to add student.");
-    } else {
-      alert("Student added!");
+    if (form.password !== form.confirm_password) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    if (form.password.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Insert into students table
+      const { error } = await supabase.from("students").insert([
+        {
+          reg_no: form.reg_no,
+          email: form.email,
+          hashed_password: form.password, // hash if needed
+          first_name: form.first_name,
+          middle_name: form.middle_name,
+          last_name: form.last_name,
+          date_of_birth: form.dob,
+          address: form.address,
+          gender: form.gender,
+          year: form.year,
+        },
+      ]);
+      if (error) throw error;
+
+      alert("Student added successfully!");
       onClose();
+    } catch (error) {
+      alert("Failed to add student: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+    >
       <input
         name="first_name"
         placeholder="First Name*"
@@ -122,10 +163,10 @@ const StudentForm = ({ onClose }) => {
         <option>Other</option>
       </select>
       <input
-        name="semester"
-        placeholder="Semester*"
+        name="year"
+        placeholder="year*"
         className={inputStyle}
-        value={form.semester}
+        value={form.year}
         onChange={handleChange}
       />
       <input
@@ -135,19 +176,45 @@ const StudentForm = ({ onClose }) => {
         value={form.reg_no}
         onChange={handleChange}
       />
-      <div className="flex justify-end gap-2 mt-4">
+      <input
+        name="email"
+        type="email"
+        placeholder="Email*"
+        className={inputStyle}
+        value={form.email}
+        onChange={handleChange}
+      />
+      <input
+        name="password"
+        type="password"
+        placeholder="Password* (min 6 characters)"
+        className={inputStyle}
+        value={form.password}
+        onChange={handleChange}
+      />
+      <input
+        name="confirm_password"
+        type="password"
+        placeholder="Confirm Password*"
+        className={inputStyle}
+        value={form.confirm_password}
+        onChange={handleChange}
+      />
+      <div className="md:col-span-2 flex justify-end gap-2 mt-4">
         <button
           type="button"
           onClick={onClose}
           className="bg-gray-300 px-4 py-2 rounded"
+          disabled={loading}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+          disabled={loading}
         >
-          Submit
+          {loading ? "Adding..." : "Save"}
         </button>
       </div>
     </form>
@@ -162,7 +229,25 @@ const TeacherForm = ({ onClose }) => {
     gender: "Rather not to say",
     email: "",
     phone: "",
+    password: "",
+    confirm_password: "",
+    department_id: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [deptLoading, setDeptLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      setDeptLoading(true);
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name");
+      if (!error && data) setDepartments(data);
+      setDeptLoading(false);
+    };
+    fetchDepartments();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -171,18 +256,65 @@ const TeacherForm = ({ onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const required = ["first_name", "last_name", "email", "phone"];
+    const required = [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "password",
+      "confirm_password",
+      "department_id",
+    ];
     if (required.some((f) => !form[f])) {
       alert("Please fill all required fields.");
       return;
     }
 
-    const { error } = await supabase.from("teachers").insert([form]);
-    if (error) {
-      alert("Failed to add teacher.");
-    } else {
-      alert("Teacher added!");
+    if (form.password !== form.confirm_password) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    if (form.password.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Insert into teachers table
+      const teacherId = form.email.split("@")[0];
+      const { error: teacherError } = await supabase.from("teachers").insert([
+        {
+          id: teacherId,
+          email: form.email,
+          hashed_password: form.password, // hash if needed
+          first_name: form.first_name,
+          middle_name: "", // add if you have it in the form
+          last_name: form.last_name,
+        },
+      ]);
+      if (teacherError) throw teacherError;
+
+      // Insert into teacher_departments
+      const { error: deptError } = await supabase
+        .from("teacher_departments")
+        .insert([
+          {
+            id: String(Date.now()),
+            teacher_id: teacherId,
+            department_id: form.department_id,
+          },
+        ]);
+      if (deptError) throw deptError;
+
+      alert("Teacher added successfully!");
       onClose();
+    } catch (error) {
+      alert("Failed to add teacher: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -216,6 +348,7 @@ const TeacherForm = ({ onClose }) => {
       </select>
       <input
         name="email"
+        type="email"
         placeholder="Email*"
         className={inputStyle}
         value={form.email}
@@ -228,95 +361,99 @@ const TeacherForm = ({ onClose }) => {
         value={form.phone}
         onChange={handleChange}
       />
+      <select
+        name="department_id"
+        className={inputStyle}
+        value={form.department_id}
+        onChange={handleChange}
+        disabled={deptLoading}
+      >
+        <option value="">Select Department*</option>
+        {departments.map((dept) => (
+          <option key={dept.id} value={dept.id}>
+            {dept.name}
+          </option>
+        ))}
+      </select>
+      <input
+        name="password"
+        type="password"
+        placeholder="Password* (min 6 characters)"
+        className={inputStyle}
+        value={form.password}
+        onChange={handleChange}
+      />
+      <input
+        name="confirm_password"
+        type="password"
+        placeholder="Confirm Password*"
+        className={inputStyle}
+        value={form.confirm_password}
+        onChange={handleChange}
+      />
       <div className="flex justify-end gap-2 mt-4">
         <button
           type="button"
           onClick={onClose}
           className="bg-gray-300 px-4 py-2 rounded"
+          disabled={loading}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+          disabled={loading}
         >
-          Save
+          {loading ? "Adding..." : "Save"}
         </button>
       </div>
     </form>
   );
 };
 
+// Notice Form
 const NoticeForm = ({ onClose }) => {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    audience: "All",
-    publish_date: "",
-    expiry_date: "",
+    is_global: true,
+    to_all_teachers: false,
   });
-
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const { title, description, publish_date } = form;
-    if (!title || !description || !publish_date) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    let fileURL = null;
-
-    if (file) {
-      try {
-        setUploading(true);
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const { data, error: uploadError } = await supabase.storage
-          .from("notices")
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from("notices")
-          .getPublicUrl(fileName);
-        fileURL = publicUrlData.publicUrl;
-      } catch (err) {
-        alert("File upload failed");
-        console.error(err);
-        return;
-      } finally {
-        setUploading(false);
-      }
-    }
-
-    const { error } = await supabase.from("notifications").insert([
-      {
-        ...form,
-        file_url: fileURL,
-      },
-    ]);
-
-    if (error) {
-      alert("Failed to publish notice.");
-      console.error(error);
-    } else {
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("notices").insert([
+        {
+          notice_id: String(Date.now()),
+          title: form.title,
+          description: form.description,
+          faculty_id: null,
+          department_id: null,
+          teacher_id: null,
+          is_global: form.is_global,
+          to_all_teachers: form.to_all_teachers,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (error) throw error;
       alert("Notice published!");
       onClose();
+    } catch (error) {
+      alert("Failed to publish notice: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -337,54 +474,196 @@ const NoticeForm = ({ onClose }) => {
         value={form.description}
         onChange={handleChange}
       />
-      <select
-        name="audience"
-        className={inputStyle}
-        value={form.audience}
-        onChange={handleChange}
-      >
-        <option>All</option>
-        <option>Teachers</option>
-        <option>Students</option>
-      </select>
-
-      <label className="text-sm font-medium text-gray-700">Attach File</label>
-      <input type="file" onChange={handleFileChange} className={inputStyle} />
-
-      <label className="text-sm font-medium text-gray-700">Publish Date*</label>
-      <input
-        type="date"
-        name="publish_date"
-        className={inputStyle}
-        value={form.publish_date}
-        onChange={handleChange}
-      />
-
-      <label className="text-sm font-medium text-gray-700">Expiry Date</label>
-      <input
-        type="date"
-        name="expiry_date"
-        className={inputStyle}
-        value={form.expiry_date}
-        onChange={handleChange}
-      />
-
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          name="is_global"
+          checked={form.is_global}
+          onChange={handleChange}
+        />
+        Global Notice
+      </label>
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          name="to_all_teachers"
+          checked={form.to_all_teachers}
+          onChange={handleChange}
+        />
+        To All Teachers
+      </label>
       <div className="flex justify-end gap-2 mt-4">
         <button
           type="button"
           onClick={onClose}
           className="bg-gray-300 px-4 py-2 rounded"
+          disabled={loading}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className={`px-4 py-2 rounded text-white ${
-            uploading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"
-          }`}
-          disabled={uploading}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+          disabled={loading}
         >
-          {uploading ? "Uploading..." : "Publish"}
+          {loading ? "Publishing..." : "Publish"}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// Add Assignment Form
+const AssignmentForm = ({ onClose }) => {
+  const [form, setForm] = React.useState({
+    title: "",
+    description: "",
+    subject_id: "",
+    due_date: "",
+    teacher_id: "",
+    year: "",
+  });
+  const [loading, setLoading] = React.useState(false);
+  const [subjects, setSubjects] = React.useState([]);
+  const [teachers, setTeachers] = React.useState([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data, error } = await supabase
+        .from("subjects")
+        .select("id, name");
+      if (!error && data) setSubjects(data);
+    };
+    const fetchTeachers = async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, first_name, last_name");
+      if (!error && data) setTeachers(data);
+    };
+    fetchSubjects();
+    fetchTeachers();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const required = [
+      "title",
+      "description",
+      "subject_id",
+      "due_date",
+      "teacher_id",
+      "year",
+    ];
+    if (required.some((f) => !form[f])) {
+      alert("Please fill all required fields.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("assignments").insert([
+        {
+          id: String(Date.now()),
+          title: form.title,
+          description: form.description,
+          subject_id: form.subject_id,
+          due_date: form.due_date,
+          created_at: new Date().toISOString(),
+          teacher_id: form.teacher_id,
+          year: form.year,
+        },
+      ]);
+      if (error) throw error;
+      alert("Assignment added successfully!");
+      onClose();
+    } catch (error) {
+      alert("Failed to add assignment: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <input
+        name="title"
+        placeholder="Title*"
+        className={inputStyle}
+        value={form.title}
+        onChange={handleChange}
+      />
+      <textarea
+        name="description"
+        placeholder="Description*"
+        className={inputStyle}
+        value={form.description}
+        onChange={handleChange}
+        rows={3}
+      />
+      <select
+        name="subject_id"
+        className={inputStyle}
+        value={form.subject_id}
+        onChange={handleChange}
+      >
+        <option value="">Select Subject*</option>
+        {subjects.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+      <input
+        name="due_date"
+        type="datetime-local"
+        className={inputStyle}
+        value={form.due_date}
+        onChange={handleChange}
+      />
+      <select
+        name="teacher_id"
+        className={inputStyle}
+        value={form.teacher_id}
+        onChange={handleChange}
+      >
+        <option value="">Select Teacher*</option>
+        {teachers.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.first_name} {t.last_name}
+          </option>
+        ))}
+      </select>
+      <select
+        name="year"
+        className={inputStyle}
+        value={form.year}
+        onChange={handleChange}
+      >
+        <option value="">Select Year*</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="bg-gray-300 px-4 py-2 rounded"
+          disabled={loading}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+          disabled={loading}
+        >
+          {loading ? "Adding..." : "Save"}
         </button>
       </div>
     </form>
@@ -402,6 +681,7 @@ const MainDashboard = () => {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -454,7 +734,7 @@ const MainDashboard = () => {
   );
 
   return (
-    <div className="ml-64 p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -512,6 +792,12 @@ const MainDashboard = () => {
         >
           <FaPlus /> Add Notice
         </button>
+        <button
+          onClick={() => setShowAssignmentModal(true)}
+          className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700"
+        >
+          <FaPlus /> Add Assignment
+        </button>
       </div>
 
       {/* Notifications */}
@@ -556,6 +842,14 @@ const MainDashboard = () => {
       {showNoticeModal && (
         <Modal title="Add New Notice" onClose={() => setShowNoticeModal(false)}>
           <NoticeForm onClose={() => setShowNoticeModal(false)} />
+        </Modal>
+      )}
+      {showAssignmentModal && (
+        <Modal
+          title="Add Assignment"
+          onClose={() => setShowAssignmentModal(false)}
+        >
+          <AssignmentForm onClose={() => setShowAssignmentModal(false)} />
         </Modal>
       )}
     </div>

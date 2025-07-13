@@ -28,6 +28,17 @@ import AdminAnalytics from "./Components/AdminDashboard.jsx/AdminAnalytics";
 import Settings from "./Components/Settings";
 import StudentAnalytics from "./Components/StudentDashboard/StudentAnalytics";
 
+// Teacher Dashboard Components
+import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
+import TeacherMainDashboard from "./Components/TeacherDashboard/TeacherMainDashboard";
+import TeacherStudents from "./Components/TeacherDashboard/TeacherStudents";
+import TeacherClasses from "./Components/TeacherDashboard/TeacherClasses";
+import TeacherAssignments from "./Components/TeacherDashboard/TeacherAssignments";
+import TeacherAttendance from "./Components/TeacherDashboard/TeacherAttendance";
+import TeacherGrades from "./Components/TeacherDashboard/TeacherGrades";
+import TeacherAnalytics from "./Components/TeacherDashboard/TeacherAnalytics";
+import TeacherSettings from "./Components/TeacherDashboard/TeacherSettings";
+
 const MyRoutes = () => {
   return (
     <BrowserRouter>
@@ -79,6 +90,25 @@ const MyRoutes = () => {
           <Route path="fee" element={<FeeDashboard />} />
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Teacher Routes - Protected */}
+        <Route
+          path="/teacher"
+          element={
+            <AuthGuard requiredRole="teacher">
+              <TeacherDashboardLayout />
+            </AuthGuard>
+          }
+        >
+          <Route path="dashboard" element={<TeacherMainDashboard />} />
+          <Route path="students" element={<TeacherStudents />} />
+          <Route path="classes" element={<TeacherClasses />} />
+          <Route path="assignments" element={<TeacherAssignments />} />
+          {/* <Route path="attendance" element={<TeacherAttendance />} /> */}
+          {/* <Route path="grades" element={<TeacherGrades />} /> */}
+          <Route path="analytics" element={<TeacherAnalytics />} />
+          {/* <Route path="settings" element={<TeacherSettings />} /> */}
         </Route>
       </Routes>
     </BrowserRouter>

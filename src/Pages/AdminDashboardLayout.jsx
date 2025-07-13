@@ -7,7 +7,7 @@ const AdminDasboardLayout = () => {
     <>
       <AdminSidebar />
       <AdminHeader />
-      <main className=" pt-24 px-6 bg-gray-100 min-h-screen">
+      <main className="pt-24 px-6 bg-gray-100 min-h-screen ml-64">
         <Outlet />
       </main>
     </>

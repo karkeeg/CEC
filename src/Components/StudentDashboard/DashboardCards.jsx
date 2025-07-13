@@ -60,7 +60,7 @@ const attendance = [
 
 const DashboardCards = () => {
   return (
-    <div className="ml-64 space-y-6 mb-10">
+    <div className="space-y-6 mb-10">
       {/* Class Schedule */}
       <div className="bg-blue-100 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">

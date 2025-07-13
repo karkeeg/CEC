@@ -64,6 +64,15 @@ export const UserProvider = ({ children }) => {
       role: role || "user",
       faculty: user.user_metadata?.faculty || "",
       department: user.user_metadata?.department || "",
+      // Additional fields for teachers
+      gender: user.user_metadata?.gender || "",
+      phone: user.user_metadata?.phone || "",
+      // Additional fields for students
+      middle_name: user.user_metadata?.middle_name || "",
+      dob: user.user_metadata?.dob || "",
+      address: user.user_metadata?.address || "",
+      semester: user.user_metadata?.semester || "",
+      reg_no: user.user_metadata?.reg_no || "",
     };
 
     setProfile(basicProfile);

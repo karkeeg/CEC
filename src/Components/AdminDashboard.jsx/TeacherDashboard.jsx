@@ -14,12 +14,19 @@ const TeacherDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
   const [loading, setLoading] = useState(true);
+  // Stats state
+  const [teacherCount, setTeacherCount] = useState(0);
+  const [departmentCount, setDepartmentCount] = useState(0);
+  const [subjectCount, setSubjectCount] = useState(0);
+  const [assignmentCount, setAssignmentCount] = useState(0);
 
   useEffect(() => {
-    const fetchTeachers = async () => {
+    const fetchStatsAndTeachers = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("teacher_departments")
-        .select(`
+      // Fetch teachers for table/chart
+      const { data: teacherDepts, error } = await supabase.from(
+        "teacher_departments"
+      ).select(`
         id,
         teacher:teacher_id (
           id,
@@ -33,16 +40,26 @@ const TeacherDashboard = () => {
           name
         )
       `);
-
-      if (error) {
-        console.error("Fetch error:", error);
-      } else {
-        setTeachers(data);
-      }
+      if (!error && teacherDepts) setTeachers(teacherDepts);
+      // Fetch stats
+      const [
+        { data: teachersData },
+        { data: departmentsData },
+        { data: subjectsData },
+        { data: assignmentsData },
+      ] = await Promise.all([
+        supabase.from("teachers").select("id"),
+        supabase.from("departments").select("id"),
+        supabase.from("subjects").select("id"),
+        supabase.from("assignments").select("id"),
+      ]);
+      setTeacherCount(teachersData?.length || 0);
+      setDepartmentCount(departmentsData?.length || 0);
+      setSubjectCount(subjectsData?.length || 0);
+      setAssignmentCount(assignmentsData?.length || 0);
       setLoading(false);
     };
-
-    fetchTeachers();
+    fetchStatsAndTeachers();
   }, []);
 
   const filtered = teachers.filter((t) =>
@@ -64,8 +81,47 @@ const TeacherDashboard = () => {
   );
 
   return (
-    <div className="ml-64 p-4 bg-white">
+    <div className="p-4 bg-white">
       <h1 className="text-3xl font-bold mb-4">Teachers Dashboard</h1>
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white shadow-md border-l-4 border-green-500 p-4 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-green-500 text-3xl">👨‍🏫</span>
+            <div>
+              <p className="text-gray-500 text-sm">Total Teachers</p>
+              <p className="text-2xl font-bold">{teacherCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white shadow-md border-l-4 border-blue-500 p-4 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-blue-500 text-3xl">🏢</span>
+            <div>
+              <p className="text-gray-500 text-sm">Departments</p>
+              <p className="text-2xl font-bold">{departmentCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white shadow-md border-l-4 border-purple-500 p-4 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-purple-500 text-3xl">📚</span>
+            <div>
+              <p className="text-gray-500 text-sm">Subjects</p>
+              <p className="text-2xl font-bold">{subjectCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white shadow-md border-l-4 border-yellow-500 p-4 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-yellow-500 text-3xl">📝</span>
+            <div>
+              <p className="text-gray-500 text-sm">Assignments</p>
+              <p className="text-2xl font-bold">{assignmentCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <input
         type="text"

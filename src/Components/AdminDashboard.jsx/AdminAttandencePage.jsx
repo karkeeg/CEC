@@ -48,7 +48,7 @@ const AdminAttandancePage = () => {
   const tableData = Object.values(groupedBySemester);
 
   return (
-    <div className="ml-64 p-6 bg-white min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           📅 Attendance

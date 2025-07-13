@@ -55,7 +55,7 @@ const DepartmentsPage = () => {
   }));
 
   return (
-    <div className="bg-white ml-64 p-6">
+    <div className="bg-white p-6">
       <h1 className="text-2xl font-bold mb-4">Departments</h1>
 
       <input

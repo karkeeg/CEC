@@ -37,7 +37,7 @@ const barData = [
 
 const StudentAnalytics = () => {
   return (
-    <div className="min-h-screen ml-64 p-6">
+    <div className="min-h-screen p-6">
       <h1 className="text-3xl font-bold mb-4 text-gray-800 tracking-tight drop-shadow-sm">
         Student Analytics Dashboard
       </h1>

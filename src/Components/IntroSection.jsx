@@ -39,13 +39,13 @@ const IntroSection = () => {
     <section
       className="bg-secondary/100 font-sans flex flex-col mx-auto"
       style={{
-        minHeight: "900px",
-        paddingTop: "64px",
+        minHeight: "700px",
+        paddingTop: "44px",
         paddingBottom: "32px",
         backgroundColor: "var(--secondary-100, #EEF0FD)",
       }}
     >
-      <div className="w-full max-w-[1440px] px-4 md:px-10 lg:px-[120px] flex flex-col gap-[64px] mx-auto">
+      <div className="w-full max-w-[1440px] px-4 md:px-8 lg:px-[120px] flex flex-col gap-[20px] mx-auto">
         {/* Heading */}
         <div className="text-center">
           <p className="text-xl font-bold text-[#1f1f1f]">
@@ -57,11 +57,11 @@ const IntroSection = () => {
         </div>
 
         {/* Main Content and Stats */}
-        <div className="flex flex-col justify-between gap-10">
+        <div className="flex flex-col justify-between gap-8">
           {/* Main Content */}
-          <div className="flex flex-col lg:flex-row items-center gap-10">
+          <div className="flex flex-col lg:flex-row ">
             {/* Left Text Section */}
-            <div className="flex-1 text-[#1f1f1f]">
+            <div className="flex-1 text-[#1f1f1f] lg:mt-20">
               {loading ? (
                 <div className="text-gray-500">
                   Loading chairman's message...
@@ -91,7 +91,7 @@ const IntroSection = () => {
             </div>
 
             {/* Right Image Section */}
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full ">
               <img
                 src={personImage}
                 alt="Chairman or Student"

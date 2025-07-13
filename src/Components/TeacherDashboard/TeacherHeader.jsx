@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { FaBell, FaUser, FaSignOutAlt, FaCog } from "react-icons/fa";
 import { useUser } from "../../contexts/UserContext";
-import avatar from "../../assets/logo.png";
 import { FaCircleUser } from "react-icons/fa6";
 
-const AdminHeader = () => {
+const TeacherHeader = () => {
   const { user, profile, signOut } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -12,7 +11,7 @@ const AdminHeader = () => {
     if (user?.user_metadata?.display_name) {
       return user.user_metadata.display_name;
     }
-    return user?.email?.split("@")[0] || "Admin";
+    return user?.email?.split("@")[0] || "Teacher";
   };
 
   const handleSignOut = async () => {
@@ -43,7 +42,7 @@ const AdminHeader = () => {
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
               <div className="px-4 py-2 text-sm text-gray-700 border-b">
                 <p className="font-medium">{getUserDisplayName()}</p>
-                <p className="text-gray-500">Admin</p>
+                <p className="text-gray-500">Teacher</p>
               </div>
               <button
                 onClick={handleSignOut}
@@ -60,4 +59,4 @@ const AdminHeader = () => {
   );
 };
 
-export default AdminHeader;
+export default TeacherHeader;
