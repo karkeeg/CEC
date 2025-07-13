@@ -13,7 +13,7 @@ const NoticeBar = () => {
     const fetchNotices = async () => {
       const { data, error } = await supabase
         .from("notices")
-        .select("title,description,created_at");
+        .select("title,description,created_at,notice_id");
       console.log("DATA:", data);
       console.log("ERROR:", error);
       if (data) setNotices(data);
@@ -31,6 +31,17 @@ const NoticeBar = () => {
   return (
     <>
       {/* Notice Marquee */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee {
+          display: flex;
+          white-space: nowrap;
+          animation: marquee 25s linear infinite;
+        }
+      `}</style>
       <div className="w-full max-w-[1440px] h-[60px] md:px-[120px] px-4 flex items-center gap-2 md:gap-[10px] bg-black text-white overflow-hidden font-[Source Sans Pro]">
         <div className="flex items-center gap-2 bg-blue-700 h-full px-3 md:px-4 shrink-0">
           <span className="font-bold text-white text-[16px] md:text-[20px]">
@@ -38,16 +49,25 @@ const NoticeBar = () => {
           </span>
           <span className="text-white text-lg">👉🏻</span>
         </div>
-
         <div className="overflow-hidden whitespace-nowrap w-full h-full flex items-center">
-          <div>
-            {notices.length === 0 && <p>No notices found</p>}
-            {notices.map((n) => (
-              <p key={n.id}>
-                📢 [{formatDate(n.created_at)}] {n.title} — {n.description}
-              </p>
-            ))}
-          </div>
+          {notices.length === 0 ? (
+            <p className="marquee">No notices found</p>
+          ) : (
+            <div className="marquee">
+              {/* Duplicate notices for seamless infinite scroll */}
+              {[...notices, ...notices].map((n, i) => (
+                <a
+                  key={i}
+                  href={`/notices/${n.id}`}
+                  className="mx-8 inline-block text-white hover:underline hover:text-blue-300 transition"
+                  style={{ minWidth: 200 }}
+                >
+                  📢 [{formatDate(n.created_at)}] <b>{n.title}</b> —{" "}
+                  {n.description}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
