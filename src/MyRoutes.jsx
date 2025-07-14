@@ -10,7 +10,7 @@ import Classes from "./Components/StudentDashboard/Classes";
 import Attendance from "./Components/StudentDashboard/Attendance";
 import StudentList from "./Components/StudentList";
 import Register from "./Pages/RegisterPage";
-import UserDasboardLayout from "./Pages/UserDasboardLayout";
+import UserDasboardLayout from "./Pages/StudentDashboardLayout";
 import AdminDasboardLayout from "./Pages/AdminDashboardLayout";
 import AdminStudents from "./Components/AdminDashboard.jsx/AdminStudents";
 import TeacherDashboard from "./Components/AdminDashboard.jsx/TeacherDashboard";
@@ -38,6 +38,7 @@ import TeacherAttendance from "./Components/TeacherDashboard/TeacherAttendance";
 import TeacherGrades from "./Components/TeacherDashboard/TeacherGrades";
 import TeacherAnalytics from "./Components/TeacherDashboard/TeacherAnalytics";
 import TeacherSettings from "./Components/TeacherDashboard/TeacherSettings";
+import StudentDasboardLayout from "./Pages/StudentDashboardLayout";
 
 const MyRoutes = () => {
   return (
@@ -58,7 +59,7 @@ const MyRoutes = () => {
           path="/student"
           element={
             <AuthGuard requiredRole="student">
-              <UserDasboardLayout />
+              <StudentDasboardLayout />
             </AuthGuard>
           }
         >

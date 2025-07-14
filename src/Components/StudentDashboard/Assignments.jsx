@@ -5,6 +5,7 @@ import { IoMdArrowDropdown } from "react-icons/io";
 import { BiReset } from "react-icons/bi";
 import { MdAssignmentLate } from "react-icons/md";
 import { IoBookOutline } from "react-icons/io5";
+import { FaRegFileAlt } from "react-icons/fa";
 
 const Assignments = () => {
   const [assignments, setAssignments] = useState([]);
@@ -88,20 +89,20 @@ const Assignments = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto bg-white rounded-lg shadow">
+        <div className="overflow-x-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-2xl mt-4">
           {loading ? (
-            <p className="p-4 text-center text-gray-500">
+            <p className="p-8 text-center text-gray-500 text-lg font-semibold">
               Loading assignments...
             </p>
           ) : (
-            <table className="min-w-full text-sm text-left">
+            <table className="min-w-full text-base text-left">
               <thead>
-                <tr className="bg-cyan-900 text-white text-sm">
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Subject</th>
-                  <th className="px-4 py-3">Due Date</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Action</th>
+                <tr className="bg-cyan-900 text-white text-lg">
+                  <th className="px-6 py-4 font-bold">Title</th>
+                  <th className="px-6 py-4 font-bold">Subject</th>
+                  <th className="px-6 py-4 font-bold">Due Date</th>
+                  <th className="px-6 py-4 font-bold">Status</th>
+                  <th className="px-6 py-4 font-bold">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -109,7 +110,7 @@ const Assignments = () => {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-3 text-center text-gray-600"
+                      className="px-6 py-6 text-center text-gray-600 text-lg"
                     >
                       No assignments found.
                     </td>
@@ -118,29 +119,40 @@ const Assignments = () => {
                   filteredAssignments.map((a, i) => (
                     <tr
                       key={a.id}
-                      className={`border-b ${
+                      className={`border-b-2 border-blue-200 ${
                         i % 2 === 0
                           ? "bg-blue-100 text-black"
                           : "bg-indigo-100 text-black"
-                      }`}
+                      } text-lg hover:bg-blue-200 transition`}
                     >
-                      <td className="px-4 py-3">{a.title}</td>
-                      <td className="px-4 py-3 flex items-center gap-2">
+                      <td className="px-6 py-4 font-medium">{a.title}</td>
+                      <td className="px-6 py-4 flex items-center gap-2 font-medium">
                         <IoBookOutline />
                         {a.subject?.name ?? "Unknown"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4 font-medium">
                         {new Date(a.due_date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 flex items-center gap-2">
+                      <td className="px-6 py-4 flex items-center gap-2 font-medium">
                         {a.teacher_id}
                       </td>
-                      <td className="px-4 py-3">
-                        <button className="flex items-center gap-2 text-blue-700 hover:underline">
-                          <FaLink />
-                          {a.action ?? "View Submission"}
-                          <IoMdArrowDropdown />
-                        </button>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-3 flex-wrap">
+                          <button
+                            className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            onClick={() => alert(`View Assignment: ${a.title}`)}
+                          >
+                            <FaRegFileAlt size={22} /> View Assignment
+                          </button>
+                          <button
+                            className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-green-400"
+                            onClick={() =>
+                              alert(`Submit Assignment: ${a.title}`)
+                            }
+                          >
+                            <FaCheck size={22} /> Submit Assignment
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -19,7 +19,7 @@ const Classes = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       const { data, error } = await supabase.from("classes").select(`
-          id,
+          class_id,
           subject_id,
           room_no,
           teacher_department:teacher_id (
@@ -100,7 +100,7 @@ const Classes = () => {
                     className="bg-blue-50 hover:bg-blue-200 transition border-t"
                   >
                     <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
-                      <FaBookOpen /> {cls.id}
+                      <FaBookOpen /> {cls.class_id}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">{fullName}</td>
                     <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
