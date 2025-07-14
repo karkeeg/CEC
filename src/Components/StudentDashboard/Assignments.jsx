@@ -102,7 +102,7 @@ const Assignments = () => {
                   <th className="px-6 py-4 font-bold">Subject</th>
                   <th className="px-6 py-4 font-bold">Due Date</th>
                   <th className="px-6 py-4 font-bold">Status</th>
-                  <th className="px-6 py-4 font-bold">Action</th>
+                  <th className="px-6 py-4 font-bold text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,13 +136,13 @@ const Assignments = () => {
                       <td className="px-6 py-4 flex items-center gap-2 font-medium">
                         {a.teacher_id}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <div className="flex gap-3 flex-wrap">
                           <button
                             className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-400"
                             onClick={() => alert(`View Assignment: ${a.title}`)}
                           >
-                            <FaRegFileAlt size={22} /> View Assignment
+                            <FaRegFileAlt size={20} /> View
                           </button>
                           <button
                             className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -150,7 +150,7 @@ const Assignments = () => {
                               alert(`Submit Assignment: ${a.title}`)
                             }
                           >
-                            <FaCheck size={22} /> Submit Assignment
+                            <FaCheck size={20} /> Submit
                           </button>
                         </div>
                       </td>

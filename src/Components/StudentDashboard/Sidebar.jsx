@@ -1,5 +1,3 @@
-import React from "react";
-import { CgAttachment } from "react-icons/cg";
 import {
   FaTachometerAlt,
   FaBook,
@@ -7,7 +5,6 @@ import {
   FaSignOutAlt,
 } from "react-icons/fa";
 import { FiSettings } from "react-icons/fi";
-import { HiCalendarDateRange } from "react-icons/hi2";
 import { IoAnalytics } from "react-icons/io5";
 import { MdFeedback } from "react-icons/md";
 import { SlCalender } from "react-icons/sl";

@@ -94,7 +94,7 @@ const StudentAnalytics = () => {
       {/* Grades Section */}
       <div className="mb-12">
         <h3 className="text-lg font-bold text-gray-700 mb-4">Your Grades</h3>
-        <div className="bg-blue-50 rounded-md p-6 flex flex-col items-center">
+        <div className="bg-blue-50 rounded-md p-6 flex flex-col items-center text-gray-800">
           <div className="w-full h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
@@ -102,14 +102,14 @@ const StudentAnalytics = () => {
                 margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#3399ff" />
-                <XAxis dataKey="name" stroke="#fff" />
-                <YAxis stroke="#fff" />
+                <XAxis dataKey="name" stroke="#333" />
+                <YAxis stroke="#333" />
                 <Tooltip />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" />
                 <Line
                   type="monotone"
                   dataKey="math"
-                  stroke="#fff"
+                  stroke="#333"
                   strokeWidth={3}
                   dot={false}
                 />
