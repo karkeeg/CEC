@@ -8,6 +8,17 @@ import {
   FaTimes,
   FaGraduationCap,
 } from "react-icons/fa";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ComposedChart,
+  Line,
+} from "recharts";
 
 const TeacherGrades = () => {
   const { user } = useUser();
@@ -18,6 +29,8 @@ const TeacherGrades = () => {
   const [saving, setSaving] = useState(false);
   const [grades, setGrades] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [gradeTrend, setGradeTrend] = useState([]); // For AreaChart
+  const [gradeCompletion, setGradeCompletion] = useState([]); // For StepLine
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -47,6 +60,18 @@ const TeacherGrades = () => {
         if (assignmentData && assignmentData.length > 0) {
           setSelectedAssignment(assignmentData[0].id);
         }
+        // Mock or fetch grade trend data
+        const trend = (assignmentData || []).map((a) => ({
+          name: a.title,
+          avgGrade: Math.floor(Math.random() * 100),
+        }));
+        setGradeTrend(trend);
+        // Mock or fetch grade completion data
+        const completion = (assignmentData || []).map((a) => ({
+          name: a.title,
+          completion: Math.floor(Math.random() * 100),
+        }));
+        setGradeCompletion(completion);
       } catch (error) {
         console.error("Error fetching assignments:", error);
       } finally {
@@ -200,100 +225,154 @@ const TeacherGrades = () => {
   );
 
   return (
-    <div className="p-6">
+    <div className="w-full p-4">
+      {/* Summary Section: Assignment Selection and Stats */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>
         <p className="text-gray-600">Manage and grade student assignments</p>
-      </div>
-
-      {/* Assignment Selection */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Assignment
-            </label>
-            <select
-              value={selectedAssignment}
-              onChange={(e) => setSelectedAssignment(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select an assignment</option>
-              {assignments.map((assignment) => (
-                <option key={assignment.id} value={assignment.id}>
-                  {assignment.title} - {assignment.class?.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={handleSaveGrades}
-              disabled={saving || !selectedAssignment}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
-            >
-              <FaSave />
-              <span>{saving ? "Saving..." : "Save All Grades"}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      {selectedAssignment && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Total Submissions
-                </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-500 rounded-full">
-                <FaGraduationCap className="text-white text-xl" />
-              </div>
+        {/* Assignment Selection */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Assignment
+              </label>
+              <select
+                value={selectedAssignment}
+                onChange={(e) => setSelectedAssignment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select an assignment</option>
+                {assignments.map((assignment) => (
+                  <option key={assignment.id} value={assignment.id}>
+                    {assignment.title} - {assignment.class?.name}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Graded</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  {stats.graded}
-                </p>
-              </div>
-              <div className="p-3 bg-green-500 rounded-full">
-                <FaEdit className="text-white text-xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Average Grade
-                </p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">
-                  {stats.average}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-500 rounded-full">
-                <FaChartBar className="text-white text-xl" />
-              </div>
+            <div className="flex items-end">
+              <button
+                onClick={handleSaveGrades}
+                disabled={saving || !selectedAssignment}
+                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+              >
+                <FaSave />
+                <span>{saving ? "Saving..." : "Save All Grades"}</span>
+              </button>
             </div>
           </div>
         </div>
-      )}
+        {/* Stats */}
+        {selectedAssignment && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-blue-100 p-6 rounded-xl shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">
+                    Total Submissions
+                  </p>
+                  <p className="text-3xl font-bold text-gray-800 mt-2">
+                    {stats.total}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-500 rounded-full">
+                  <FaGraduationCap className="text-white text-xl" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-100 p-6 rounded-xl shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Graded</p>
+                  <p className="text-3xl font-bold text-gray-800 mt-2">
+                    {stats.graded}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-500 rounded-full">
+                  <FaEdit className="text-white text-xl" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-100 p-6 rounded-xl shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">
+                    Average Grade
+                  </p>
+                  <p className="text-3xl font-bold text-gray-800 mt-2">
+                    {stats.average}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-500 rounded-full">
+                  <FaGraduationCap className="text-white text-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* Charts Section: Grade Trend, Completion */}
+      <div className="mb-8">
+        {/* Grade Trend Area Chart */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Grade Trend (Mountain Chart)
+          </h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart
+              data={gradeTrend}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="colorGrade" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Area
+                type="monotone"
+                dataKey="avgGrade"
+                stroke="#6366F1"
+                fillOpacity={1}
+                fill="url(#colorGrade)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Grade Completion Ladder Chart */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Grade Completion (Ladder Chart)
+          </h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <ComposedChart
+              data={gradeCompletion}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="stepAfter"
+                dataKey="completion"
+                stroke="#3B82F6"
+                strokeWidth={3}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
       {/* Search */}
       {selectedAssignment && (
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+        <div className="bg-blue-100 p-6 rounded-xl shadow">
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -309,7 +388,7 @@ const TeacherGrades = () => {
 
       {/* Submissions Table */}
       {selectedAssignment && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-blue-100 p-6 rounded-xl shadow">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800">
               {selectedAssignmentData?.title} - Submissions
@@ -438,7 +517,7 @@ const TeacherGrades = () => {
       )}
 
       {selectedAssignment && filteredSubmissions.length === 0 && (
-        <div className="bg-white p-12 rounded-lg shadow-md text-center">
+        <div className="bg-blue-100 p-12 rounded-xl shadow text-center">
           <div className="text-gray-500 text-lg">No submissions found</div>
           <p className="text-gray-400 mt-2">
             There are no submissions for the selected assignment.

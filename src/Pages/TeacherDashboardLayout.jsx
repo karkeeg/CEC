@@ -8,7 +8,7 @@ const TeacherDashboardLayout = () => {
     <>
       <TeacherSidebar />
       <TeacherHeader />
-      <main className="pt-24 px-6 bg-gray-100 min-h-screen ml-64">
+      <main className="pt-20 md:pt-24 md:px-6 bg-gray-100 min-h-screen ml-0 md:ml-64 transition-all">
         <Outlet />
       </main>
     </>

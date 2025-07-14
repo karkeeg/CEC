@@ -105,10 +105,10 @@ const MyRoutes = () => {
           <Route path="students" element={<TeacherStudents />} />
           <Route path="classes" element={<TeacherClasses />} />
           <Route path="assignments" element={<TeacherAssignments />} />
-          {/* <Route path="attendance" element={<TeacherAttendance />} /> */}
-          {/* <Route path="grades" element={<TeacherGrades />} /> */}
+          <Route path="attendance" element={<TeacherAttendance />} />
+          <Route path="grades" element={<TeacherGrades />} />
           <Route path="analytics" element={<TeacherAnalytics />} />
-          {/* <Route path="settings" element={<TeacherSettings />} /> */}
+          <Route path="settings" element={<TeacherSettings />} />
         </Route>
       </Routes>
     </BrowserRouter>

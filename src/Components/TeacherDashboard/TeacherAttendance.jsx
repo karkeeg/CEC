@@ -9,6 +9,17 @@ import {
   FaSave,
   FaClock,
 } from "react-icons/fa";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ComposedChart,
+  Line,
+} from "recharts";
 
 const TeacherAttendance = () => {
   const { user } = useUser();
@@ -21,6 +32,10 @@ const TeacherAttendance = () => {
   const [attendance, setAttendance] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [attendanceTrend, setAttendanceTrend] = useState([]); // For AreaChart
+  const [studentAttendanceProgress, setStudentAttendanceProgress] = useState(
+    []
+  ); // For StepLine
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -61,6 +76,20 @@ const TeacherAttendance = () => {
         if (allClasses.length > 0) {
           setSelectedClass(allClasses[0].id);
         }
+        // Mock or fetch attendance trend data
+        const trend = allClasses.map((cls) => ({
+          name: cls.name,
+          present: Math.floor(Math.random() * 30) + 10,
+          absent: Math.floor(Math.random() * 10),
+          late: Math.floor(Math.random() * 5),
+        }));
+        setAttendanceTrend(trend);
+        // Mock or fetch student attendance progress
+        const progress = allClasses.map((cls) => ({
+          name: cls.name,
+          progress: Math.floor(Math.random() * 100),
+        }));
+        setStudentAttendanceProgress(progress);
       } catch (error) {
         console.error("Error fetching classes:", error);
       } finally {
@@ -207,64 +236,65 @@ const TeacherAttendance = () => {
   const stats = getAttendanceStats();
 
   return (
-    <div className="p-6">
+    <div className="w-full p-4">
+      {/* Summary Section: Controls and Stats */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Attendance</h1>
         <p className="text-gray-600">
           Take and manage attendance for your classes
         </p>
-      </div>
+        {/* Controls */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Class
+              </label>
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a class</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name} ({cls.department})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      {/* Controls */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Class
-            </label>
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select a class</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name} ({cls.department})
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={handleSaveAttendance}
-              disabled={saving || !selectedClass}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
-            >
-              <FaSave />
-              <span>{saving ? "Saving..." : "Save Attendance"}</span>
-            </button>
+            <div className="flex items-end">
+              <button
+                onClick={handleSaveAttendance}
+                disabled={saving}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+              >
+                {saving ? (
+                  <FaSave className="mr-2" />
+                ) : (
+                  <FaCheck className="mr-2" />
+                )}
+                {saving ? "Saving..." : "Save Attendance"}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Stats */}
-      {selectedClass && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">
@@ -279,12 +309,11 @@ const TeacherAttendance = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Present</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
+                <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats.present}
                 </p>
               </div>
@@ -293,12 +322,11 @@ const TeacherAttendance = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Absent</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
+                <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats.absent}
                 </p>
               </div>
@@ -307,12 +335,11 @@ const TeacherAttendance = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Late</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-2">
+                <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats.late}
                 </p>
               </div>
@@ -322,11 +349,79 @@ const TeacherAttendance = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Attendance List */}
+      </div>
+      {/* Charts Section: Attendance Trend, Student Progress */}
+      <div className="mb-8">
+        {/* Attendance Trend Area Chart */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Attendance Trend (Mountain Chart)
+          </h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart
+              data={attendanceTrend}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Area
+                type="monotone"
+                dataKey="present"
+                stroke="#10B981"
+                fillOpacity={1}
+                fill="url(#colorPresent)"
+              />
+              <Area
+                type="monotone"
+                dataKey="absent"
+                stroke="#EF4444"
+                fill="#fee2e2"
+              />
+              <Area
+                type="monotone"
+                dataKey="late"
+                stroke="#F59E0B"
+                fill="#fef3c7"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Student Attendance Progress Ladder Chart */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Student Attendance Progress (Ladder Chart)
+          </h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <ComposedChart
+              data={studentAttendanceProgress}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="stepAfter"
+                dataKey="progress"
+                stroke="#3B82F6"
+                strokeWidth={3}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      {/* Attendance List Section */}
       {selectedClass && students.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-blue-100 p-6 rounded-xl shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800">
               Student Attendance
@@ -418,7 +513,7 @@ const TeacherAttendance = () => {
       )}
 
       {selectedClass && students.length === 0 && (
-        <div className="bg-white p-12 rounded-lg shadow-md text-center">
+        <div className="bg-blue-100 p-12 rounded-xl shadow text-center">
           <div className="text-gray-500 text-lg">
             No students found in this class
           </div>
