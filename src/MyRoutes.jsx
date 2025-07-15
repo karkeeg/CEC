@@ -32,6 +32,7 @@ import Gallery from "./Pages/Gallery";
 import Notices from "./Pages/Notices";
 import NoticeDetail from "./Pages/NoticeDetail";
 import DownloadPage from "./Pages/DownloadPage";
+import AdministrationPage from "./Pages/AdministrationPage";
 
 // Teacher Dashboard Components
 import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
@@ -58,6 +59,10 @@ const MyRoutes = () => {
           <Route path="/notices" element={<Notices />} />
           <Route path="/notices/:id" element={<NoticeDetail />} />
           <Route path="/downloads/:id" element={<DownloadPage />} />
+          <Route
+            path="/about/administration"
+            element={<AdministrationPage />}
+          />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

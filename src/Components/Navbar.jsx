@@ -12,7 +12,7 @@ import {
 } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
 import logo from "../assets/logo.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 import { MdDashboard } from "react-icons/md";
 import supabase from "../supabaseConfig/supabaseClient";
@@ -20,11 +20,16 @@ import supabase from "../supabaseConfig/supabaseClient";
 const navItems = [
   {
     label: "Home",
-    dropdown: ["Main", "News & Events", "Gallery"],
+    link: "/",
   },
   {
     label: "About",
-    dropdown: ["Vision & Mission", "History", "Administration"],
+    dropdown: [
+      "Vision & Mission",
+      "News & Events",
+      "History",
+      "Administration",
+    ],
   },
   {
     label: "Departments",
@@ -90,6 +95,23 @@ const Navbar = () => {
   // New state for download categories
   const [downloadCategories, setDownloadCategories] = useState([]);
   const [loadingDownloads, setLoadingDownloads] = useState(true);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleVisionMissionClick = (e) => {
+    e.preventDefault();
+    if (location.pathname !== "/") {
+      navigate("/", { replace: false });
+      setTimeout(() => {
+        const el = document.getElementById("campus-section");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 400); // wait for navigation
+    } else {
+      const el = document.getElementById("campus-section");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -304,6 +326,59 @@ const Navbar = () => {
                                   {sub.name}
                                 </Link>
                               ))
+                            : item.label === "About"
+                            ? item.dropdown.map((sub, subIdx) => {
+                                if (
+                                  sub === "News & Events" ||
+                                  sub === "Articles"
+                                ) {
+                                  return (
+                                    <Link
+                                      to="/articles"
+                                      key={subIdx}
+                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                    >
+                                      {sub}
+                                    </Link>
+                                  );
+                                }
+                                if (sub === "Administration") {
+                                  return (
+                                    <Link
+                                      to="/about/administration"
+                                      key={subIdx}
+                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                    >
+                                      {sub}
+                                    </Link>
+                                  );
+                                }
+                                if (sub === "Vision & Mission") {
+                                  return (
+                                    <a
+                                      href="#campus-section"
+                                      key={subIdx}
+                                      onClick={handleVisionMissionClick}
+                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
+                                    >
+                                      {sub}
+                                    </a>
+                                  );
+                                }
+                                return (
+                                  <Link
+                                    to={`/${item.label
+                                      .toLowerCase()
+                                      .replace(/\s/g, "-")}/${sub
+                                      .toLowerCase()
+                                      .replace(/\s/g, "-")}`}
+                                    key={subIdx}
+                                    className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                  >
+                                    {sub}
+                                  </Link>
+                                );
+                              })
                             : item.dropdown.map((sub, subIdx) => (
                                 <Link
                                   to={`/${item.label

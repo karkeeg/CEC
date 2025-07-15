@@ -28,6 +28,7 @@ const CampusSection = () => {
 
   return (
     <div
+      id="campus-section"
       className="bg-blue-100 py-12 px-4"
       style={{ backgroundColor: "var(--secondary-100, #CEEAFB)" }}
     >

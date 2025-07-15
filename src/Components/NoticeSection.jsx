@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import supabase from "../supabaseConfig/supabaseClient";
+import { Link } from "react-router-dom";
 
 import campusImage1 from "../assets/image1.png";
 import campusImage2 from "../assets/thumbnail.png";
@@ -56,15 +57,15 @@ const NoticeBar = () => {
             <div className="marquee">
               {/* Duplicate notices for seamless infinite scroll */}
               {[...notices, ...notices].map((n, i) => (
-                <a
+                <Link
                   key={i}
-                  href={`/notices/${n.id}`}
+                  to={`/notices/${n.notice_id}`}
                   className="mx-8 inline-block text-white hover:underline hover:text-blue-300 transition"
                   style={{ minWidth: 200 }}
                 >
                   📢 [{formatDate(n.created_at)}] <b>{n.title}</b> —{" "}
                   {n.description}
-                </a>
+                </Link>
               ))}
             </div>
           )}
