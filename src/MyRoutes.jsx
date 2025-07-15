@@ -27,6 +27,11 @@ import ArticleDetail from "./Pages/ArticleDetail";
 import AdminAnalytics from "./Components/AdminDashboard.jsx/AdminAnalytics";
 import Settings from "./Components/Settings";
 import StudentAnalytics from "./Components/StudentDashboard/StudentAnalytics";
+import DepartmentDetail from "./Pages/DepartmentDetail";
+import Gallery from "./Pages/Gallery";
+import Notices from "./Pages/Notices";
+import NoticeDetail from "./Pages/NoticeDetail";
+import DownloadPage from "./Pages/DownloadPage";
 
 // Teacher Dashboard Components
 import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
@@ -48,6 +53,11 @@ const MyRoutes = () => {
           <Route index element={<HomePage />} />
           <Route path="/articles" element={<Articles />} />
           <Route path="/articles/:id" element={<ArticleDetail />} />
+          <Route path="/department/:id" element={<DepartmentDetail />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/notices" element={<Notices />} />
+          <Route path="/notices/:id" element={<NoticeDetail />} />
+          <Route path="/downloads/:id" element={<DownloadPage />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

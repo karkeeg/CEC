@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaSearch,
   FaBars,
@@ -15,6 +15,7 @@ import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 import { MdDashboard } from "react-icons/md";
+import supabase from "../supabaseConfig/supabaseClient";
 
 const navItems = [
   {
@@ -84,6 +85,76 @@ const Navbar = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [openMobileSubDropdown, setOpenMobileSubDropdown] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [facultyDepartments, setFacultyDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+  // New state for download categories
+  const [downloadCategories, setDownloadCategories] = useState([]);
+  const [loadingDownloads, setLoadingDownloads] = useState(true);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      setLoadingDepartments(true);
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name, faculty:faculty_id(id, name)");
+      if (error) {
+        setFacultyDepartments([]);
+        setLoadingDepartments(false);
+        return;
+      }
+      // Group departments by faculty
+      const grouped = {};
+      data.forEach((dept) => {
+        if (!dept.faculty) return;
+        if (!grouped[dept.faculty.id]) {
+          grouped[dept.faculty.id] = {
+            facultyId: dept.faculty.id,
+            facultyName: dept.faculty.name,
+            departments: [],
+          };
+        }
+        grouped[dept.faculty.id].departments.push({
+          id: dept.id,
+          name: dept.name,
+        });
+      });
+      setFacultyDepartments(Object.values(grouped));
+      setLoadingDepartments(false);
+    };
+    fetchDepartments();
+  }, []);
+
+  // Fetch download categories from Supabase
+  useEffect(() => {
+    const fetchDownloadCategories = async () => {
+      setLoadingDownloads(true);
+      const { data, error } = await supabase
+        .from("download_categories")
+        .select("id, name");
+      if (error) {
+        setDownloadCategories([]);
+        setLoadingDownloads(false);
+        return;
+      }
+      setDownloadCategories(data);
+      setLoadingDownloads(false);
+    };
+    fetchDownloadCategories();
+  }, []);
+
+  // Replace navItems with dynamic Download dropdown (with id)
+  const dynamicNavItems = navItems.map((item) => {
+    if (item.label === "Download") {
+      return {
+        ...item,
+        dropdown: downloadCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+        })),
+      };
+    }
+    return item;
+  });
 
   const getUserDisplayName = () => {
     if (profile) {
@@ -146,7 +217,7 @@ const Navbar = () => {
           {/* Center: Nav Items (hidden on xl and below) */}
           <div className="hidden xl:flex items-center justify-center flex-1 min-w-0">
             <ul className="flex items-center flex-wrap gap-x-2">
-              {navItems.map((item, idx) => (
+              {dynamicNavItems.map((item, idx) => (
                 <li key={item.label} className="relative">
                   {item.label === "Departments" ? (
                     <div
@@ -159,35 +230,51 @@ const Navbar = () => {
                       </button>
                       {openDropdown === idx && (
                         <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-50 overflow-visible">
-                          {item.dropdown.map((cat) => {
-                            const catKey = cat.replace(/ $/, "");
-                            return (
+                          {loadingDepartments ? (
+                            <div className="px-4 py-2 text-gray-500">
+                              Loading...
+                            </div>
+                          ) : facultyDepartments.length === 0 ? (
+                            <div className="px-4 py-2 text-gray-500">
+                              No departments found
+                            </div>
+                          ) : (
+                            facultyDepartments.map((faculty) => (
                               <div
-                                key={cat}
+                                key={faculty.facultyId}
                                 className="relative group"
-                                onMouseEnter={() => setOpenSubDropdown(catKey)}
+                                onMouseEnter={() =>
+                                  setOpenSubDropdown(faculty.facultyId)
+                                }
                                 onMouseLeave={() => setOpenSubDropdown(null)}
                               >
                                 <div className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer flex justify-between items-center">
-                                  {catKey} <span>▸</span>
+                                  {faculty.facultyName.replace(
+                                    /^Faculty of /i,
+                                    ""
+                                  )}{" "}
+                                  <span>▸</span>
                                 </div>
-                                {openSubDropdown === catKey && (
+                                {openSubDropdown === faculty.facultyId && (
                                   <div className="absolute left-full top-0 min-w-[250px] bg-white text-[#1b3e94] rounded shadow-lg z-50 overflow-visible">
-                                    {item.subDropdown[catKey].map(
-                                      (course, cidx) => (
-                                        <div
-                                          key={cidx}
-                                          className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
-                                        >
-                                          {course}
-                                        </div>
-                                      )
-                                    )}
+                                    {faculty.departments.map((dept) => (
+                                      <Link
+                                        key={dept.id}
+                                        to={`/department/${dept.id}`}
+                                        className="px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer block"
+                                        onClick={() => {
+                                          setOpenDropdown(null);
+                                          setOpenSubDropdown(null);
+                                        }}
+                                      >
+                                        {dept.name}
+                                      </Link>
+                                    ))}
                                   </div>
                                 )}
                               </div>
-                            );
-                          })}
+                            ))
+                          )}
                         </div>
                       )}
                     </div>
@@ -207,19 +294,29 @@ const Navbar = () => {
                           onMouseEnter={() => setOpenDropdown(idx)}
                           onMouseLeave={() => setOpenDropdown(null)}
                         >
-                          {item.dropdown.map((sub, subIdx) => (
-                            <Link
-                              to={`/${item.label
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}/${sub
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}`}
-                              key={subIdx}
-                              className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                            >
-                              {sub}
-                            </Link>
-                          ))}
+                          {item.label === "Download"
+                            ? item.dropdown.map((sub, subIdx) => (
+                                <Link
+                                  to={`/downloads/${sub.id}`}
+                                  key={sub.id}
+                                  className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))
+                            : item.dropdown.map((sub, subIdx) => (
+                                <Link
+                                  to={`/${item.label
+                                    .toLowerCase()
+                                    .replace(/\s/g, "-")}/${sub
+                                    .toLowerCase()
+                                    .replace(/\s/g, "-")}`}
+                                  key={subIdx}
+                                  className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                >
+                                  {sub}
+                                </Link>
+                              ))}
                         </div>
                       )}
                     </>
