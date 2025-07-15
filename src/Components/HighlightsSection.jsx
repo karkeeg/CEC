@@ -36,11 +36,11 @@ const HighlightsSection = () => {
         </h2>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-6 max-w-6xl mx-auto px-4">
+      <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-6 max-w-6xl mx-auto  px-4">
         {highlights.map((item, index) => (
           <div
             key={index}
-            className={`transition-all cursor-pointer p-6 rounded-xl bg-white hover:bg-blue-900 shadow-md w-full sm:w-[90%] md:w-[400px] lg:w-[30%] text-center
+            className={`transition-all cursor-pointer p-6 rounded-xl bg-white hover:bg-blue-900 hover:text-white shadow-md w-full sm:w-[90%] md:w-[400px] lg:w-[30%] text-center
              `}
           >
             <div className="mb-4 flex items-center justify-center h-[100px] w-full">

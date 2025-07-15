@@ -24,12 +24,7 @@ const navItems = [
   },
   {
     label: "About",
-    dropdown: [
-      "Vision & Mission",
-      "News & Events",
-      "History",
-      "Administration",
-    ],
+    dropdown: ["Vision & Mission", "News & Events", "Administration"],
   },
   {
     label: "Departments",

@@ -1,6 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../supabaseConfig/supabaseClient";
+import { FaCogs, FaBriefcase, FaHeartbeat, FaUniversity } from "react-icons/fa";
+
+// Map department keywords to icons
+const getDepartmentIcon = (name) => {
+  const lower = name.toLowerCase();
+  if (lower.includes("engineer"))
+    return <FaCogs className="text-4xl text-blue-600 mb-2 mx-auto" />;
+  if (lower.includes("management"))
+    return <FaBriefcase className="text-4xl text-green-600 mb-2 mx-auto" />;
+  if (
+    lower.includes("health") ||
+    lower.includes("medical") ||
+    lower.includes("pharmacy") ||
+    lower.includes("lab")
+  )
+    return <FaHeartbeat className="text-4xl text-red-500 mb-2 mx-auto" />;
+  return <FaUniversity className="text-4xl text-gray-400 mb-2 mx-auto" />;
+};
 
 const Courses = () => {
   const [departments, setDepartments] = useState([]);
@@ -39,9 +57,10 @@ const Courses = () => {
               <Link
                 to={`/department/${dept.id}`}
                 key={dept.id}
-                className="bg-white border rounded-[24px] p-8 hover:shadow-xl cursor-pointer transition text-center flex items-center justify-center"
+                className="bg-white border rounded-[24px] p-8 hover:shadow-xl cursor-pointer transition text-center flex flex-col items-center justify-center"
               >
-                <span className="text-lg font-bold text-blue-700">
+                {getDepartmentIcon(dept.name)}
+                <span className="text-lg font-bold text-blue-700 mt-2 block">
                   {dept.name}
                 </span>
               </Link>
