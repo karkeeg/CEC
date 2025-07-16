@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import supabase from "../supabaseConfig/supabaseClient";
+import { fetchArticles } from "../supabaseConfig/supabaseApi";
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -8,21 +8,19 @@ const Articles = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchArticles = async () => {
+    const getArticles = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("articles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) {
-        setError(error.message);
-        setArticles([]);
-      } else {
+      try {
+        const data = await fetchArticles();
         setArticles(data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        setArticles([]);
       }
       setLoading(false);
     };
-    fetchArticles();
+    getArticles();
   }, []);
 
   if (loading)

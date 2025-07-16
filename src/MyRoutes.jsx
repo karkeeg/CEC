@@ -60,7 +60,7 @@ const MyRoutes = () => {
           <Route path="/notices/:id" element={<NoticeDetail />} />
           <Route path="/downloads/:id" element={<DownloadPage />} />
           <Route
-            path="/about/administration"
+            path="/staff/administration"
             element={<AdministrationPage />}
           />
         </Route>

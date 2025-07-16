@@ -1,16 +1,20 @@
 import React, { useEffect, useState, useCallback } from "react";
-import supabase from "../supabaseConfig/supabaseClient";
+import { fetchGalleryItems } from "../supabaseConfig/supabaseApi";
 
 const Gallery = () => {
   const [items, setItems] = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(null);
 
   useEffect(() => {
-    supabase
-      .from("gallery")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setItems(data || []));
+    const getGallery = async () => {
+      try {
+        const data = await fetchGalleryItems();
+        setItems(data || []);
+      } catch (err) {
+        setItems([]);
+      }
+    };
+    getGallery();
   }, []);
 
   const openModal = (idx) => setSelectedIdx(idx);
@@ -37,86 +41,78 @@ const Gallery = () => {
   }, [selectedIdx, showPrev, showNext]);
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-4">
-      <h1 className="text-4xl font-extrabold text-center mb-12 tracking-tight text-blue-900">
-        Gallery
-      </h1>
-      <div className="columns-1 sm:columns-2 md:columns-3 gap-6 space-y-6">
-        {items.map((item, idx) => (
-          <div
-            key={item.id}
-            className="relative mb-6 break-inside-avoid cursor-pointer group rounded-2xl overflow-hidden shadow-lg bg-white transition-transform hover:scale-105 hover:shadow-2xl"
-            onClick={() => openModal(idx)}
-          >
-            <img
-              src={item.image_url}
-              alt={item.title}
-              className="w-full h-72 object-cover object-center transition-transform duration-300 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-              <div className="text-white text-xl font-semibold drop-shadow mb-1">
+    <section className="bg-[#F7F9FB] min-h-screen py-12 px-4 md:px-16">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-[#1b3e94] mb-8 text-center">
+          Gallery
+        </h1>
+        <div className="grid gap-8 md:grid-cols-3">
+          {items.map((item, idx) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-lg shadow p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition"
+              onClick={() => openModal(idx)}
+            >
+              <img
+                src={item.image_url}
+                alt={item.title}
+                className="w-full h-40 object-cover rounded mb-2"
+              />
+              <h2 className="text-lg font-bold mb-1 text-[#1b3e94]">
                 {item.title}
-              </div>
-              {item.description && (
-                <div className="text-white text-sm line-clamp-2 drop-shadow mb-2">
-                  {item.description}
-                </div>
-              )}
-              <div className="text-gray-200 text-xs">
-                {item.created_at &&
-                  new Date(item.created_at).toLocaleDateString()}
-              </div>
+              </h2>
+              <p className="text-gray-600 text-sm text-center">
+                {item.description}
+              </p>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal Overlay */}
-      {selectedIdx !== null && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in">
-          <button
-            className="absolute top-6 right-10 text-white text-4xl font-bold hover:text-blue-400 transition-colors"
-            onClick={closeModal}
-            aria-label="Close"
-          >
-            &times;
-          </button>
-          <button
-            className="absolute left-6 top-1/2 -translate-y-1/2 text-white text-4xl font-bold hover:text-blue-400 transition-colors"
-            onClick={showPrev}
-            aria-label="Previous"
-          >
-            &#8592;
-          </button>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full flex flex-col items-center animate-fade-in">
-            <img
-              src={items[selectedIdx].image_url}
-              alt={items[selectedIdx].title}
-              className="max-h-[60vh] w-auto rounded-xl shadow mb-6"
-            />
-            <div className="text-2xl font-bold text-blue-900 mb-2 text-center">
-              {items[selectedIdx].title}
-            </div>
-            {items[selectedIdx].description && (
-              <div className="text-gray-700 text-base mb-2 text-center">
-                {items[selectedIdx].description}
-              </div>
-            )}
-            <div className="text-gray-400 text-xs mb-2">
-              {items[selectedIdx].created_at &&
-                new Date(items[selectedIdx].created_at).toLocaleDateString()}
-            </div>
-          </div>
-          <button
-            className="absolute right-6 top-1/2 -translate-y-1/2 text-white text-4xl font-bold hover:text-blue-400 transition-colors"
-            onClick={showNext}
-            aria-label="Next"
-          >
-            &#8594;
-          </button>
+          ))}
         </div>
-      )}
-    </div>
+        {/* Modal */}
+        {selectedIdx !== null && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center"
+            onClick={closeModal}
+          >
+            <div
+              className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={items[selectedIdx].image_url}
+                alt={items[selectedIdx].title}
+                className="w-full h-80 object-cover rounded mb-4"
+              />
+              <h2 className="text-xl font-bold mb-2 text-[#1b3e94]">
+                {items[selectedIdx].title}
+              </h2>
+              <p className="text-gray-600 mb-4">
+                {items[selectedIdx].description}
+              </p>
+              <div className="flex justify-between">
+                <button
+                  onClick={showPrev}
+                  className="px-4 py-2 bg-blue-100 rounded hover:bg-blue-200"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={showNext}
+                  className="px-4 py-2 bg-blue-100 rounded hover:bg-blue-200"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="px-4 py-2 bg-red-100 rounded hover:bg-red-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 };
 

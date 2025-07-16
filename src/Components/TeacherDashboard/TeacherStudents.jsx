@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAllStudents,
+  deleteStudent,
+} from "../../supabaseConfig/supabaseApi";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -29,8 +32,8 @@ const TeacherStudents = () => {
 
   const fetchStudents = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("students").select("*");
-    if (!error && data) {
+    const data = await getAllStudents();
+    if (data) {
       setStudents(data);
       // Mock or fetch performance trend data
       const trend = (data || []).map((s) => ({
@@ -56,7 +59,7 @@ const TeacherStudents = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this student?"))
       return;
-    const { error } = await supabase.from("students").delete().eq("id", id);
+    const error = await deleteStudent(id);
     if (!error) {
       setStudents((prev) => prev.filter((s) => s.id !== id));
     } else {

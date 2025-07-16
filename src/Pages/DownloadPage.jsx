@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import supabase from "../supabaseConfig/supabaseClient";
+import {
+  fetchDownloadCategories,
+  fetchDownloadFilesByCategory,
+  fetchMoreDownloadFiles,
+} from "../supabaseConfig/supabaseApi";
 import { FaFileAlt, FaDownload } from "react-icons/fa";
 
 const DownloadPage = () => {
@@ -13,47 +17,35 @@ const DownloadPage = () => {
   useEffect(() => {
     const fetchCategoryAndFiles = async () => {
       setLoading(true);
-      // Fetch category info
-      const { data: catData, error: catError } = await supabase
-        .from("download_categories")
-        .select("id, name, description")
-        .eq("id", id)
-        .single();
-      if (catError) {
+      try {
+        const categories = await fetchDownloadCategories();
+        const catData = categories.find((cat) => cat.id === id);
+        setCategory(catData || null);
+        if (catData) {
+          const fileData = await fetchDownloadFilesByCategory(id);
+          setFiles(fileData || []);
+        } else {
+          setFiles([]);
+        }
+      } catch (err) {
         setCategory(null);
         setFiles([]);
-        setLoading(false);
-        return;
       }
-      setCategory(catData);
-      // Fetch files for this category
-      const { data: fileData } = await supabase
-        .from("download_files")
-        .select(
-          "id, file_name, file_url, description, uploaded_at, uploaded_by"
-        )
-        .eq("category_id", id)
-        .order("uploaded_at", { ascending: false });
-      setFiles(fileData || []);
       setLoading(false);
     };
     fetchCategoryAndFiles();
   }, [id]);
 
   useEffect(() => {
-    // Fetch more documents from other categories
-    const fetchMoreDocs = async () => {
-      const { data: moreData } = await supabase
-        .from("download_files")
-        .select(
-          "id, file_name, file_url, description, uploaded_at, uploaded_by, category_id"
-        )
-        .neq("category_id", id)
-        .order("uploaded_at", { ascending: false })
-        .limit(3);
-      setMoreDocs(moreData || []);
+    const getMoreDocs = async () => {
+      try {
+        const moreData = await fetchMoreDownloadFiles(id, 3);
+        setMoreDocs(moreData || []);
+      } catch (err) {
+        setMoreDocs([]);
+      }
     };
-    fetchMoreDocs();
+    getMoreDocs();
   }, [id]);
 
   if (loading) {

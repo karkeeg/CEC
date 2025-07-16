@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  updateTeacherProfile,
+  updateTeacherPassword,
+} from "../../supabaseConfig/supabaseApi";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
 
 const TeacherSettings = () => {
@@ -38,22 +41,9 @@ const TeacherSettings = () => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
-
     try {
-      const { error } = await supabase
-        .from("teachers")
-        .update({
-          first_name: profileForm.first_name,
-          middle_name: profileForm.middle_name,
-          last_name: profileForm.last_name,
-          phone: profileForm.phone,
-        })
-        .eq("id", user.id);
-
+      const error = await updateTeacherProfile(user.id, profileForm);
       if (error) throw error;
-
-      // Note: User context will be updated automatically on next auth state change
-
       setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -67,26 +57,22 @@ const TeacherSettings = () => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
-
     if (passwordForm.new_password !== passwordForm.confirm_password) {
       setMessage({ type: "error", text: "New passwords do not match" });
       setLoading(false);
       return;
     }
-
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordForm.new_password,
-      });
-
+      const error = await updateTeacherPassword(
+        user.id,
+        passwordForm.new_password
+      );
       if (error) throw error;
-
       setPasswordForm({
         current_password: "",
         new_password: "",
         confirm_password: "",
       });
-
       setMessage({ type: "success", text: "Password updated successfully!" });
     } catch (error) {
       console.error("Error updating password:", error);

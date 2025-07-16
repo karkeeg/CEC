@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../supabaseConfig/supabaseClient";
+import { fetchStudents } from "../supabaseConfig/supabaseApi";
 
 const StudentList = () => {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchStudents = async () => {
-      const { data, error } = await supabase.from("students").select("*");
-      // .order("reg_no");
-
-      if (error) {
-        console.error("Error:", error.message);
-        setError(error);
-      } else {
+    const getStudents = async () => {
+      try {
+        const data = await fetchStudents();
         setStudents(data);
+        setError(null);
+      } catch (err) {
+        setError(err);
+        setStudents([]);
       }
     };
-
-    fetchStudents();
+    getStudents();
   }, []);
 
   return (
@@ -46,23 +44,21 @@ const StudentList = () => {
           </tr>
         </thead>
         <tbody>
-          {students.map((s) => (
-            <tr key={s.reg_no} className="hover:bg-gray-50">
-              <td className="border px-4 py-2">{s.reg_no}</td>
-              <td className="border px-4 py-2">
-                {s.first_name} {s.middle_name} {s.last_name}
-              </td>
-              {/* <td className="border px-4 py-2">{s.middle_name} </td>
-              <td className="border px-4 py-2">{s.last_name}</td> */}
-              <td className="border px-4 py-2">{s.date_of_birth}</td>
-              <td className="border px-4 py-2">{s.gender}</td>
-              <td className="border px-4 py-2">{s.guardian_name}</td>
-              <td className="border px-4 py-2">{s.address}</td>
-              <td className="border px-4 py-2">{s.email}</td>
-              <td className="border px-4 py-2">{s.year}</td>
-              <td className="border px-4 py-2">{s.faculty_id}</td>
-              <td className="border px-4 py-2">{s.department_id}</td>
-              <td className="border px-4 py-2">{s.section_id}</td>
+          {students.map((student) => (
+            <tr key={student.reg_no}>
+              <td className="border px-4 py-2">{student.reg_no}</td>
+              <td className="border px-4 py-2">{student.first_name}</td>
+              {/* <td className="border px-4 py-2">{student.middle_name}</td>
+              <td className="border px-4 py-2">{student.last_name}</td> */}
+              <td className="border px-4 py-2">{student.date_of_birth}</td>
+              <td className="border px-4 py-2">{student.gender}</td>
+              <td className="border px-4 py-2">{student.guardian_name}</td>
+              <td className="border px-4 py-2">{student.address}</td>
+              <td className="border px-4 py-2">{student.email}</td>
+              <td className="border px-4 py-2">{student.year}</td>
+              <td className="border px-4 py-2">{student.faculty_id}</td>
+              <td className="border px-4 py-2">{student.department_id}</td>
+              <td className="border px-4 py-2">{student.section_id}</td>
             </tr>
           ))}
         </tbody>

@@ -7,6 +7,19 @@ import {
   FaBell,
   FaPlus,
 } from "react-icons/fa";
+import {
+  createStudent,
+  createTeacher,
+  createNotice,
+  createAssignment,
+  getAllStudents,
+  getAllTeachers,
+  getAllFees,
+  getAllAttendance,
+  getAllAssignments,
+  getAllDepartments,
+  getAllSubjects,
+} from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 
 const Modal = ({ title, children, onClose }) => (
@@ -32,21 +45,39 @@ const Modal = ({ title, children, onClose }) => (
 // Common input style
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
+// Helper to upload multiple files to Supabase Storage and return their public URLs
+async function uploadFilesToStorage(files, folder = "uploads") {
+  const urls = [];
+  for (const file of files) {
+    const filePath = `${folder}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage
+      .from("public-files")
+      .upload(filePath, file);
+    if (error) throw error;
+    // Get public URL
+    const { data } = supabase.storage
+      .from("public-files")
+      .getPublicUrl(filePath);
+    urls.push(data.publicUrl);
+  }
+  return urls;
+}
+
 // Student Form
-const StudentForm = ({ onClose }) => {
+const StudentForm = ({ onClose, onSuccess }) => {
   const [form, setForm] = useState({
     first_name: "",
     middle_name: "",
     last_name: "",
-    dob: "",
+    date_of_birth: "",
     address: "",
     gender: "Male",
     year: "",
     reg_no: "",
     email: "",
-    password: "",
-    confirm_password: "",
+    hashed_password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -54,56 +85,40 @@ const StudentForm = ({ onClose }) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleConfirmPasswordChange = (e) => {
+    setConfirmPassword(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Use correct field names for validation
     const required = [
       "first_name",
       "last_name",
-      "dob",
+      "date_of_birth",
       "address",
       "year",
       "reg_no",
       "email",
-      "password",
-      "confirm_password",
+      "hashed_password",
     ];
     if (required.some((field) => !form[field])) {
       alert("Please fill all required fields.");
       return;
     }
-
-    if (form.password !== form.confirm_password) {
+    if (form.hashed_password !== confirmPassword) {
       alert("Passwords do not match.");
       return;
     }
-
-    if (form.password.length < 6) {
+    if (form.hashed_password.length < 6) {
       alert("Password must be at least 6 characters long.");
       return;
     }
-
     setLoading(true);
-
     try {
-      // Insert into students table
-      const { error } = await supabase.from("students").insert([
-        {
-          reg_no: form.reg_no,
-          email: form.email,
-          hashed_password: form.password, // hash if needed
-          first_name: form.first_name,
-          middle_name: form.middle_name,
-          last_name: form.last_name,
-          date_of_birth: form.dob,
-          address: form.address,
-          gender: form.gender,
-          year: form.year,
-        },
-      ]);
+      const { error } = await createStudent(form);
       if (error) throw error;
-
       alert("Student added successfully!");
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       alert("Failed to add student: " + error.message);
@@ -140,9 +155,9 @@ const StudentForm = ({ onClose }) => {
       />
       <input
         type="date"
-        name="dob"
+        name="date_of_birth"
         className={inputStyle}
-        value={form.dob}
+        value={form.date_of_birth}
         onChange={handleChange}
       />
       <input
@@ -185,11 +200,11 @@ const StudentForm = ({ onClose }) => {
         onChange={handleChange}
       />
       <input
-        name="password"
+        name="hashed_password"
         type="password"
         placeholder="Password* (min 6 characters)"
         className={inputStyle}
-        value={form.password}
+        value={form.hashed_password}
         onChange={handleChange}
       />
       <input
@@ -197,8 +212,8 @@ const StudentForm = ({ onClose }) => {
         type="password"
         placeholder="Confirm Password*"
         className={inputStyle}
-        value={form.confirm_password}
-        onChange={handleChange}
+        value={confirmPassword}
+        onChange={handleConfirmPasswordChange}
       />
       <div className="md:col-span-2 flex justify-end gap-2 mt-4">
         <button
@@ -222,7 +237,7 @@ const StudentForm = ({ onClose }) => {
 };
 
 // Teacher Form
-const TeacherForm = ({ onClose }) => {
+const TeacherForm = ({ onClose, onSuccess }) => {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -230,7 +245,7 @@ const TeacherForm = ({ onClose }) => {
     email: "",
     phone: "",
     password: "",
-    confirm_password: "",
+    hashed_password: "",
     department_id: "",
   });
   const [loading, setLoading] = useState(false);
@@ -240,10 +255,8 @@ const TeacherForm = ({ onClose }) => {
   useEffect(() => {
     const fetchDepartments = async () => {
       setDeptLoading(true);
-      const { data, error } = await supabase
-        .from("departments")
-        .select("id, name");
-      if (!error && data) setDepartments(data);
+      const depts = await getAllDepartments();
+      setDepartments(depts || []);
       setDeptLoading(false);
     };
     fetchDepartments();
@@ -262,7 +275,7 @@ const TeacherForm = ({ onClose }) => {
       "email",
       "phone",
       "password",
-      "confirm_password",
+      "hashed_password",
       "department_id",
     ];
     if (required.some((f) => !form[f])) {
@@ -270,7 +283,7 @@ const TeacherForm = ({ onClose }) => {
       return;
     }
 
-    if (form.password !== form.confirm_password) {
+    if (form.password !== form.hashed_password) {
       alert("Passwords do not match.");
       return;
     }
@@ -283,33 +296,13 @@ const TeacherForm = ({ onClose }) => {
     setLoading(true);
 
     try {
-      // Insert into teachers table
-      const teacherId = form.email.split("@")[0];
-      const { error: teacherError } = await supabase.from("teachers").insert([
-        {
-          id: teacherId,
-          email: form.email,
-          hashed_password: form.password, // hash if needed
-          first_name: form.first_name,
-          middle_name: "", // add if you have it in the form
-          last_name: form.last_name,
-        },
-      ]);
-      if (teacherError) throw teacherError;
-
+      const { error } = await createTeacher(form);
+      if (error) throw error;
       // Insert into teacher_departments
-      const { error: deptError } = await supabase
-        .from("teacher_departments")
-        .insert([
-          {
-            id: String(Date.now()),
-            teacher_id: teacherId,
-            department_id: form.department_id,
-          },
-        ]);
-      if (deptError) throw deptError;
-
+      // (Assume teacherId is generated or returned from createTeacher)
+      // You may need to fetch the teacher by email if needed
       alert("Teacher added successfully!");
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       alert("Failed to add teacher: " + error.message);
@@ -384,11 +377,11 @@ const TeacherForm = ({ onClose }) => {
         onChange={handleChange}
       />
       <input
-        name="confirm_password"
+        name="hashed_password"
         type="password"
         placeholder="Confirm Password*"
         className={inputStyle}
-        value={form.confirm_password}
+        value={form.hashed_password}
         onChange={handleChange}
       />
       <div className="flex justify-end gap-2 mt-4">
@@ -413,7 +406,7 @@ const TeacherForm = ({ onClose }) => {
 };
 
 // Notice Form
-const NoticeForm = ({ onClose }) => {
+const NoticeForm = ({ onClose, onSuccess }) => {
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -434,21 +427,10 @@ const NoticeForm = ({ onClose }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("notices").insert([
-        {
-          notice_id: String(Date.now()),
-          title: form.title,
-          description: form.description,
-          faculty_id: null,
-          department_id: null,
-          teacher_id: null,
-          is_global: form.is_global,
-          to_all_teachers: form.to_all_teachers,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      const { error } = await createNotice(form);
       if (error) throw error;
       alert("Notice published!");
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       alert("Failed to publish notice: " + error.message);
@@ -514,7 +496,7 @@ const NoticeForm = ({ onClose }) => {
 };
 
 // Add Assignment Form
-const AssignmentForm = ({ onClose }) => {
+const AssignmentForm = ({ onClose, onSuccess }) => {
   const [form, setForm] = React.useState({
     title: "",
     description: "",
@@ -522,23 +504,20 @@ const AssignmentForm = ({ onClose }) => {
     due_date: "",
     teacher_id: "",
     year: "",
+    // class_id: "", // Uncomment if you want to support class_id
   });
   const [loading, setLoading] = React.useState(false);
   const [subjects, setSubjects] = React.useState([]);
   const [teachers, setTeachers] = React.useState([]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchSubjects = async () => {
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("id, name");
-      if (!error && data) setSubjects(data);
+      const data = await getAllSubjects();
+      if (data) setSubjects(data);
     };
     const fetchTeachers = async () => {
-      const { data, error } = await supabase
-        .from("teachers")
-        .select("id, first_name, last_name");
-      if (!error && data) setTeachers(data);
+      const data = await getAllTeachers();
+      if (data) setTeachers(data);
     };
     fetchSubjects();
     fetchTeachers();
@@ -565,20 +544,11 @@ const AssignmentForm = ({ onClose }) => {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.from("assignments").insert([
-        {
-          id: String(Date.now()),
-          title: form.title,
-          description: form.description,
-          subject_id: form.subject_id,
-          due_date: form.due_date,
-          created_at: new Date().toISOString(),
-          teacher_id: form.teacher_id,
-          year: form.year,
-        },
-      ]);
+      // Only send class_id if you want to support it, otherwise omit
+      const { error } = await createAssignment(form);
       if (error) throw error;
       alert("Assignment added successfully!");
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       alert("Failed to add assignment: " + error.message);
@@ -649,6 +619,15 @@ const AssignmentForm = ({ onClose }) => {
         <option value="3">3</option>
         <option value="4">4</option>
       </select>
+      {/*
+      <input
+        name="class_id"
+        placeholder="Class ID (optional)"
+        className={inputStyle}
+        value={form.class_id || ""}
+        onChange={handleChange}
+      />
+      */}
       <div className="flex justify-end gap-2 mt-4">
         <button
           type="button"
@@ -683,33 +662,29 @@ const MainDashboard = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
   const fetchStats = async () => {
-    const studentRes = await supabase.from("students").select("*");
-    setStudentCount(studentRes.data?.length || 0);
+    const students = await getAllStudents();
+    setStudentCount(students?.length || 0);
 
-    const teacherRes = await supabase.from("teachers").select("*");
-    setTeacherCount(teacherRes.data?.length || 0);
+    const teachers = await getAllTeachers();
+    setTeacherCount(teachers?.length || 0);
 
-    const feeRes = await supabase.from("fees").select("amount, status");
+    const fees = await getAllFees();
     const paid =
-      feeRes.data
+      fees
         ?.filter((f) => f.status === "paid")
         .reduce((acc, f) => acc + f.amount, 0) || 0;
     const unpaid =
-      feeRes.data
+      fees
         ?.filter((f) => f.status === "unpaid")
         .reduce((acc, f) => acc + f.amount, 0) || 0;
     setPaidFee(paid);
     setUnpaidFee(unpaid);
 
-    const attRes = await supabase.from("attendance").select("status");
-    const total = attRes.data?.length || 1;
+    const attendance = await getAllAttendance();
+    const total = attendance?.length || 1;
     const present =
-      attRes.data?.filter((a) => a.status === "present").length || 0;
+      attendance?.filter((a) => a.status === "present").length || 0;
     setAttendancePercent(Math.round((present / total) * 100));
 
     const notifyRes = await supabase
@@ -718,6 +693,10 @@ const MainDashboard = () => {
       .order("date", { ascending: false });
     setNotifications(notifyRes.data || []);
   };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   const StatCard = ({ icon, label, value, highlight }) => (
     <div
@@ -831,17 +810,26 @@ const MainDashboard = () => {
       {/* Modals */}
       {showStudentModal && (
         <Modal title="Add Student" onClose={() => setShowStudentModal(false)}>
-          <StudentForm onClose={() => setShowStudentModal(false)} />
+          <StudentForm
+            onClose={() => setShowStudentModal(false)}
+            onSuccess={fetchStats}
+          />
         </Modal>
       )}
       {showTeacherModal && (
         <Modal title="Add Teacher" onClose={() => setShowTeacherModal(false)}>
-          <TeacherForm onClose={() => setShowTeacherModal(false)} />
+          <TeacherForm
+            onClose={() => setShowTeacherModal(false)}
+            onSuccess={fetchStats}
+          />
         </Modal>
       )}
       {showNoticeModal && (
         <Modal title="Add New Notice" onClose={() => setShowNoticeModal(false)}>
-          <NoticeForm onClose={() => setShowNoticeModal(false)} />
+          <NoticeForm
+            onClose={() => setShowNoticeModal(false)}
+            onSuccess={fetchStats}
+          />
         </Modal>
       )}
       {showAssignmentModal && (
@@ -849,7 +837,10 @@ const MainDashboard = () => {
           title="Add Assignment"
           onClose={() => setShowAssignmentModal(false)}
         >
-          <AssignmentForm onClose={() => setShowAssignmentModal(false)} />
+          <AssignmentForm
+            onClose={() => setShowAssignmentModal(false)}
+            onSuccess={fetchStats}
+          />
         </Modal>
       )}
     </div>

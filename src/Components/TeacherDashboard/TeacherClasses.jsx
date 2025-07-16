@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import { getClassesByTeacher } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
   FaClock,
@@ -35,11 +35,7 @@ const TeacherClasses = () => {
     const fetchClasses = async () => {
       if (!user?.id) return;
       try {
-        const { data: classes, error } = await supabase
-          .from("classes")
-          .select("*");
-        // .eq("teacher_id", user.id);
-        if (error) throw error;
+        const classes = await getClassesByTeacher(user.id);
         setClasses(classes || []);
         // Mock or fetch class size trend data (for demo, use static or generate from classes)
         const trend = (classes || []).map((cls) => ({

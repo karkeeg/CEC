@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAllStudents,
+  deleteStudent,
+  updateStudent,
+} from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
   Bar,
@@ -30,8 +34,8 @@ const StudentDashboard = () => {
   }, []);
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase.from("students").select("*");
-    if (!error && data) {
+    const data = await getAllStudents();
+    if (data) {
       setStudents(data);
       prepareCharts(data);
     }
@@ -63,10 +67,7 @@ const StudentDashboard = () => {
   };
 
   const handleDelete = async (reg_no) => {
-    const { error } = await supabase
-      .from("students")
-      .delete()
-      .eq("reg_no", reg_no);
+    const error = await deleteStudent(reg_no);
     if (!error) {
       const updated = students.filter((s) => s.reg_no !== reg_no);
       setStudents(updated);
@@ -88,10 +89,7 @@ const StudentDashboard = () => {
     e.preventDefault();
     setEditLoading(true);
     const { reg_no, ...updates } = editForm;
-    const { error } = await supabase
-      .from("students")
-      .update(updates)
-      .eq("reg_no", reg_no);
+    const error = await updateStudent(reg_no, updates);
     setEditLoading(false);
     if (!error) {
       setStudents((prev) =>

@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAssignmentsByTeacher,
+  getAssignmentSubmissions,
+  updateAssignmentSubmissionGrade,
+} from "../../supabaseConfig/supabaseApi";
 import {
   FaSearch,
   FaEdit,
@@ -35,27 +39,8 @@ const TeacherGrades = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       if (!user?.id) return;
-
       try {
-        const { data: assignmentData, error } = await supabase
-          .from("assignments")
-          .select(
-            `
-            id,
-            title,
-            total_points,
-            due_date,
-            class:class_id (
-              id,
-              name
-            )
-          `
-          )
-          .eq("teacher_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
+        const assignmentData = await getAssignmentsByTeacher(user.id);
         setAssignments(assignmentData || []);
         if (assignmentData && assignmentData.length > 0) {
           setSelectedAssignment(assignmentData[0].id);
@@ -78,38 +63,17 @@ const TeacherGrades = () => {
         setLoading(false);
       }
     };
-
     fetchAssignments();
   }, [user]);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
       if (!selectedAssignment) return;
-
       try {
-        const { data: submissionData, error } = await supabase
-          .from("assignment_submissions")
-          .select(
-            `
-            id,
-            student:student_id (
-              id,
-              first_name,
-              middle_name,
-              last_name,
-              email
-            ),
-            submitted_at,
-            grade,
-            feedback
-          `
-          )
-          .eq("assignment_id", selectedAssignment);
-
-        if (error) throw error;
-
+        const submissionData = await getAssignmentSubmissions(
+          selectedAssignment
+        );
         setSubmissions(submissionData || []);
-
         // Initialize grades state
         const initialGrades = {};
         submissionData?.forEach((submission) => {
@@ -123,7 +87,6 @@ const TeacherGrades = () => {
         console.error("Error fetching submissions:", error);
       }
     };
-
     fetchSubmissions();
   }, [selectedAssignment]);
 
@@ -147,19 +110,12 @@ const TeacherGrades = () => {
           feedback: gradeData.feedback,
         })
       );
-
       for (const update of updates) {
-        const { error } = await supabase
-          .from("assignment_submissions")
-          .update({
-            grade: update.grade,
-            feedback: update.feedback,
-          })
-          .eq("id", update.id);
-
-        if (error) throw error;
+        await updateAssignmentSubmissionGrade(update.id, {
+          grade: update.grade,
+          feedback: update.feedback,
+        });
       }
-
       alert("Grades saved successfully!");
     } catch (error) {
       console.error("Error saving grades:", error);

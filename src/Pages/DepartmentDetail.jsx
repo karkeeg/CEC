@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import supabase from "../supabaseConfig/supabaseClient";
+import { fetchDepartmentById } from "../supabaseConfig/supabaseApi";
 
 const DepartmentDetail = () => {
   const { id } = useParams();
@@ -9,19 +9,10 @@ const DepartmentDetail = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDepartment = async () => {
+    const getDepartment = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("departments")
-        .select(
-          "id, name, description, courses, image_url, faculty:faculty_id(id, name)"
-        )
-        .eq("id", id)
-        .single();
-      if (error) {
-        setError("Department not found.");
-        setDepartment(null);
-      } else {
+      try {
+        const data = await fetchDepartmentById(id);
         // Parse courses JSON if present
         let courses = data.courses;
         try {
@@ -29,15 +20,16 @@ const DepartmentDetail = () => {
             courses && typeof courses === "string"
               ? JSON.parse(courses)
               : courses;
-        } catch (e) {
-          // fallback: leave as string
-        }
+        } catch (e) {}
         setDepartment({ ...data, courses });
         setError(null);
+      } catch (err) {
+        setError("Department not found.");
+        setDepartment(null);
       }
       setLoading(false);
     };
-    fetchDepartment();
+    getDepartment();
   }, [id]);
 
   if (loading)
@@ -47,35 +39,33 @@ const DepartmentDetail = () => {
   if (!department) return null;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow mt-8">
-      {department.image_url && (
+    <section className="bg-[#F7F9FB] min-h-screen py-12 px-4 md:px-16">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-[#1b3e94] mb-8 text-center">
+          {department.name}
+        </h1>
         <img
           src={department.image_url}
           alt={department.name}
-          className="w-full h-64 object-cover rounded mb-6"
+          className="w-full h-60 object-cover rounded mb-6"
         />
-      )}
-      <h1 className="text-3xl font-bold mb-2">{department.name}</h1>
-      <h2 className="text-lg text-gray-600 mb-4">{department.faculty?.name}</h2>
-      <p className="mb-6 text-gray-800">{department.description}</p>
-      {department.courses && typeof department.courses === "object" && (
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold mb-2">Course Structure</h3>
-          <div className="space-y-2">
-            {Object.entries(department.courses).map(([year, subjects], idx) => (
-              <div key={idx}>
-                <div className="font-bold text-blue-700 mb-1">{year}</div>
-                <ul className="list-disc ml-6">
-                  {subjects.map((subject, sidx) => (
-                    <li key={sidx}>{subject}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        <p className="text-gray-700 mb-4 text-lg">{department.description}</p>
+        {department.courses && Array.isArray(department.courses) && (
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold mb-2 text-[#3cb4d4]">
+              Courses
+            </h2>
+            <ul className="list-disc pl-6">
+              {department.courses.map((course, idx) => (
+                <li key={idx} className="mb-1 text-gray-800">
+                  {course}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import { getAllClasses } from "../../supabaseConfig/supabaseApi";
 
 import {
   FaUser,
@@ -18,28 +18,10 @@ const Classes = () => {
 
   useEffect(() => {
     const fetchClasses = async () => {
-      const { data, error } = await supabase.from("classes").select(`
-          class_id,
-          subject_id,
-          room_no,
-          teacher_department:teacher_id (
-            teacher:teacher_id (
-              first_name,
-              middle_name,
-              last_name
-            )
-          )
-        `);
-
-      if (error) {
-        console.error("Error fetching classes:", error);
-        setError(error);
-      } else {
-        setClasses(data);
-      }
+      const data = await getAllClasses();
+      setClasses(data);
       setLoading(false);
     };
-
     fetchClasses();
   }, []);
 

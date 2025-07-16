@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import { getAllAssignments } from "../../supabaseConfig/supabaseApi";
 import html2pdf from "html2pdf.js";
 
 const AdminAssignmentsPage = () => {
@@ -12,13 +12,8 @@ const AdminAssignmentsPage = () => {
   }, [fromDate, toDate]);
 
   const fetchData = async () => {
-    const { data, error } = await supabase.from("assignments").select("*");
-
-    if (error) {
-      console.error("Error fetching assignments:", error);
-    } else {
-      setAssignments(data);
-    }
+    const data = await getAllAssignments();
+    setAssignments(data);
   };
 
   const exportToPDF = () => {

@@ -14,6 +14,8 @@ const getDepartmentIcon = (name) => {
     lower.includes("health") ||
     lower.includes("medical") ||
     lower.includes("pharmacy") ||
+    lower.includes("medicine") ||
+    lower.includes("nurse") ||
     lower.includes("lab")
   )
     return <FaHeartbeat className="text-4xl text-red-500 mb-2 mx-auto" />;
@@ -38,7 +40,6 @@ const Courses = () => {
   if (loading) {
     return <div className="p-10 text-center text-xl">Loading...</div>;
   }
-
   return (
     <section className="w-full bg-slate-100 pt-16 pb-8 px-4 sm:px-8 lg:px-16">
       <div className="max-w-[1440px] mx-auto flex flex-col gap-16">
@@ -71,5 +72,4 @@ const Courses = () => {
     </section>
   );
 };
-
 export default Courses;

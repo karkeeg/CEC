@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getClassesByTeacher,
+  getAllStudents,
+  getAllAssignments,
+  getAllClasses,
+} from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
   Bar,
@@ -76,29 +81,19 @@ const TeacherAnalytics = () => {
       if (!user?.id) return;
       try {
         // Fetch all classes taught by this teacher
-        const { data: classesData, error: classesError } = await supabase
-          .from("classes")
-          .select("id")
-          .eq("teacher_id", user.id);
-        if (classesError) throw classesError;
+        const classesData = await getClassesByTeacher(user.id);
         const classIds = (classesData || []).map((c) => c.id);
         // Fetch students whose class_id is in classIds
         let studentsCount = 0;
         if (classIds.length > 0) {
-          const { data: studentsData, error: studentsError } = await supabase
-            .from("students")
-            .select("reg_no");
-          if (studentsError) throw studentsError;
+          const studentsData = await getAllStudents();
           studentsCount = (studentsData || []).filter((s) =>
             classIds.includes(s.class_id)
           ).length;
         }
         // Fetch assignments and all classes for global stats
-        const [{ data: assignmentsData }, { data: allClassesData }] =
-          await Promise.all([
-            supabase.from("assignments").select("id"),
-            supabase.from("classes").select("id"),
-          ]);
+        const assignmentsData = await getAllAssignments();
+        const allClassesData = await getAllClasses();
         setAnalytics({
           totalStudents: studentsCount,
           totalClasses: allClassesData?.length || 0,

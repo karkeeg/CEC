@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import { getAllDepartments } from "../../supabaseConfig/supabaseApi";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 const COLORS = [
@@ -20,20 +20,10 @@ const DepartmentsPage = () => {
   useEffect(() => {
     const fetchDepartments = async () => {
       setLoading(true);
-
-      const { data, error } = await supabase
-        .from("departments")
-        .select(`id, name, faculty:faculty_id(id,name)`);
-
-      if (error) {
-        console.error("Error fetching departments:", error);
-      } else {
-        setDepartments(data);
-      }
-
+      const data = await getAllDepartments();
+      setDepartments(data);
       setLoading(false);
     };
-
     fetchDepartments();
   }, []);
 

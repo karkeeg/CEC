@@ -1,9 +1,46 @@
-import React from "react";
+import React, { useState } from "react";
 import { FaFacebookF, FaYoutube, FaInstagram } from "react-icons/fa";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
+import emailjs from "emailjs-com";
 
 const Footer = () => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    emailjs
+      .send(
+        "service_nhdcjry",
+        "template_z430wpr",
+        formData,
+        "oyORtlfQbRmDt0zE5"
+      )
+      .then(() => {
+        alert("Message sent successfully!");
+        setFormData({ name: "", email: "", message: "" });
+      })
+      .catch((err) => {
+        console.error("EmailJS error:", err);
+        alert("Failed to send message.");
+      })
+      .finally(() => {
+        setSubmitting(false);
+      });
+  };
+
   return (
     <footer className="bg-[#1f459f] text-white w-full">
       <div
@@ -117,27 +154,40 @@ const Footer = () => {
           {/* Inquiry Form */}
           <div className="w-full lg:w-[431px] h-auto lg:h-[307px] pl-[24px] lg:pl-[40px] pr-[16px] pb-[8px] border-t lg:border-t-0 lg:border-l border-gray-400 flex flex-col gap-6">
             <h4 className="text-lg font-bold mb-2">Inquiry / Feedback</h4>
-            <form className="flex flex-col space-y-3">
+            <form onSubmit={handleSubmit} className="flex flex-col space-y-3">
               <input
                 type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
                 placeholder="Your Name"
                 className="w-full bg-[#3f75b2] text-white px-4 py-2 rounded-md placeholder-white outline-none"
+                required
               />
               <input
                 type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
                 placeholder="Your Email"
                 className="w-full bg-[#3f75b2] text-white px-4 py-2 rounded-md placeholder-white outline-none"
+                required
               />
               <textarea
-                rows="3"
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
                 placeholder="Inquiry/Feedback"
+                rows="3"
                 className="w-full bg-[#3f75b2] text-white px-4 py-2 rounded-md placeholder-white outline-none resize-none"
-              ></textarea>
+                required
+              />
               <button
                 type="submit"
+                disabled={submitting}
                 className="bg-[#55b6c2] text-white font-semibold py-2 px-6 rounded-md self-start hover:bg-[#49aab5] transition"
               >
-                Send Us
+                {submitting ? "Sending..." : "Send Us"}
               </button>
             </form>
           </div>

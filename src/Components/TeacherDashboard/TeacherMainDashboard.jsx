@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAllStudents,
+  getAllAssignments,
+  getAllClasses,
+  getGradesByTeacher,
+} from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
   FaBook,
@@ -40,18 +45,10 @@ const TeacherMainDashboard = () => {
       if (!user?.id) return;
       try {
         // Fetch total students and assignments from the whole database
-        const [
-          { data: studentsData },
-          { data: assignmentsData },
-          { data: classesData },
-        ] = await Promise.all([
-          supabase.from("students").select("reg_no"),
-          supabase
-            .from("assignments")
-            .select("id, due_date, teacher_id, created_at, title, description"),
-          supabase
-            .from("classes")
-            .select("id, teacher_id, name, schedule, date"),
+        const [studentsData, assignmentsData, classesData] = await Promise.all([
+          getAllStudents(),
+          getAllAssignments(),
+          getAllClasses(),
         ]);
         setStats({
           totalStudents: studentsData?.length || 0,
@@ -60,18 +57,12 @@ const TeacherMainDashboard = () => {
           attendanceRate: 85,
         });
         // Fetch recent assignments for this teacher
-        const { data: teacherAssignments } = await supabase
-          .from("assignments")
-          .select("*")
-          .eq("teacher_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5);
+        const teacherAssignments = (assignmentsData || [])
+          .filter((a) => a.teacher_id === user.id)
+          .slice(0, 5);
         setRecentActivities(teacherAssignments || []);
         // Fetch average grades over time for AreaChart
-        const { data: gradesData } = await supabase
-          .from("grades")
-          .select("date, average_grade")
-          .order("date", { ascending: true });
+        const gradesData = await getGradesByTeacher(user.id);
         setPerformanceData(gradesData || []);
         // Prepare assignment completion data for StepLine
         const completion = (assignmentsData || [])

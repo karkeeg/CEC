@@ -69,7 +69,7 @@ const navItems = [
   },
   {
     label: "Staff",
-    dropdown: ["Administrative", "Academic"],
+    dropdown: ["Administration", "Academic"],
   },
 
   {
@@ -243,7 +243,7 @@ const Navbar = () => {
                       onMouseLeave={() => setOpenDropdown(null)}
                     >
                       <button className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition flex items-center gap-1">
-                        {item.label} <span className="ml-1">▾</span>
+                        {item.label}
                       </button>
                       {openDropdown === idx && (
                         <div className="absolute left-0 top-full min-w-[200px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-50 overflow-visible">
@@ -340,7 +340,7 @@ const Navbar = () => {
                                 if (sub === "Administration") {
                                   return (
                                     <Link
-                                      to="/about/administration"
+                                      to="/staff/administration"
                                       key={subIdx}
                                       className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
                                     >

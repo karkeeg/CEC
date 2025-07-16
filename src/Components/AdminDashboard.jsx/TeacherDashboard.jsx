@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAllTeacherDepartments,
+  getAllTeachers,
+  getAllDepartments,
+  getAllSubjects,
+  getAllAssignments,
+} from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
   Bar,
@@ -24,35 +30,16 @@ const TeacherDashboard = () => {
     const fetchStatsAndTeachers = async () => {
       setLoading(true);
       // Fetch teachers for table/chart
-      const { data: teacherDepts, error } = await supabase.from(
-        "teacher_departments"
-      ).select(`
-        id,
-        teacher:teacher_id (
-          id,
-          first_name,
-          middle_name,
-          last_name,
-          email
-        ),
-        department:department_id (
-          id,
-          name
-        )
-      `);
-      if (!error && teacherDepts) setTeachers(teacherDepts);
+      const teacherDepts = await getAllTeacherDepartments();
+      setTeachers(teacherDepts);
       // Fetch stats
-      const [
-        { data: teachersData },
-        { data: departmentsData },
-        { data: subjectsData },
-        { data: assignmentsData },
-      ] = await Promise.all([
-        supabase.from("teachers").select("id"),
-        supabase.from("departments").select("id"),
-        supabase.from("subjects").select("id"),
-        supabase.from("assignments").select("id"),
-      ]);
+      const [teachersData, departmentsData, subjectsData, assignmentsData] =
+        await Promise.all([
+          getAllTeachers(),
+          getAllDepartments(),
+          getAllSubjects(),
+          getAllAssignments(),
+        ]);
       setTeacherCount(teachersData?.length || 0);
       setDepartmentCount(departmentsData?.length || 0);
       setSubjectCount(subjectsData?.length || 0);

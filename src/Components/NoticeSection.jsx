@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import supabase from "../supabaseConfig/supabaseClient";
+import { fetchNoticeTitles } from "../supabaseConfig/supabaseApi";
 import { Link } from "react-router-dom";
 
 import campusImage1 from "../assets/image1.png";
@@ -10,19 +10,16 @@ const NoticeBar = () => {
   const [notices, setNotices] = useState([]);
 
   useEffect(() => {
-    console.log("Fetching notices...");
-    const fetchNotices = async () => {
-      const { data, error } = await supabase
-        .from("notices")
-        .select("title,description,created_at,notice_id");
-      console.log("DATA:", data);
-      console.log("ERROR:", error);
-      if (data) setNotices(data);
+    const getNotices = async () => {
+      try {
+        const data = await fetchNoticeTitles();
+        setNotices(data || []);
+      } catch (err) {
+        setNotices([]);
+      }
     };
-    fetchNotices();
+    getNotices();
   }, []);
-
-  console.log(notices);
 
   const formatDate = (isoDate) => {
     const date = new Date(isoDate);

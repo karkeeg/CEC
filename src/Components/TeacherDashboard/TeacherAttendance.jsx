@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
 import {
   FaCalendarAlt,
   FaUsers,
@@ -20,6 +19,13 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import {
+  getTeacherDepartmentsWithClasses,
+  getStudentsByClass,
+  getAttendanceByClassAndDate,
+  updateAttendance,
+  createAttendance,
+} from "../../supabaseConfig/supabaseApi";
 
 const TeacherAttendance = () => {
   const { user } = useUser();
@@ -40,27 +46,8 @@ const TeacherAttendance = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       if (!user?.id) return;
-
       try {
-        const { data: teacherClasses, error } = await supabase
-          .from("teacher_departments")
-          .select(
-            `
-            id,
-            department:department_id (
-              id,
-              name
-            ),
-            classes:classes (
-              id,
-              name
-            )
-          `
-          )
-          .eq("teacher_id", user.id);
-
-        if (error) throw error;
-
+        const teacherClasses = await getTeacherDepartmentsWithClasses(user.id);
         const allClasses = [];
         teacherClasses?.forEach((dept) => {
           dept.classes?.forEach((cls) => {
@@ -71,7 +58,6 @@ const TeacherAttendance = () => {
             });
           });
         });
-
         setClasses(allClasses);
         if (allClasses.length > 0) {
           setSelectedClass(allClasses[0].id);
@@ -96,34 +82,15 @@ const TeacherAttendance = () => {
         setLoading(false);
       }
     };
-
     fetchClasses();
   }, [user]);
 
   useEffect(() => {
     const fetchStudents = async () => {
       if (!selectedClass) return;
-
       try {
-        const { data: studentData, error } = await supabase
-          .from("student_classes")
-          .select(
-            `
-            id,
-            student:student_id (
-              id,
-              first_name,
-              middle_name,
-              last_name
-            )
-          `
-          )
-          .eq("class_id", selectedClass);
-
-        if (error) throw error;
-
+        const studentData = await getStudentsByClass(selectedClass);
         setStudents(studentData || []);
-
         // Initialize attendance state
         const initialAttendance = {};
         studentData?.forEach((item) => {
@@ -134,7 +101,6 @@ const TeacherAttendance = () => {
         console.error("Error fetching students:", error);
       }
     };
-
     fetchStudents();
   }, [selectedClass]);
 
@@ -147,16 +113,12 @@ const TeacherAttendance = () => {
 
   const handleSaveAttendance = async () => {
     if (!selectedClass || !selectedDate) return;
-
     setSaving(true);
     try {
-      // Check if attendance already exists for this date and class
-      const { data: existingAttendance } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("class_id", selectedClass)
-        .eq("date", selectedDate);
-
+      const existingAttendance = await getAttendanceByClassAndDate(
+        selectedClass,
+        selectedDate
+      );
       if (existingAttendance && existingAttendance.length > 0) {
         // Update existing attendance
         const attendanceRecords = Object.entries(attendance).map(
@@ -165,13 +127,9 @@ const TeacherAttendance = () => {
             status: status,
           })
         );
-
         for (const record of attendanceRecords) {
           if (record.id) {
-            await supabase
-              .from("attendance")
-              .update({ status: record.status })
-              .eq("id", record.id);
+            await updateAttendance(record.id, { status: record.status });
           }
         }
       } else {
@@ -185,14 +143,8 @@ const TeacherAttendance = () => {
             teacher_id: user.id,
           })
         );
-
-        const { error } = await supabase
-          .from("attendance")
-          .insert(attendanceRecords);
-
-        if (error) throw error;
+        await createAttendance(attendanceRecords);
       }
-
       alert("Attendance saved successfully!");
     } catch (error) {
       console.error("Error saving attendance:", error);
@@ -509,17 +461,6 @@ const TeacherAttendance = () => {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {selectedClass && students.length === 0 && (
-        <div className="bg-blue-100 p-12 rounded-xl shadow text-center">
-          <div className="text-gray-500 text-lg">
-            No students found in this class
-          </div>
-          <p className="text-gray-400 mt-2">
-            There are no students enrolled in the selected class.
-          </p>
         </div>
       )}
     </div>

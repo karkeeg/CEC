@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAssignmentsByTeacher,
+  getClassesByTeacher,
+  getSubjects,
+  createAssignment,
+  deleteAssignment,
+  getAssignmentSubmissions,
+} from "../../supabaseConfig/supabaseApi";
 import {
   FaPlus,
   FaEdit,
@@ -42,42 +49,16 @@ const TeacherAssignments = () => {
       if (!user?.id) return;
       try {
         // Fetch all subjects (no department filter)
-        const { data: subjectData, error: subjectError } = await supabase
-          .from("subjects")
-          .select("id, name");
-        if (subjectError) throw subjectError;
+        const subjectData = await getSubjects();
         setSubjects(subjectData || []);
-        // Fetch assignments (unchanged)
-        const { data: assignmentData, error: assignmentsError } = await supabase
-          .from("assignments")
-          .select(
-            `
-            id,
-            title,
-            description,
-            due_date,
-            created_at,
-            subject:subject_id (
-              id,
-              name
-            ),
-            year,
-            class_id
-          `
-          );
-        if (assignmentsError) throw assignmentsError;
+        // Fetch assignments
+        const assignmentData = await getAssignmentsByTeacher(user.id);
         setAssignments(assignmentData || []);
         // Fetch classes directly from classes table
-        const { data: classes, error: classesError } = await supabase
-          .from("classes")
-          .select("*")
-          .eq("teacher_id", user.id);
-        if (classesError) throw classesError;
+        const classes = await getClassesByTeacher(user.id);
         setClasses(classes || []);
         // Fetch submission progress for StepLine chart
-        const { data: submissions } = await supabase
-          .from("assignment_submissions")
-          .select("assignment_id, class_id, student_id");
+        const submissions = await getAssignmentSubmissions();
         // Calculate submission rate per assignment/class
         const progress = (assignmentData || []).map((a) => {
           const classStudents =
@@ -122,39 +103,13 @@ const TeacherAssignments = () => {
         alert("Please fill all required fields.");
         return;
       }
-      const { error } = await supabase.from("assignments").insert([
-        {
-          id: String(Date.now()),
-          title: newAssignment.title,
-          description: newAssignment.description,
-          subject_id: newAssignment.subject_id,
-          due_date: newAssignment.due_date,
-          created_at: new Date().toISOString(),
-          teacher_id: user.id,
-          year: newAssignment.year,
-          class_id: newAssignment.class_id, // include this
-        },
-      ]);
+      const error = await createAssignment({
+        ...newAssignment,
+        teacher_id: user.id,
+      });
       if (error) throw error;
       // Refresh assignments
-      const { data: assignmentData } = await supabase
-        .from("assignments")
-        .select(
-          `
-          id,
-          title,
-          description,
-          due_date,
-          created_at,
-          subject:subject_id (
-            id,
-            name
-          ),
-          year
-        `
-        )
-        .eq("teacher_id", user.id)
-        .order("created_at", { ascending: false });
+      const assignmentData = await getAssignmentsByTeacher(user.id);
       setAssignments(assignmentData || []);
       setShowCreateModal(false);
       setNewAssignment({
@@ -173,15 +128,9 @@ const TeacherAssignments = () => {
   const handleDeleteAssignment = async (assignmentId) => {
     if (!window.confirm("Are you sure you want to delete this assignment?"))
       return;
-
     try {
-      const { error } = await supabase
-        .from("assignments")
-        .delete()
-        .eq("id", assignmentId);
-
+      const error = await deleteAssignment(assignmentId);
       if (error) throw error;
-
       setAssignments(assignments.filter((a) => a.id !== assignmentId));
     } catch (error) {
       console.error("Error deleting assignment:", error);
