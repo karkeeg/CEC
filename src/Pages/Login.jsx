@@ -5,6 +5,8 @@ import img1 from "../assets/image1.png";
 import img2 from "../assets/person.png";
 import img3 from "../assets/logo.png";
 import Swal from "sweetalert2";
+import { checkCredentials } from "../supabaseConfig/supabaseApi";
+import { useUser } from "../contexts/UserContext";
 
 const carouselImages = [img1, img2, img3];
 
@@ -14,7 +16,8 @@ const validateEmail = (email) => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState("Admin");
+  const { setUser, setRole } = useUser(); // <-- get setters from context
+  const [loginRole, setLoginRole] = useState("Admin"); // renamed from 'role'
   const [current, setCurrent] = useState(0);
   const intervalRef = useRef(null);
 
@@ -62,33 +65,39 @@ const Login = () => {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      let user = await checkCredentials("admins", email, password);
+      let role = "admin";
+      if (!user) {
+        user = await checkCredentials("students", email, password);
+        role = "student";
+      }
+      if (!user) {
+        user = await checkCredentials("teachers", email, password);
+        role = "teacher";
+      }
 
-      if (error) {
-        const result = await Swal.fire({
+      if (!user) {
+        await Swal.fire({
           icon: "error",
           title: "Login Failed",
-          text: "User not found or invalid credentials. Do you want to register instead?",
-          showCancelButton: true,
-          confirmButtonText: "Register",
-          cancelButtonText: "Try Again",
+          text: "User not found or invalid credentials.",
         });
-
-        if (result.isConfirmed) {
-          navigate("/register");
-        }
-      } else {
-        const user = data.user;
-        const role = user?.user_metadata?.role?.toLowerCase();
-
-        if (role === "admin") navigate("/admin/dashboard");
-        else if (role === "student") navigate("/student/dashboard");
-        else if (role === "teacher") navigate("/teacher/dashboard");
-        else navigate("/");
+        return;
       }
+
+      // Store user and role in localStorage
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("role", role);
+
+      // Update context immediately
+      setUser(user);
+      setRole(role);
+
+      // Redirect based on role
+      if (role === "admin") navigate("/admin/dashboard");
+      else if (role === "student") navigate("/student/dashboard");
+      else if (role === "teacher") navigate("/teacher/dashboard");
+      else navigate("/");
     }
   };
 

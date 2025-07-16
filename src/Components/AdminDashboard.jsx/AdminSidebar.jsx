@@ -32,7 +32,7 @@ const AdminSidebar = () => {
       <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
         Navigation
       </div>
-      <nav className="flex flex-col mt-6 space-y-2 px-4">
+      <nav className="flex flex-col mt-4 space-y-2 px-4">
         <NavItem
           icon={<FaTachometerAlt />}
           label="Dashboard"
@@ -62,13 +62,6 @@ const AdminSidebar = () => {
         />
         <NavItem icon={<CiMoneyBill />} label="Fees" to="/admin/fee" />
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/settings" />
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition mt-2"
-        >
-          <FaSignOutAlt />
-          <span>Logout</span>
-        </button>
       </nav>
     </aside>
   );

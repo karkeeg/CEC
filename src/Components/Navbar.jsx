@@ -79,7 +79,10 @@ const navItems = [
 ];
 
 const Navbar = () => {
-  const { user, profile, signOut } = useUser();
+  const { user, profile, signOut, role } = useUser();
+  // Debug logging
+  console.log("Navbar user:", user);
+  console.log("Navbar role:", role);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openSubDropdown, setOpenSubDropdown] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -193,7 +196,10 @@ const Navbar = () => {
   };
 
   const getDashboardLink = () => {
-    const role = user?.user_metadata?.role?.toLowerCase();
+    // Debug logging
+    console.log("getDashboardLink user:", user);
+    console.log("getDashboardLink role:", role);
+    // Use context role if available
     if (role === "admin") return "/admin/dashboard";
     if (role === "student") return "/student/dashboard";
     if (role === "teacher") return "/teacher/dashboard";

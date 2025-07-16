@@ -3,7 +3,11 @@ import { Navigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 
 const AuthGuard = ({ children, requiredRole = null }) => {
-  const { user, loading } = useUser();
+  const { user, role, loading } = useUser();
+  // Debug logging
+  console.log("AuthGuard user:", user);
+  console.log("AuthGuard role:", role);
+  console.log("AuthGuard loading:", loading);
 
   if (loading) {
     return (
@@ -15,33 +19,14 @@ const AuthGuard = ({ children, requiredRole = null }) => {
       </div>
     );
   }
-
-  if (!user) {
+  if (!user) return <Navigate to="/login" replace />;
+  if (requiredRole && role !== requiredRole) {
+    // Redirect based on user role
+    if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
+    if (role === "student") return <Navigate to="/student/dashboard" replace />;
+    if (role === "teacher") return <Navigate to="/teacher/dashboard" replace />;
     return <Navigate to="/login" replace />;
   }
-
-  if (requiredRole) {
-    const userRole = user.user_metadata?.role?.toLowerCase();
-
-    // If user has no role, redirect to login
-    if (!userRole) {
-      return <Navigate to="/login" replace />;
-    }
-
-    if (userRole !== requiredRole.toLowerCase()) {
-      // Redirect based on user role
-      if (userRole === "admin") {
-        return <Navigate to="/admin/dashboard" replace />;
-      } else if (userRole === "student") {
-        return <Navigate to="/student/dashboard" replace />;
-      } else if (userRole === "teacher") {
-        return <Navigate to="/teacher/dashboard" replace />;
-      }
-      // If role doesn't match any expected role, redirect to login
-      return <Navigate to="/login" replace />;
-    }
-  }
-
   return children;
 };
 

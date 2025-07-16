@@ -359,3 +359,18 @@ export const getAllFees = async () => {
   if (error) throw error;
   return data;
 };
+
+// ------------------- CUSTOM AUTH -------------------
+export const checkCredentials = async (table, email, password) => {
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .eq("email", email)
+    .maybeSingle();
+  if (error || !data) return null;
+  // WARNING: Plain text password check. Use hashing in production!
+  if (data.hashed_password === password) {
+    return data;
+  }
+  return null;
+};

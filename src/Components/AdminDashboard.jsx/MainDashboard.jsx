@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   FaUserGraduate,
   FaChalkboardTeacher,
@@ -21,6 +21,10 @@ import {
   getAllSubjects,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
+import { StudentForm } from "../Forms/StudentForm";
+import { TeacherForm } from "../Forms/TeacherForm";
+import { NoticeForm } from "../Forms/NoticeForm";
+import { AssignmentForm } from "../Forms/AssignmentForm";
 
 const Modal = ({ title, children, onClose }) => (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -46,608 +50,21 @@ const Modal = ({ title, children, onClose }) => (
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
 // Helper to upload multiple files to Supabase Storage and return their public URLs
-async function uploadFilesToStorage(files, folder = "uploads") {
+async function uploadFilesToStorage(files, folder = "notices") {
+  const bucket = "public-files";
   const urls = [];
   for (const file of files) {
     const filePath = `${folder}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage
-      .from("public-files")
+      .from(bucket)
       .upload(filePath, file);
     if (error) throw error;
     // Get public URL
-    const { data } = supabase.storage
-      .from("public-files")
-      .getPublicUrl(filePath);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
     urls.push(data.publicUrl);
   }
   return urls;
 }
-
-// Student Form
-const StudentForm = ({ onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    first_name: "",
-    middle_name: "",
-    last_name: "",
-    date_of_birth: "",
-    address: "",
-    gender: "Male",
-    year: "",
-    reg_no: "",
-    email: "",
-    hashed_password: "",
-  });
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleConfirmPasswordChange = (e) => {
-    setConfirmPassword(e.target.value);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const required = [
-      "first_name",
-      "last_name",
-      "date_of_birth",
-      "address",
-      "year",
-      "reg_no",
-      "email",
-      "hashed_password",
-    ];
-    if (required.some((field) => !form[field])) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    if (form.hashed_password !== confirmPassword) {
-      alert("Passwords do not match.");
-      return;
-    }
-    if (form.hashed_password.length < 6) {
-      alert("Password must be at least 6 characters long.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await createStudent(form);
-      if (error) throw error;
-      alert("Student added successfully!");
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (error) {
-      alert("Failed to add student: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
-      <input
-        name="first_name"
-        placeholder="First Name*"
-        className={inputStyle}
-        value={form.first_name}
-        onChange={handleChange}
-      />
-      <input
-        name="middle_name"
-        placeholder="Middle Name"
-        className={inputStyle}
-        value={form.middle_name}
-        onChange={handleChange}
-      />
-      <input
-        name="last_name"
-        placeholder="Last Name*"
-        className={inputStyle}
-        value={form.last_name}
-        onChange={handleChange}
-      />
-      <input
-        type="date"
-        name="date_of_birth"
-        className={inputStyle}
-        value={form.date_of_birth}
-        onChange={handleChange}
-      />
-      <input
-        name="address"
-        placeholder="Address*"
-        className={inputStyle}
-        value={form.address}
-        onChange={handleChange}
-      />
-      <select
-        name="gender"
-        className={inputStyle}
-        value={form.gender}
-        onChange={handleChange}
-      >
-        <option>Male</option>
-        <option>Female</option>
-        <option>Other</option>
-      </select>
-      <input
-        name="year"
-        placeholder="year*"
-        className={inputStyle}
-        value={form.year}
-        onChange={handleChange}
-      />
-      <input
-        name="reg_no"
-        placeholder="Registration No*"
-        className={inputStyle}
-        value={form.reg_no}
-        onChange={handleChange}
-      />
-      <input
-        name="email"
-        type="email"
-        placeholder="Email*"
-        className={inputStyle}
-        value={form.email}
-        onChange={handleChange}
-      />
-      <input
-        name="hashed_password"
-        type="password"
-        placeholder="Password* (min 6 characters)"
-        className={inputStyle}
-        value={form.hashed_password}
-        onChange={handleChange}
-      />
-      <input
-        name="confirm_password"
-        type="password"
-        placeholder="Confirm Password*"
-        className={inputStyle}
-        value={confirmPassword}
-        onChange={handleConfirmPasswordChange}
-      />
-      <div className="md:col-span-2 flex justify-end gap-2 mt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-gray-300 px-4 py-2 rounded"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
-          disabled={loading}
-        >
-          {loading ? "Adding..." : "Save"}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Teacher Form
-const TeacherForm = ({ onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    first_name: "",
-    last_name: "",
-    gender: "Rather not to say",
-    email: "",
-    phone: "",
-    password: "",
-    hashed_password: "",
-    department_id: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState([]);
-  const [deptLoading, setDeptLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      setDeptLoading(true);
-      const depts = await getAllDepartments();
-      setDepartments(depts || []);
-      setDeptLoading(false);
-    };
-    fetchDepartments();
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const required = [
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "password",
-      "hashed_password",
-      "department_id",
-    ];
-    if (required.some((f) => !form[f])) {
-      alert("Please fill all required fields.");
-      return;
-    }
-
-    if (form.password !== form.hashed_password) {
-      alert("Passwords do not match.");
-      return;
-    }
-
-    if (form.password.length < 6) {
-      alert("Password must be at least 6 characters long.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { error } = await createTeacher(form);
-      if (error) throw error;
-      // Insert into teacher_departments
-      // (Assume teacherId is generated or returned from createTeacher)
-      // You may need to fetch the teacher by email if needed
-      alert("Teacher added successfully!");
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (error) {
-      alert("Failed to add teacher: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <input
-        name="first_name"
-        placeholder="First Name*"
-        className={inputStyle}
-        value={form.first_name}
-        onChange={handleChange}
-      />
-      <input
-        name="last_name"
-        placeholder="Last Name*"
-        className={inputStyle}
-        value={form.last_name}
-        onChange={handleChange}
-      />
-      <select
-        name="gender"
-        placeholder="Gender"
-        className={inputStyle}
-        value={form.gender}
-        onChange={handleChange}
-      >
-        <option>Select your Gender</option>
-        <option>Male</option>
-        <option>Female</option>
-        <option>Other</option>
-      </select>
-      <input
-        name="email"
-        type="email"
-        placeholder="Email*"
-        className={inputStyle}
-        value={form.email}
-        onChange={handleChange}
-      />
-      <input
-        name="phone"
-        placeholder="Phone Number*"
-        className={inputStyle}
-        value={form.phone}
-        onChange={handleChange}
-      />
-      <select
-        name="department_id"
-        className={inputStyle}
-        value={form.department_id}
-        onChange={handleChange}
-        disabled={deptLoading}
-      >
-        <option value="">Select Department*</option>
-        {departments.map((dept) => (
-          <option key={dept.id} value={dept.id}>
-            {dept.name}
-          </option>
-        ))}
-      </select>
-      <input
-        name="password"
-        type="password"
-        placeholder="Password* (min 6 characters)"
-        className={inputStyle}
-        value={form.password}
-        onChange={handleChange}
-      />
-      <input
-        name="hashed_password"
-        type="password"
-        placeholder="Confirm Password*"
-        className={inputStyle}
-        value={form.hashed_password}
-        onChange={handleChange}
-      />
-      <div className="flex justify-end gap-2 mt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-gray-300 px-4 py-2 rounded"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
-          disabled={loading}
-        >
-          {loading ? "Adding..." : "Save"}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Notice Form
-const NoticeForm = ({ onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    is_global: true,
-    to_all_teachers: false,
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { error } = await createNotice(form);
-      if (error) throw error;
-      alert("Notice published!");
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (error) {
-      alert("Failed to publish notice: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <input
-        name="title"
-        placeholder="Notice Title*"
-        className={inputStyle}
-        value={form.title}
-        onChange={handleChange}
-      />
-      <textarea
-        name="description"
-        placeholder="Description*"
-        rows={3}
-        className={inputStyle}
-        value={form.description}
-        onChange={handleChange}
-      />
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          name="is_global"
-          checked={form.is_global}
-          onChange={handleChange}
-        />
-        Global Notice
-      </label>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          name="to_all_teachers"
-          checked={form.to_all_teachers}
-          onChange={handleChange}
-        />
-        To All Teachers
-      </label>
-      <div className="flex justify-end gap-2 mt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-gray-300 px-4 py-2 rounded"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
-          disabled={loading}
-        >
-          {loading ? "Publishing..." : "Publish"}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Add Assignment Form
-const AssignmentForm = ({ onClose, onSuccess }) => {
-  const [form, setForm] = React.useState({
-    title: "",
-    description: "",
-    subject_id: "",
-    due_date: "",
-    teacher_id: "",
-    year: "",
-    // class_id: "", // Uncomment if you want to support class_id
-  });
-  const [loading, setLoading] = React.useState(false);
-  const [subjects, setSubjects] = React.useState([]);
-  const [teachers, setTeachers] = React.useState([]);
-
-  React.useEffect(() => {
-    const fetchSubjects = async () => {
-      const data = await getAllSubjects();
-      if (data) setSubjects(data);
-    };
-    const fetchTeachers = async () => {
-      const data = await getAllTeachers();
-      if (data) setTeachers(data);
-    };
-    fetchSubjects();
-    fetchTeachers();
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const required = [
-      "title",
-      "description",
-      "subject_id",
-      "due_date",
-      "teacher_id",
-      "year",
-    ];
-    if (required.some((f) => !form[f])) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    setLoading(true);
-    try {
-      // Only send class_id if you want to support it, otherwise omit
-      const { error } = await createAssignment(form);
-      if (error) throw error;
-      alert("Assignment added successfully!");
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (error) {
-      alert("Failed to add assignment: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <input
-        name="title"
-        placeholder="Title*"
-        className={inputStyle}
-        value={form.title}
-        onChange={handleChange}
-      />
-      <textarea
-        name="description"
-        placeholder="Description*"
-        className={inputStyle}
-        value={form.description}
-        onChange={handleChange}
-        rows={3}
-      />
-      <select
-        name="subject_id"
-        className={inputStyle}
-        value={form.subject_id}
-        onChange={handleChange}
-      >
-        <option value="">Select Subject*</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-      <input
-        name="due_date"
-        type="datetime-local"
-        className={inputStyle}
-        value={form.due_date}
-        onChange={handleChange}
-      />
-      <select
-        name="teacher_id"
-        className={inputStyle}
-        value={form.teacher_id}
-        onChange={handleChange}
-      >
-        <option value="">Select Teacher*</option>
-        {teachers.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.first_name} {t.last_name}
-          </option>
-        ))}
-      </select>
-      <select
-        name="year"
-        className={inputStyle}
-        value={form.year}
-        onChange={handleChange}
-      >
-        <option value="">Select Year*</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-      </select>
-      {/*
-      <input
-        name="class_id"
-        placeholder="Class ID (optional)"
-        className={inputStyle}
-        value={form.class_id || ""}
-        onChange={handleChange}
-      />
-      */}
-      <div className="flex justify-end gap-2 mt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-gray-300 px-4 py-2 rounded"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
-          disabled={loading}
-        >
-          {loading ? "Adding..." : "Save"}
-        </button>
-      </div>
-    </form>
-  );
-};
 
 // Main Component
 const MainDashboard = () => {
@@ -711,6 +128,55 @@ const MainDashboard = () => {
       </div>
     </div>
   );
+
+  const fileInputRef = useRef();
+
+  const handleAddImageClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 1. Upload to Supabase Storage
+    const filePath = `gallery/${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage
+      .from("gallery")
+      .upload(filePath, file);
+
+    if (error) {
+      alert("Upload failed: " + error.message);
+      return;
+    }
+
+    // 2. Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from("gallery")
+      .getPublicUrl(filePath);
+
+    const imageUrl = publicUrlData?.publicUrl;
+    if (!imageUrl) {
+      alert("Failed to get public URL");
+      return;
+    }
+
+    // 3. Insert into gallery table
+    const { error: insertError } = await supabase.from("gallery").insert([
+      {
+        image_url: imageUrl,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (insertError) {
+      alert("Failed to insert into gallery: " + insertError.message);
+      return;
+    }
+
+    alert("Image uploaded and added to gallery!");
+    // Optionally: refresh gallery images here
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -776,6 +242,12 @@ const MainDashboard = () => {
           className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700"
         >
           <FaPlus /> Add Assignment
+        </button>
+        <button
+          onClick={handleAddImageClick}
+          className="bg-indigo-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-indigo-700"
+        >
+          <FaPlus /> Add Image
         </button>
       </div>
 
@@ -843,6 +315,13 @@ const MainDashboard = () => {
           />
         </Modal>
       )}
+      <input
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        ref={fileInputRef}
+        onChange={handleFileChange}
+      />
     </div>
   );
 };
