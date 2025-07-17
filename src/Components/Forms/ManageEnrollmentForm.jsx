@@ -1,39 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   fetchStudents,
-  getTeacherDepartmentsWithClasses,
   updateStudentClass,
 } from "../../supabaseConfig/supabaseApi";
 
-const ManageEnrollmentForm = ({ user, onClose, onSuccess }) => {
+const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
   const [students, setStudents] = useState([]);
-  const [classes, setClasses] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState("");
-  const [selectedClass, setSelectedClass] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       const allStudents = await fetchStudents();
-      const teacherClasses = await getTeacherDepartmentsWithClasses(user.id);
-      const allClasses = [];
-      teacherClasses?.forEach((dept) => {
-        dept.classes?.forEach((cls) => {
-          allClasses.push({
-            id: cls.id,
-            name: cls.name,
-            department: dept.department.name,
-          });
-        });
-      });
       setStudents(allStudents);
-      setClasses(allClasses);
       setLoading(false);
     };
     fetchData();
-  }, [user]);
+  }, []);
 
   const filteredStudents = students.filter(
     (s) =>
@@ -42,14 +29,28 @@ const ManageEnrollmentForm = ({ user, onClose, onSuccess }) => {
       s.email?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleSelectStudent = (student) => {
+    setSelectedStudent(student.id);
+    setSearch(`${student.first_name} ${student.last_name} (${student.email})`);
+    setShowDropdown(false);
+  };
+
+  const handleInputFocus = () => {
+    setShowDropdown(true);
+  };
+
+  const handleInputBlur = () => {
+    setTimeout(() => setShowDropdown(false), 100); // Delay to allow click
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedStudent || !selectedClass) {
-      alert("Please select both student and class.");
+    if (!selectedStudent || !classId) {
+      alert("Please select a student.");
       return;
     }
     setLoading(true);
-    await updateStudentClass(selectedStudent, selectedClass);
+    await updateStudentClass(selectedStudent, classId);
     setLoading(false);
     if (onSuccess) onSuccess();
     if (onClose) onClose();
@@ -59,45 +60,38 @@ const ManageEnrollmentForm = ({ user, onClose, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block mb-1 font-medium">Search Student</label>
+      <div className="relative">
+        <label className="block mb-1 font-medium">
+          Search and Select Student
+        </label>
         <input
           type="text"
+          ref={inputRef}
           className="border px-3 py-2 rounded w-full"
           placeholder="Search by name or email"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setSelectedStudent("");
+            setShowDropdown(true);
+          }}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          autoComplete="off"
         />
-      </div>
-      <div>
-        <label className="block mb-1 font-medium">Select Student</label>
-        <select
-          className="border px-3 py-2 rounded w-full"
-          value={selectedStudent}
-          onChange={(e) => setSelectedStudent(e.target.value)}
-        >
-          <option value="">-- Select Student --</option>
-          {filteredStudents.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.first_name} {s.last_name} ({s.email})
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-1 font-medium">Select Class</label>
-        <select
-          className="border px-3 py-2 rounded w-full"
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-        >
-          <option value="">-- Select Class --</option>
-          {classes.map((cls) => (
-            <option key={cls.id} value={cls.id}>
-              {cls.name} ({cls.department})
-            </option>
-          ))}
-        </select>
+        {showDropdown && filteredStudents.length > 0 && (
+          <ul className="absolute z-10 bg-white border w-full max-h-48 overflow-y-auto rounded shadow">
+            {filteredStudents.map((s) => (
+              <li
+                key={s.id}
+                className="px-3 py-2 cursor-pointer hover:bg-blue-100"
+                onMouseDown={() => handleSelectStudent(s)}
+              >
+                {s.first_name} {s.last_name} ({s.email})
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="flex gap-2">
         <button

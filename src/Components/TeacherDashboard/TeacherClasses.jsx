@@ -323,7 +323,13 @@ const TeacherClasses = () => {
                       </button>
                       <button
                         className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
-                        onClick={() => setEnrollmentModalClassId(cls.id)}
+                        onClick={() => {
+                          console.log(
+                            "Clicked Manage Enrollments for class",
+                            cls.id
+                          );
+                          setEnrollmentModalClassId(cls.class_id);
+                        }}
                       >
                         Manage Enrollments
                       </button>
@@ -450,6 +456,7 @@ const TeacherClasses = () => {
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
             <ManageEnrollmentForm
               user={user}
+              classId={enrollmentModalClassId}
               onClose={() => setEnrollmentModalClassId(null)}
               onSuccess={() => setEnrollmentModalClassId(null)}
             />
