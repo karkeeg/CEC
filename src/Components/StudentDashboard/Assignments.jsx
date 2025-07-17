@@ -6,8 +6,10 @@ import { BiReset } from "react-icons/bi";
 import { MdAssignmentLate } from "react-icons/md";
 import { IoBookOutline } from "react-icons/io5";
 import { FaRegFileAlt } from "react-icons/fa";
+import { useUser } from "../../contexts/UserContext";
 
 const Assignments = () => {
+  const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("2025-01-01");
@@ -24,6 +26,8 @@ const Assignments = () => {
           title,
           due_date,
           teacher_id,
+          year,
+          class_id,
           
           description,
           subject:subject_id (
@@ -46,10 +50,16 @@ const Assignments = () => {
     fetchAssignments();
   }, [date]);
 
-  // Filter assignments by search term on title (case-insensitive)
-  const filteredAssignments = assignments.filter((a) =>
-    a.title.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter assignments by search term and by user role
+  const filteredAssignments = assignments
+    .filter((a) => a.title.toLowerCase().includes(search.toLowerCase()))
+    .filter((a) => {
+      if (role === "student") {
+        // Ensure both are strings for comparison
+        return String(a.year) === String(user.year);
+      }
+      return true;
+    });
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-white">

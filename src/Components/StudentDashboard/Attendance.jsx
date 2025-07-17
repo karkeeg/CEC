@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MdCalendarToday, MdExpandMore } from "react-icons/md";
 import {
   LineChart,
@@ -10,9 +10,29 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useUser } from "../../contexts/UserContext";
+import { getAttendanceByStudent } from "../../supabaseConfig/supabaseApi";
 
 const Attendance = () => {
   const [view, setView] = useState("monthly");
+  const [attendance, setAttendance] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useUser();
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const records = await getAttendanceByStudent(user.id);
+        setAttendance(records || []);
+      } catch (error) {
+        setAttendance([]);
+      }
+      setLoading(false);
+    };
+    fetchAttendance();
+  }, [user]);
 
   const calendar = [
     ["", "", "", 1, 2, 3, 4],
@@ -134,43 +154,45 @@ const Attendance = () => {
           <table className="min-w-full border-collapse">
             <thead>
               <tr className="bg-[#327ea4] text-white text-sm">
-                <th className="p-2 border text-left">Day</th>
-                <th className="p-2 border text-center">Date</th>
-                <th className="p-2 border text-center">Status</th>
+                <th className="p-2 text-center border">Date</th>
+                <th className="p-2 text-center border">Status</th>
+                <th className="p-2 text-center border">Subject</th>
+                <th className="p-2 text-center border">Class</th>
+                <th className="p-2 text-center border">Teacher</th>
+                <th className="p-2 text-center border">Note</th>
               </tr>
             </thead>
             <tbody>
-              {weeklyRow.map((day, di) => {
-                const dayName = [
-                  "Sunday",
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday",
-                ][di];
-                const status = getStatus(day);
-                let bgColor = "bg-[#5BAE9199]";
-                if (status === "absent") bgColor = "bg-red-500";
-                else if (status === "holiday") bgColor = "bg-[#CEEAFB]";
-
-                return (
-                  <tr key={di}>
-                    <td className="p-2 border text-gray-800 font-semibold">
-                      {dayName}
-                    </td>
-                    <td
-                      className={`p-2 border text-center ${bgColor} text-black font-semibold`}
-                    >
-                      {day || "-"}
+              {attendance.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-4 text-gray-500 text-center">
+                    No attendance records found.
+                  </td>
+                </tr>
+              ) : (
+                attendance.map((rec) => (
+                  <tr key={rec.id}>
+                    <td className="p-2 border text-center text-gray-800 font-semibold">
+                      {rec.date}
                     </td>
                     <td className="p-2 border text-center capitalize text-gray-700">
-                      {day ? status : ""}
+                      {rec.status}
+                    </td>
+                    <td className="p-2 border text-center text-gray-700">
+                      {rec.subject_id}
+                    </td>
+                    <td className="p-2 border text-center text-gray-700">
+                      {rec.class_id}
+                    </td>
+                    <td className="p-2 border text-center text-gray-700">
+                      {rec.teacher_id}
+                    </td>
+                    <td className="p-2 border text-center text-gray-700">
+                      {rec.note}
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         )}

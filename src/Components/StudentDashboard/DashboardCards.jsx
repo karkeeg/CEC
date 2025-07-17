@@ -22,43 +22,6 @@ const assignments = [
   { subject: "Nepali", date: "12-07-2025", time: "12:00pm" },
 ];
 
-const notices = [
-  { type: "Exam Notice", date: "02-08-2025", time: "12:00pm", level: "danger" },
-  { type: "Exam Notice", date: "02-08-2025", time: "12:00pm", level: "danger" },
-  { type: "Exam Notice", date: "02-08-2025", time: "12:00pm", level: "danger" },
-  {
-    type: "Hw deadline",
-    date: "02-08-2025",
-    time: "12:00pm",
-    level: "warning",
-  },
-  {
-    type: "New library rules",
-    date: "02-08-2025",
-    time: "12:00pm",
-    level: "info",
-  },
-  { type: "Due pending", date: "02-08-2025", time: "12:00pm", level: "info" },
-  {
-    type: "Holiday notice",
-    date: "02-08-2025",
-    time: "12:00pm",
-    level: "info",
-  },
-];
-
-const attendance = [
-  { month: "Jan", present: 10, absent: 5 },
-  { month: "Feb", present: 12, absent: 18 },
-  { month: "Mar", present: 9, absent: 10 },
-  { month: "Apr", present: 8, absent: 8 },
-  { month: "May", present: 9, absent: 8 },
-  { month: "Jun", present: 7, absent: 8 },
-  { month: "Jul", present: 11, absent: 16 },
-  { month: "Aug", present: 8, absent: 8 },
-  { month: "Sep", present: 10, absent: 6 },
-  { month: "Oct", present: 9, absent: 4 },
-];
 
 const DashboardCards = () => {
   const { profile } = useUser();

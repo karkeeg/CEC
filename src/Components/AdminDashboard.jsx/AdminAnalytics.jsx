@@ -11,6 +11,9 @@ import {
   Bar,
   Legend,
 } from "recharts";
+import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Mock data
 const studentPerformanceData = [
@@ -87,6 +90,60 @@ const Heatmap = () => (
 );
 
 const AdminAnalytics = () => {
+  const exportToPDF = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFontSize(18);
+    doc.text("Analytics Report", 40, 40);
+    // Student Performance
+    doc.setFontSize(14);
+    doc.text("Student Performance", 40, 70);
+    autoTable(doc, {
+      startY: 80,
+      head: [["Month", "Marks"]],
+      body: studentPerformanceData.map((row) => [row.month, row.marks]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 108, 123],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 10, cellPadding: 4 },
+      margin: { left: 40, right: 40 },
+    });
+    // Grade Trends
+    let startY = doc.lastAutoTable.finalY + 20;
+    doc.text("Grade Trends", 40, startY);
+    autoTable(doc, {
+      startY: startY + 10,
+      head: [["Course", "A", "B"]],
+      body: gradeTrendsData.map((row) => [row.course, row.A, row.B]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 108, 123],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 10, cellPadding: 4 },
+      margin: { left: 40, right: 40 },
+    });
+    // Course-wise Reports
+    startY = doc.lastAutoTable.finalY + 20;
+    doc.text("Course-wise Reports", 40, startY);
+    autoTable(doc, {
+      startY: startY + 10,
+      head: [["Course", "Days"]],
+      body: courseWiseData.map((row) => [row.course, row.days]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 108, 123],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 10, cellPadding: 4 },
+      margin: { left: 40, right: 40 },
+    });
+    doc.save("analytics-report.pdf");
+  };
   return (
     <div className="min-h-screen bg-black p-6">
       {/* Header */}
@@ -94,7 +151,13 @@ const AdminAnalytics = () => {
         <span className="text-2xl font-extrabold text-gray-800 flex items-center">
           <span className="mr-2">📊</span> Analytics
         </span>
-        <div className="ml-auto flex gap-3">
+        <button
+          onClick={exportToPDF}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-auto"
+        >
+          Export PDF
+        </button>
+        <div className="ml-2 flex gap-3">
           <select className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold focus:outline-none">
             <option>Courses</option>
           </select>
@@ -110,7 +173,10 @@ const AdminAnalytics = () => {
         </div>
       </div>
       {/* Analytics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 gap-8"
+        id="analytics-table"
+      >
         {/* Student Performance */}
         <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
           <div className="flex items-center gap-2 mb-2">
@@ -165,7 +231,7 @@ const AdminAnalytics = () => {
         {/* Course-wise Reports */}
         <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl">📑</span>
+            <span className="text-xl">��</span>
             <span className="font-bold text-xl">Course-wise Reports</span>
           </div>
           <div className="w-full h-56">

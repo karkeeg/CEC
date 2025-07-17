@@ -8,3 +8,53 @@ body {
 html {
   scrollbar-width: none;
 }
+
+/* PDF Export Styles */
+.pdf-export table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+.pdf-export th,
+.pdf-export td {
+  border: 1px solid #888;
+  padding: 8px;
+  text-align: center;
+}
+.pdf-export th {
+  background: #1e6c7b;
+  color: white;
+}
+.pdf-export h3 {
+  color: #1e6c7b;
+  margin-top: 24px;
+}
+@media print {
+  body {
+    background: white !important;
+    color: #222 !important;
+  }
+  .pdf-export table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 14px !important;
+  }
+  .pdf-export th,
+  .pdf-export td {
+    border: 1px solid #888 !important;
+    padding: 8px !important;
+    text-align: center !important;
+  }
+  .pdf-export th {
+    background: #1e6c7b !important;
+    color: white !important;
+  }
+  .pdf-export h3 {
+    color: #1e6c7b !important;
+  }
+  button,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+}

@@ -17,6 +17,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
+import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const StudentDashboard = () => {
   const [students, setStudents] = useState([]);
@@ -109,9 +112,42 @@ const StudentDashboard = () => {
       .includes(searchTerm.toLowerCase())
   );
 
+  const exportToPDF = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFontSize(18);
+    doc.text("Students Report", 40, 40);
+    autoTable(doc, {
+      startY: 60,
+      head: [["Name", "Email", "Gender", "Year"]],
+      body: filteredStudents.map((s) => [
+        `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`.trim(),
+        s.email,
+        s.gender,
+        s.year,
+      ]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 108, 123],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 10, cellPadding: 4 },
+      margin: { left: 40, right: 40 },
+    });
+    doc.save("students-report.pdf");
+  };
+
   return (
     <div className="p-6 text-black bg-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Student Management Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Student Management Dashboard</h1>
+        <button
+          onClick={exportToPDF}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Export PDF
+        </button>
+      </div>
 
       {/* Search Input */}
       <div className="mb-4">
@@ -125,7 +161,10 @@ const StudentDashboard = () => {
       </div>
 
       {/* Student Table */}
-      <div className="overflow-x-auto shadow rounded border mb-8">
+      <div
+        className="overflow-x-auto shadow rounded border mb-8"
+        id="students-table"
+      >
         <table className="min-w-full border-collapse text-left">
           <thead className="bg-[#1E6C7B] text-white">
             <tr>

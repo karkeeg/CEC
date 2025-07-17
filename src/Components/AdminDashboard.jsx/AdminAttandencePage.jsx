@@ -30,28 +30,32 @@ const AdminAttandancePage = () => {
     html2pdf().from(element).save("attendance-report.pdf");
   };
 
-  const groupedBySemester = data.reduce((acc, row) => {
-    if (!acc[row.semester]) {
-      acc[row.semester] = {
-        semester: row.semester,
+  // Group attendance by class_id and calculate stats
+  const groupedByClass = data.reduce((acc, row) => {
+    const key = row.class_id || "Unknown";
+    if (!acc[key]) {
+      acc[key] = {
+        class_id: key,
         total_student: 0,
         present: 0,
         absent: 0,
+        late: 0,
       };
     }
-    acc[row.semester].total_student += row.total_student;
-    acc[row.semester].present += row.present;
-    acc[row.semester].absent += row.absent;
+    acc[key].total_student += 1;
+    if (row.status === "present") acc[key].present += 1;
+    else if (row.status === "absent") acc[key].absent += 1;
+    else if (row.status === "late") acc[key].late += 1;
     return acc;
   }, {});
 
-  const tableData = Object.values(groupedBySemester);
+  const tableData = Object.values(groupedByClass);
 
   return (
     <div className="p-6 bg-white min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2">
-          📅 Attendance
+          4c5 Attendance
         </h1>
         <button
           onClick={exportToPDF}
@@ -84,17 +88,18 @@ const AdminAttandancePage = () => {
         <table className="min-w-full text-center border-collapse">
           <thead className="bg-cyan-900 text-white">
             <tr>
-              <th className="p-3 border">Semester</th>
-              <th className="p-3 border">Total Student</th>
+              <th className="p-3 border">Class ID</th>
+              <th className="p-3 border">Total Records</th>
               <th className="p-3 border">Present</th>
               <th className="p-3 border">Absent</th>
+              <th className="p-3 border">Late</th>
               <th className="p-3 border">Attendance %</th>
             </tr>
           </thead>
           <tbody>
             {tableData.length === 0 ? (
               <tr>
-                <td colSpan="5" className="py-4 text-gray-500">
+                <td colSpan="6" className="py-4 text-gray-500">
                   No data found
                 </td>
               </tr>
@@ -108,14 +113,13 @@ const AdminAttandancePage = () => {
                 return (
                   <tr
                     key={idx}
-                    className={`${
-                      idx % 2 === 0 ? "bg-blue-100" : "bg-purple-200"
-                    }`}
+                    className={idx % 2 === 0 ? "bg-blue-100" : "bg-purple-200"}
                   >
-                    <td className="p-3 border">{row.semester}</td>
+                    <td className="p-3 border">{row.class_id}</td>
                     <td className="p-3 border">{row.total_student}</td>
                     <td className="p-3 border">{row.present}</td>
                     <td className="p-3 border">{row.absent}</td>
+                    <td className="p-3 border">{row.late}</td>
                     <td className="p-3 border">{percent}%</td>
                   </tr>
                 );

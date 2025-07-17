@@ -116,13 +116,20 @@ export const StudentForm = ({ onClose, onSuccess }) => {
         <option>Female</option>
         <option>Other</option>
       </select>
-      <input
+      {/* Change year input to a select dropdown */}
+      <select
         name="year"
-        placeholder="year*"
         className={inputStyle}
         value={form.year}
         onChange={handleChange}
-      />
+        required
+      >
+        <option value="">Select Year*</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
       <input
         name="reg_no"
         placeholder="Registration No*"

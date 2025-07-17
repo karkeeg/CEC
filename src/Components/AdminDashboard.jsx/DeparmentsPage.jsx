@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { getAllDepartments } from "../../supabaseConfig/supabaseApi";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const COLORS = [
   "#0088FE",
@@ -44,9 +47,39 @@ const DepartmentsPage = () => {
     count,
   }));
 
+  const exportToPDF = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFontSize(18);
+    doc.text("Departments Report", 40, 40);
+    autoTable(doc, {
+      startY: 60,
+      head: [["Department ID", "Name", "Faculty"]],
+      body: filtered
+        .slice(0, visibleCount)
+        .map((dept) => [dept.id, dept.name, dept.faculty.name]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 108, 123],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 10, cellPadding: 4 },
+      margin: { left: 40, right: 40 },
+    });
+    doc.save("departments-report.pdf");
+  };
+
   return (
     <div className="bg-white p-6">
-      <h1 className="text-2xl font-bold mb-4">Departments</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Departments</h1>
+        <button
+          onClick={exportToPDF}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Export PDF
+        </button>
+      </div>
 
       <input
         type="text"
@@ -56,7 +89,7 @@ const DepartmentsPage = () => {
         className="mb-4 p-2 border rounded-md w-full max-w-md"
       />
       {/* Table  */}
-      <div className="mt-10 overflow-x-auto">
+      <div className="mt-10 overflow-x-auto" id="departments-table">
         {loading ? (
           <p>Loading departments...</p>
         ) : filtered.length === 0 ? (

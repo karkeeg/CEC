@@ -125,6 +125,7 @@ const TeacherAttendance = () => {
           ([studentId, status]) => ({
             id: existingAttendance.find((a) => a.student_id === studentId)?.id,
             status: status,
+            // Add note, subject_id, etc. if needed
           })
         );
         for (const record of attendanceRecords) {
@@ -141,6 +142,9 @@ const TeacherAttendance = () => {
             date: selectedDate,
             status: status,
             teacher_id: user.id,
+            subject_id: "", // TODO: set subject_id if available
+            note: "", // TODO: set note if needed
+            created_at: new Date().toISOString(),
           })
         );
         await createAttendance(attendanceRecords);

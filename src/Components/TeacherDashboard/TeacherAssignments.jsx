@@ -27,7 +27,7 @@ import {
 } from "recharts";
 
 const TeacherAssignments = () => {
-  const { user } = useUser();
+  const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,13 @@ const TeacherAssignments = () => {
         setSubjects(subjectData || []);
         // Fetch assignments
         const assignmentData = await getAssignmentsByTeacher(user.id);
-        setAssignments(assignmentData || []);
+        let filtered = assignmentData || [];
+        if (role === "teacher") {
+          filtered = filtered.filter(
+            (a) => a.teacher_id === user.id || a.teacher_id === user.username
+          );
+        }
+        setAssignments(filtered);
         // Fetch classes directly from classes table
         const classes = await getClassesByTeacher(user.id);
         setClasses(classes || []);
@@ -81,7 +87,7 @@ const TeacherAssignments = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, role]);
 
   const filteredAssignments = assignments.filter(
     (assignment) =>
@@ -110,7 +116,13 @@ const TeacherAssignments = () => {
       if (error) throw error;
       // Refresh assignments
       const assignmentData = await getAssignmentsByTeacher(user.id);
-      setAssignments(assignmentData || []);
+      let filtered = assignmentData || [];
+      if (role === "teacher") {
+        filtered = filtered.filter(
+          (a) => a.teacher_id === user.id || a.teacher_id === user.username
+        );
+      }
+      setAssignments(filtered);
       setShowCreateModal(false);
       setNewAssignment({
         title: "",

@@ -5,6 +5,13 @@ import {
   getAllAssignments,
   getAllClasses,
   getGradesByTeacher,
+  createAssignment,
+  createAttendance,
+  fetchStudents,
+  fetchAssignments,
+  fetchClasses,
+  getSubjects,
+  updateAssignmentSubmissionGrade,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
@@ -25,6 +32,8 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import { AssignmentForm } from "../Forms/AssignmentForm";
+import AttendanceForm from "../Forms/AttendanceForm";
 
 const TeacherMainDashboard = () => {
   const { user } = useUser();
@@ -39,6 +48,52 @@ const TeacherMainDashboard = () => {
   const [performanceData, setPerformanceData] = useState([]); // For AreaChart
   const [completionData, setCompletionData] = useState([]); // For StepLine
   const [todaysSchedule, setTodaysSchedule] = useState([]); // For today's classes
+
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showGradeModal, setShowGradeModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  // Assignment form state
+  const [assignmentTitle, setAssignmentTitle] = useState("");
+  const [assignmentDesc, setAssignmentDesc] = useState("");
+  const [assignmentDue, setAssignmentDue] = useState("");
+  const [assignmentClass, setAssignmentClass] = useState("");
+  const [assignmentSubject, setAssignmentSubject] = useState("");
+
+  // Attendance form state
+  const [attendanceDate, setAttendanceDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [attendanceClass, setAttendanceClass] = useState("");
+  const [attendanceStudents, setAttendanceStudents] = useState([]);
+  const [attendanceStatus, setAttendanceStatus] = useState({});
+
+  // Grade form state
+  const [gradeAssignment, setGradeAssignment] = useState("");
+  const [gradeStudent, setGradeStudent] = useState("");
+  const [gradeValue, setGradeValue] = useState("");
+  const [gradeStudents, setGradeStudents] = useState([]);
+  const [gradeAssignments, setGradeAssignments] = useState([]);
+
+  // Report form state
+  const [reportType, setReportType] = useState("attendance");
+  const [reportData, setReportData] = useState([]);
+
+  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  // Fetch classes, subjects, assignments, students for dropdowns
+  useEffect(() => {
+    fetchClasses().then(setClasses);
+    getSubjects().then(setSubjects);
+    fetchAssignments().then(setAssignments);
+    fetchStudents().then(setStudents);
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -88,6 +143,75 @@ const TeacherMainDashboard = () => {
     };
     fetchDashboardData();
   }, [user]);
+
+  // Fetch students for attendance and grading
+  useEffect(() => {
+    if (attendanceClass) {
+      fetchStudents(attendanceClass).then(setAttendanceStudents);
+    }
+  }, [attendanceClass]);
+  useEffect(() => {
+    if (gradeAssignment) {
+      fetchAssignments().then((data) => {
+        setGradeAssignments(data || []);
+        // Optionally filter students for the assignment
+      });
+    }
+  }, [gradeAssignment]);
+
+  // Handlers for Quick Actions
+  const handleCreateAssignment = async () => {
+    await createAssignment({
+      title: assignmentTitle,
+      description: assignmentDesc,
+      due_date: assignmentDue,
+      class_id: assignmentClass,
+      subject_id: assignmentSubject,
+      teacher_id: user.id,
+      created_at: new Date().toISOString(),
+    });
+    setShowAssignmentModal(false);
+    setAssignmentTitle("");
+    setAssignmentDesc("");
+    setAssignmentDue("");
+    setAssignmentClass("");
+    setAssignmentSubject("");
+    alert("Assignment created!");
+  };
+  const handleSaveAttendance = async () => {
+    if (!attendanceClass || !attendanceDate)
+      return alert("Select class and date");
+    const records = attendanceStudents.map((s) => ({
+      student_id: s.student?.id || s.id,
+      class_id: attendanceClass,
+      date: attendanceDate,
+      status: attendanceStatus[s.student?.id || s.id] || "present",
+      teacher_id: user.id,
+      created_at: new Date().toISOString(),
+    }));
+    await createAttendance(records);
+    setShowAttendanceModal(false);
+    setAttendanceClass("");
+    setAttendanceStudents([]);
+    setAttendanceStatus({});
+    alert("Attendance saved!");
+  };
+  const handleSaveGrade = async () => {
+    if (!gradeAssignment || !gradeStudent || !gradeValue)
+      return alert("Fill all fields");
+    await updateAssignmentSubmissionGrade(gradeStudent, { grade: gradeValue });
+    setShowGradeModal(false);
+    setGradeAssignment("");
+    setGradeStudent("");
+    setGradeValue("");
+    alert("Grade saved!");
+  };
+  const handleViewReport = async () => {
+    // Example: fetch attendance or grades based on reportType
+    // setReportData(...)
+    alert("Report feature coming soon!");
+    setShowReportModal(false);
+  };
 
   const StatCard = ({ icon, title, value, color }) => (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -214,16 +338,28 @@ const TeacherMainDashboard = () => {
               <FaChartLine className="text-gray-400" />
             </div>
             <div className="space-y-3">
-              <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors">
+              <button
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors"
+                onClick={() => setShowAssignmentModal(true)}
+              >
                 Create New Assignment
               </button>
-              <button className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md transition-colors">
+              <button
+                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md transition-colors"
+                onClick={() => setShowAttendanceModal(true)}
+              >
                 Take Attendance
               </button>
-              <button className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md transition-colors">
-                Grade Assignments
+              <button
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md transition-colors"
+                onClick={() => setShowGradeModal(true)}
+              >
+                Grade Assignment
               </button>
-              <button className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-md transition-colors">
+              <button
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-md transition-colors"
+                onClick={() => setShowReportModal(true)}
+              >
                 View Reports
               </button>
             </div>
@@ -287,6 +423,191 @@ const TeacherMainDashboard = () => {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Modals: */}
+      {showAssignmentModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <AssignmentForm
+              onClose={() => setShowAssignmentModal(false)}
+              onSuccess={() => setShowAssignmentModal(false)}
+            />
+          </div>
+        </div>
+      )}
+      {showAttendanceModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
+            <AttendanceForm
+              user={user}
+              onClose={() => setShowAttendanceModal(false)}
+              onSuccess={() => setShowAttendanceModal(false)}
+            />
+          </div>
+        </div>
+      )}
+      {showGradeModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Grade Assignment</h2>
+            {modalError && (
+              <div className="text-red-500 mb-2">{modalError}</div>
+            )}
+            <select
+              className="border p-2 w-full mb-2"
+              value={gradeAssignment}
+              onChange={(e) => setGradeAssignment(e.target.value)}
+            >
+              <option value="">Select Assignment</option>
+              {assignments.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                </option>
+              ))}
+            </select>
+            <select
+              className="border p-2 w-full mb-2"
+              value={gradeStudent}
+              onChange={(e) => setGradeStudent(e.target.value)}
+            >
+              <option value="">Select Student</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.first_name} {s.last_name}
+                </option>
+              ))}
+            </select>
+            <input
+              className="border p-2 w-full mb-4"
+              placeholder="Grade"
+              value={gradeValue}
+              onChange={(e) => setGradeValue(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="bg-green-500 text-white px-4 py-2 rounded"
+                onClick={async () => {
+                  setModalError("");
+                  if (!gradeAssignment || !gradeStudent || !gradeValue) {
+                    setModalError("Fill all fields");
+                    return;
+                  }
+                  setModalLoading(true);
+                  try {
+                    await updateAssignmentSubmissionGrade(gradeStudent, {
+                      grade: gradeValue,
+                    });
+                    setShowGradeModal(false);
+                    setGradeAssignment("");
+                    setGradeStudent("");
+                    setGradeValue("");
+                    alert("Grade saved!");
+                  } catch (e) {
+                    setModalError("Failed to save grade.");
+                  }
+                  setModalLoading(false);
+                }}
+                disabled={modalLoading}
+              >
+                Save
+              </button>
+              <button
+                className="bg-gray-300 px-4 py-2 rounded"
+                onClick={() => setShowGradeModal(false)}
+                disabled={modalLoading}
+              >
+                Cancel
+              </button>
+            </div>
+            {modalLoading && (
+              <div className="text-blue-500 mt-2">Saving...</div>
+            )}
+          </div>
+        </div>
+      )}
+      {showReportModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">View Reports</h2>
+            <select
+              className="border p-2 w-full mb-4"
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              <option value="attendance">Attendance</option>
+              <option value="grades">Grades</option>
+              <option value="assignments">Assignments</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <button
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+                onClick={async () => {
+                  setModalLoading(true);
+                  setModalError("");
+                  try {
+                    // Example: fetch and display report data
+                    let data = [];
+                    if (reportType === "attendance")
+                      data = await fetchAttendance();
+                    else if (reportType === "grades")
+                      data = await fetchAssignments();
+                    // Replace with actual grades fetch
+                    else if (reportType === "assignments")
+                      data = await fetchAssignments();
+                    setReportData(data);
+                  } catch (e) {
+                    setModalError("Failed to fetch report.");
+                  }
+                  setModalLoading(false);
+                }}
+                disabled={modalLoading}
+              >
+                View
+              </button>
+              <button
+                className="bg-gray-300 px-4 py-2 rounded"
+                onClick={() => setShowReportModal(false)}
+                disabled={modalLoading}
+              >
+                Cancel
+              </button>
+            </div>
+            {modalLoading && (
+              <div className="text-blue-500 mt-2">Loading...</div>
+            )}
+            {modalError && (
+              <div className="text-red-500 mt-2">{modalError}</div>
+            )}
+            {/* Display report data as a table */}
+            {reportData.length > 0 && (
+              <div className="mt-4 max-h-48 overflow-y-auto">
+                <table className="min-w-full text-xs border">
+                  <thead>
+                    <tr>
+                      {Object.keys(reportData[0]).map((key) => (
+                        <th key={key} className="border px-2 py-1">
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.map((row, i) => (
+                      <tr key={i}>
+                        {Object.values(row).map((val, j) => (
+                          <td key={j} className="border px-2 py-1">
+                            {String(val)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

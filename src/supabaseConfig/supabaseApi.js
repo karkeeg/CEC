@@ -152,8 +152,54 @@ export const fetchAttendance = async (filters = {}) => {
   if (filters.toDate) query = query.lte("date", filters.toDate);
   if (filters.student_id) query = query.eq("student_id", filters.student_id);
   if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
+  if (filters.class_id) query = query.eq("class_id", filters.class_id);
+  if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
   query = query.order && query.order("date", { ascending: false });
   const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
+
+// Fetch attendance for a specific student
+export const getAttendanceByStudent = async (studentId, fromDate, toDate) => {
+  let query = supabase
+    .from("attendance")
+    .select("*")
+    .eq("student_id", studentId);
+  if (fromDate) query = query.gte("date", fromDate);
+  if (toDate) query = query.lte("date", toDate);
+  query = query.order("date", { ascending: false });
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
+
+// Create attendance records (array of objects)
+export const createAttendance = async (records) => {
+  // records: array of { student_id, subject_id, date, status, note, teacher_id, class_id, created_at }
+  const { error } = await supabase.from("attendance").insert(records);
+  return error;
+};
+
+// Update a single attendance record
+export const updateAttendance = async (attendanceId, updates) => {
+  // updates: { status, note, subject_id, ... }
+  const { error } = await supabase
+    .from("attendance")
+    .update(updates)
+    .eq("id", attendanceId);
+  return error;
+};
+
+// Fetch attendance by class and date
+export const getAttendanceByClassAndDate = async (classId, date) => {
+  const { data, error } = await supabase
+    .from("attendance")
+    .select(
+      "id, student_id, status, subject_id, note, teacher_id, date, class_id, created_at"
+    )
+    .eq("class_id", classId)
+    .eq("date", date);
   if (error) throw error;
   return data;
 };
@@ -273,26 +319,6 @@ export const getStudentsByClass = async (classId) => {
   if (error) throw error;
   return data;
 };
-export const getAttendanceByClassAndDate = async (classId, date) => {
-  const { data, error } = await supabase
-    .from("attendance")
-    .select("id, student_id, status")
-    .eq("class_id", classId)
-    .eq("date", date);
-  if (error) throw error;
-  return data;
-};
-export const updateAttendance = async (attendanceId, updates) => {
-  const { error } = await supabase
-    .from("attendance")
-    .update(updates)
-    .eq("id", attendanceId);
-  return error;
-};
-export const createAttendance = async (records) => {
-  const { error } = await supabase.from("attendance").insert(records);
-  return error;
-};
 export const updateTeacherProfile = async (teacherId, updates) => {
   const { error } = await supabase
     .from("teachers")
@@ -355,9 +381,22 @@ export const getAllAssignments = fetchAssignments;
 export const getAllSubjects = getSubjects;
 export const getAllAttendance = fetchAttendance;
 export const getAllFees = async () => {
-  const { data, error } = await supabase.from("fees").select("amount, status");
+  const { data, error } = await supabase.from("fees").select("*");
   if (error) throw error;
   return data;
+};
+
+export const createFee = async (fee) => {
+  const { data, error } = await supabase.from("fees").insert([fee]);
+  return { data, error };
+};
+
+export const updateFee = async (id, updates) => {
+  const { data, error } = await supabase
+    .from("fees")
+    .update(updates)
+    .eq("id", id);
+  return { data, error };
 };
 
 // ------------------- CUSTOM AUTH -------------------
@@ -373,4 +412,11 @@ export const checkCredentials = async (table, email, password) => {
     return data;
   }
   return null;
+};
+
+export const updateStudentClass = async (studentId, classId) => {
+  return await supabase
+    .from("students")
+    .update({ class_id: classId })
+    .eq("id", studentId);
 };

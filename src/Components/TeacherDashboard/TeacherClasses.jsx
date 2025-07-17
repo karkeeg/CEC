@@ -23,6 +23,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import ManageEnrollmentForm from "../Forms/ManageEnrollmentForm";
 
 const TeacherClasses = () => {
   const { user } = useUser();
@@ -30,6 +31,7 @@ const TeacherClasses = () => {
   const [loading, setLoading] = useState(true);
   const [classSizeTrend, setClassSizeTrend] = useState([]); // For AreaChart
   const [classFillStatus, setClassFillStatus] = useState([]); // For StepLine
+  const [enrollmentModalClassId, setEnrollmentModalClassId] = useState(null);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -319,7 +321,10 @@ const TeacherClasses = () => {
                       <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors">
                         View Class Details
                       </button>
-                      <button className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors">
+                      <button
+                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
+                        onClick={() => setEnrollmentModalClassId(cls.id)}
+                      >
                         Manage Enrollments
                       </button>
                     </div>
@@ -439,6 +444,18 @@ const TeacherClasses = () => {
           </ResponsiveContainer>
         </div>
       </div>
+      {/* Enrollment Modal */}
+      {enrollmentModalClassId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
+            <ManageEnrollmentForm
+              user={user}
+              onClose={() => setEnrollmentModalClassId(null)}
+              onSuccess={() => setEnrollmentModalClassId(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
