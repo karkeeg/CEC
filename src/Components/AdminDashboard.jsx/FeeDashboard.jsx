@@ -11,7 +11,12 @@ import {
   YAxis,
   ResponsiveContainer,
 } from "recharts";
-import { FaGraduationCap, FaMoneyBillWave } from "react-icons/fa";
+import {
+  FaGraduationCap,
+  FaMoneyBillWave,
+  FaEdit,
+  FaTrash,
+} from "react-icons/fa";
 import { MdCalendarToday } from "react-icons/md";
 import html2pdf from "html2pdf.js";
 import jsPDF from "jspdf";
@@ -26,6 +31,14 @@ import Select from "react-select";
 
 const COLORS = ["#A5D8FF", "#FBC7C7", "#666"];
 
+// 1. Status enums/constants
+const FEE_STATUS = {
+  PAID: "paid",
+  PARTIAL: "partial",
+  OVERDUE: "overdue",
+  UNPAID: "unpaid",
+};
+
 const FeeDashboard = () => {
   const [form, setForm] = useState({
     student_id: "",
@@ -38,7 +51,6 @@ const FeeDashboard = () => {
   });
 
   const [fees, setFees] = useState([]);
-
   const [students, setStudents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
@@ -46,14 +58,33 @@ const FeeDashboard = () => {
   const [filterYear, setFilterYear] = useState("");
   const [maxDue, setMaxDue] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [loadingFees, setLoadingFees] = useState(true);
+  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    // Fetch students and real fees from DB
     const fetchData = async () => {
-      const studentsData = await getAllStudents();
-      setStudents(studentsData || []);
-      const feesData = await getAllFees();
-      setFees(feesData || []);
+      setLoadingStudents(true);
+      setLoadingFees(true);
+      setError("");
+      try {
+        const studentsData = await getAllStudents();
+        setStudents(studentsData || []);
+      } catch (e) {
+        setError("Failed to fetch students. Please try again later.");
+      } finally {
+        setLoadingStudents(false);
+      }
+      try {
+        const feesData = await getAllFees();
+        setFees(feesData || []);
+      } catch (e) {
+        setError("Failed to fetch fees. Please try again later.");
+      } finally {
+        setLoadingFees(false);
+      }
     };
     fetchData();
   }, []);
@@ -239,7 +270,101 @@ const FeeDashboard = () => {
     doc.save("fee-report.pdf");
   };
 
-  // Filtered fees: only include those with a matching student
+  // 2. Inline form validation and duplicate prevention
+  const validateForm = () => {
+    setFormError("");
+    if (!form.student_id || !form.amount || !form.due_date) {
+      setFormError("Student, amount, and due date are required.");
+      return false;
+    }
+    if (Number(form.amount) <= 0) {
+      setFormError("Amount must be greater than zero.");
+      return false;
+    }
+    if (form.paid_amount && Number(form.paid_amount) < 0) {
+      setFormError("Paid amount cannot be negative.");
+      return false;
+    }
+    if (form.paid_amount && Number(form.paid_amount) > Number(form.amount)) {
+      setFormError("Paid amount cannot exceed total amount.");
+      return false;
+    }
+    if (
+      form.paid_date &&
+      form.due_date &&
+      new Date(form.paid_date) < new Date(form.due_date)
+    ) {
+      setFormError("Paid date cannot be before due date.");
+      return false;
+    }
+    // Duplicate prevention (same student, same due_date)
+    const duplicate = fees.some(
+      (f, idx) =>
+        f.student_id === form.student_id &&
+        f.due_date === form.due_date &&
+        (editIndex === null || idx !== editIndex)
+    );
+    if (duplicate) {
+      setFormError("Duplicate fee entry for this student and due date.");
+      return false;
+    }
+    return true;
+  };
+
+  // 3. Delete action with confirmation
+  const handleDelete = async (idx) => {
+    if (!window.confirm("Are you sure you want to delete this fee record?"))
+      return;
+    const feeId = fees[idx].id;
+    try {
+      const { error: delError } = await updateFee(feeId, { deleted: true }); // Soft delete if possible
+      if (delError) throw delError;
+      setFees(fees.filter((_, i) => i !== idx));
+    } catch (e) {
+      setError("Failed to delete fee. Please try again.");
+    }
+  };
+
+  // 4. CSV export
+  const exportToCSV = () => {
+    const header = [
+      "Student Name",
+      "Year",
+      "Total Amount",
+      "Paid Amount",
+      "Due Date",
+      "Paid Date",
+      "Status",
+      "Notes",
+    ];
+    const rows = fees.map((fee) => {
+      const student = students.find((s) => s.id === fee.student_id);
+      return [
+        student
+          ? `${student.first_name} ${student.middle_name ?? ""} ${
+              student.last_name
+            }`.trim()
+          : "-",
+        student ? student.year : "-",
+        fee.amount,
+        fee.paid_amount,
+        fee.due_date,
+        fee.paid_date,
+        getStatus(fee).toUpperCase(),
+        fee.notes,
+      ];
+    });
+    const csvContent = [header, ...rows].map((e) => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "fee-report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 5. Status filter
   const filteredFees = fees.filter((fee) => {
     const student = students.find((s) => s.id === fee.student_id);
     if (!student) return false;
@@ -253,8 +378,17 @@ const FeeDashboard = () => {
       : true;
     const dueRemaining = fee.amount - (fee.paid_amount || 0);
     const maxDueMatch = maxDue ? dueRemaining <= Number(maxDue) : true;
-    return nameMatch && yearMatch && maxDueMatch;
+    const statusMatch = statusFilter ? getStatus(fee) === statusFilter : true;
+    return nameMatch && yearMatch && maxDueMatch && statusMatch;
   });
+
+  // 6. Summary cards
+  const summary = {
+    totalDue: fees.reduce((sum, f) => sum + Number(f.amount), 0),
+    totalPaid: fees.reduce((sum, f) => sum + Number(f.paid_amount || 0), 0),
+    overdue: fees.filter((f) => getStatus(f) === FEE_STATUS.OVERDUE).length,
+    unpaid: fees.filter((f) => getStatus(f) === FEE_STATUS.UNPAID).length,
+  };
 
   const statusData = [
     { name: "Paid", value: fees.filter((f) => getStatus(f) === "paid").length },
@@ -275,6 +409,59 @@ const FeeDashboard = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-500 p-6">
+      {/* Heading and Top Actions */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <h1 className="text-3xl font-bold text-blue-900">
+          Admin Fee Dashboard
+        </h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-blue-600 px-4 py-2 rounded shadow text-white hover:bg-blue-700"
+          >
+            Add Fee
+          </button>
+          <button
+            onClick={exportToPDF}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Export PDF
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
+          <div className="text-2xl font-bold text-blue-700">
+            {summary.totalDue}
+          </div>
+          <div className="text-gray-600">Total Due</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
+          <div className="text-2xl font-bold text-green-700">
+            {summary.totalPaid}
+          </div>
+          <div className="text-gray-600">Total Paid</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
+          <div className="text-2xl font-bold text-red-700">
+            {summary.overdue}
+          </div>
+          <div className="text-gray-600"># Overdue</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
+          <div className="text-2xl font-bold text-yellow-700">
+            {summary.unpaid}
+          </div>
+          <div className="text-gray-600"># Unpaid</div>
+        </div>
+      </div>
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
         <div>
@@ -318,23 +505,32 @@ const FeeDashboard = () => {
             placeholder="Amount"
           />
         </div>
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <button
-            onClick={() => handleOpenModal()}
-            className="bg-blue-600 px-4 py-2 rounded shadow text-white hover:bg-blue-700"
+        <div>
+          <label className="block text-sm font-medium mb-1">Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border px-4 py-2 rounded w-full min-w-[120px]"
           >
-            Add Fee
-          </button>
-          <button
-            onClick={exportToPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Export PDF
-          </button>
+            <option value="">All Statuses</option>
+            <option value={FEE_STATUS.PAID}>Paid</option>
+            <option value={FEE_STATUS.PARTIAL}>Partial</option>
+            <option value={FEE_STATUS.UNPAID}>Unpaid</option>
+            <option value={FEE_STATUS.OVERDUE}>Overdue</option>
+          </select>
         </div>
       </div>
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-center font-semibold">
+          {error}
+        </div>
+      )}
       {/* Table */}
-      <div className="bg-[#EEF0FD] text-black p-4 rounded overflow-auto mb-8">
+      <div
+        className="bg-[#EEF0FD] text-black p-4 rounded overflow-auto mb-8"
+        style={{ maxHeight: "60vh" }}
+      >
         <table className="w-full text-left">
           <thead className="bg-[#2C7489] text-white">
             <tr>
@@ -363,11 +559,20 @@ const FeeDashboard = () => {
                   }
                 >
                   <td className="p-2">
-                    {student
-                      ? `${student.first_name} ${student.middle_name ?? ""} ${
+                    {student ? (
+                      <a
+                        href={student.profileUrl || "#"}
+                        className="text-blue-700 underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {`${student.first_name} ${student.middle_name ?? ""} ${
                           student.last_name
-                        }`.trim()
-                      : "-"}
+                        }`.trim()}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td className="p-2">{student ? student.year : "-"}</td>
                   <td className="p-2">{fee.amount}</td>
@@ -388,8 +593,16 @@ const FeeDashboard = () => {
                     <button
                       onClick={() => handleOpenModal(idx)}
                       className="bg-green-500 text-white px-2 py-1 rounded mr-2"
+                      title="Edit"
                     >
-                      Edit
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(idx)}
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                      title="Delete"
+                    >
+                      <FaTrash />
                     </button>
                   </td>
                 </tr>
@@ -411,8 +624,17 @@ const FeeDashboard = () => {
             <h2 className="text-2xl font-bold mb-4">
               {editIndex !== null ? "Edit Fee" : "Add Fee"}
             </h2>
+            {formError && (
+              <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
+                {formError}
+              </div>
+            )}
             <form
-              onSubmit={handleSubmit}
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!validateForm()) return;
+                handleSubmit(e);
+              }}
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               <div>

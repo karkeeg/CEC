@@ -18,7 +18,7 @@ import { SlCalender } from "react-icons/sl";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 
-const AdminSidebar = () => {
+const AdminSidebar = ({ open, setOpen }) => {
   const { signOut } = useUser();
   const navigate = useNavigate();
 
@@ -27,12 +27,21 @@ const AdminSidebar = () => {
     navigate("/login");
   };
 
-  return (
-    <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex flex-col shadow-lg">
-      <div className="text-2xl font-bold py-6 px-6 border-b border-white/20">
-        Navigation
+  // Sidebar content
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      <div className="text-2xl font-bold py-6 px-6 border-b border-white/20 flex justify-between items-center">
+        <span>Navigation</span>
+        {/* Close button for mobile */}
+        <button
+          className="md:hidden text-3xl text-white focus:outline-none"
+          onClick={() => setOpen(false)}
+          aria-label="Close sidebar"
+        >
+          &times;
+        </button>
       </div>
-      <nav className="flex flex-col mt-4 space-y-2 px-4">
+      <nav className="flex flex-col mt-4 space-y-2 px-4 flex-1">
         <NavItem
           icon={<FaTachometerAlt />}
           label="Dashboard"
@@ -63,7 +72,31 @@ const AdminSidebar = () => {
         <NavItem icon={<CiMoneyBill />} label="Fees" to="/admin/fee" />
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/settings" />
       </nav>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Overlay for mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-40 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      <aside
+        className={`bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 z-50 shadow-lg transition-transform duration-300
+          ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
+          ${open ? "" : "pointer-events-none md:pointer-events-auto"}
+          md:static md:block md:fixed md:top-0 md:left-0 md:z-50
+        `}
+        style={{
+          display: open ? "block" : undefined,
+        }}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 };
 

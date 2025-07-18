@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { FaBell, FaUser, FaSignOutAlt, FaCog } from "react-icons/fa";
+import { FaBell, FaUser, FaSignOutAlt, FaCog, FaBars } from "react-icons/fa";
 import { useUser } from "../../contexts/UserContext";
 import avatar from "../../assets/logo.png";
 import { FaCircleUser } from "react-icons/fa6";
 
-const AdminHeader = () => {
+const AdminHeader = ({ onHamburgerClick }) => {
   const { user, profile, signOut } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -12,7 +12,7 @@ const AdminHeader = () => {
     if (user?.user_metadata?.display_name) {
       return user.user_metadata.display_name;
     }
-    return user?.email?.split("@")[0] || "Admin";
+    return user?.email?.split("@")?.[0] || "Admin";
   };
 
   const handleSignOut = async () => {
@@ -21,7 +21,15 @@ const AdminHeader = () => {
   };
 
   return (
-    <header className="fixed top-0 left-64 right-0 h-[80px] z-50 flex justify-between items-center pl-10 pr-12 py-5 bg-[#1E449D] text-white shadow">
+    <header className="fixed top-0 left-0 md:left-64 right-0 h-[80px] z-50 flex justify-between items-center pl-4 md:pl-10 pr-4 md:pr-12 py-5 bg-[#1E449D] text-white shadow transition-all">
+      {/* Hamburger for mobile */}
+      <button
+        className="md:hidden mr-2 text-2xl focus:outline-none"
+        onClick={onHamburgerClick}
+        aria-label="Open sidebar"
+      >
+        <FaBars />
+      </button>
       <h1 className="text-xl font-semibold">
         Welcome back, {getUserDisplayName()}!
       </h1>
