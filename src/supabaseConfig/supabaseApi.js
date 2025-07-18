@@ -130,7 +130,7 @@ export const fetchAssignments = async (filters = {}) => {
   let query = supabase
     .from("assignments")
     .select(
-      "id, title, due_date, teacher_id, description, subject:subject_id(name), year, class_id, created_at"
+      "id, title, due_date, teacher_id, description, subject:subject_id(name), year, class_id, created_at, files"
     );
   if (filters.due_date) query = query.gte("due_date", filters.due_date);
   if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
@@ -225,7 +225,7 @@ export const fetchClasses = async () => {
   const { data, error } = await supabase
     .from("classes")
     .select(
-      `class_id, subject_id, room_no, teacher_department:teacher_id (teacher:teacher_id (first_name, middle_name, last_name))`
+      `class_id, name, subject_id, room_no, teacher_department:teacher_id (teacher:teacher_id (first_name, middle_name, last_name))`
     );
   if (error) throw error;
   return data;
@@ -448,6 +448,34 @@ export const updateStudentClass = async (studentId, classId) => {
     .eq("id", studentId);
 };
 
+export const enrollStudentsInClass = async (studentIds, classId) => {
+  // studentIds: array of student_id
+  const records = studentIds.map((student_id) => ({
+    student_id,
+    class_id: classId,
+  }));
+  const { error } = await supabase.from("student_classes").insert(records);
+  return error;
+};
+
 export const createClass = async (classData) => {
   return await supabase.from("classes").insert([classData]);
+};
+
+export const getStudentCountByClass = async (classId) => {
+  const { count, error } = await supabase
+    .from("student_classes")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId);
+  if (error) throw error;
+  return count;
+};
+
+export const removeStudentFromClass = async (studentId, classId) => {
+  const { error } = await supabase
+    .from("student_classes")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("class_id", classId);
+  return error;
 };

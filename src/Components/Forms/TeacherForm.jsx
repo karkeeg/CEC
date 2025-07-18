@@ -8,14 +8,12 @@ const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
 export const TeacherForm = ({ onClose, onSuccess }) => {
   const [form, setForm] = useState({
-    first_name: "",
-    last_name: "",
-    gender: "Rather not to say",
+    id: "",
     email: "",
-    phone: "",
-    password: "",
     hashed_password: "",
-    department_id: "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
   });
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -45,7 +43,6 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
       "phone",
       "password",
       "hashed_password",
-      "department_id",
     ];
     if (required.some((f) => !form[f])) {
       alert("Please fill all required fields.");
@@ -65,7 +62,15 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const { error } = await createTeacher(form);
+      // Only send teacher fields
+      const { data, error } = await createTeacher({
+        id: form.id,
+        email: form.email,
+        hashed_password: form.hashed_password,
+        first_name: form.first_name,
+        middle_name: form.middle_name,
+        last_name: form.last_name,
+      });
       if (error) throw error;
       alert("Teacher added successfully!");
       if (onSuccess) onSuccess();
@@ -120,20 +125,18 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
         value={form.phone}
         onChange={handleChange}
       />
-      <select
-        name="department_id"
-        className={inputStyle}
-        value={form.department_id}
-        onChange={handleChange}
-        disabled={deptLoading}
-      >
-        <option value="">Select Department*</option>
-        {departments.map((dept) => (
-          <option key={dept.id} value={dept.id}>
-            {dept.name}
-          </option>
-        ))}
-      </select>
+      {/* Remove department_id input from the form */}
+      {/* Add a non-editable placeholder */}
+      <div className="col-span-2">
+        <label className="block font-semibold">Department</label>
+        <input
+          type="text"
+          value="Department will be assigned later"
+          className="w-full border px-3 py-2 rounded bg-gray-100 text-gray-500 cursor-not-allowed"
+          disabled
+          readOnly
+        />
+      </div>
       <input
         name="password"
         type="password"

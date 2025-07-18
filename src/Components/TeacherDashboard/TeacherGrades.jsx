@@ -4,6 +4,10 @@ import {
   getAssignmentsByTeacher,
   getAssignmentSubmissions,
   updateAssignmentSubmissionGrade,
+  getClassesByTeacher,
+  getStudentsByClass,
+  createAttendance,
+  getSubjects,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaSearch,
@@ -35,6 +39,16 @@ const TeacherGrades = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [gradeTrend, setGradeTrend] = useState([]); // For AreaChart
   const [gradeCompletion, setGradeCompletion] = useState([]); // For StepLine
+  const [classes, setClasses] = useState([]);
+  const [attendanceClass, setAttendanceClass] = useState("");
+  const [attendanceStudents, setAttendanceStudents] = useState([]);
+  const [attendanceStatus, setAttendanceStatus] = useState({});
+  const [attendanceDate, setAttendanceDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [attendanceSubject, setAttendanceSubject] = useState("");
+  const [attendanceSubjects, setAttendanceSubjects] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -89,6 +103,9 @@ const TeacherGrades = () => {
     };
     fetchSubmissions();
   }, [selectedAssignment]);
+
+  // Remove attendance-related imports, state, effects, and UI from this file.
+  // Only keep assignment grading logic and UI.
 
   const handleGradeChange = (submissionId, field, value) => {
     setGrades((prev) => ({

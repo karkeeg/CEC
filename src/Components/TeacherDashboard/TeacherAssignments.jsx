@@ -10,6 +10,7 @@ import {
   updateAssignment,
 } from "../../supabaseConfig/supabaseApi";
 import { AssignmentForm } from "../Forms/AssignmentForm";
+import supabase from "../../supabaseConfig/supabaseClient";
 import {
   FaPlus,
   FaEdit,
@@ -169,16 +170,49 @@ const TeacherAssignments = () => {
       due_date: assignment.due_date,
       year: assignment.year,
       class_id: assignment.class_id,
+      files: Array.isArray(assignment.files)
+        ? assignment.files
+        : assignment.files
+        ? [assignment.files]
+        : [],
     });
   };
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
   };
+  const handleEditFilesChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const uploadedUrls = [];
+    for (const file of files) {
+      const filePath = `assignments/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("public-files")
+        .upload(filePath, file);
+      if (!uploadError) {
+        const { data } = supabase.storage
+          .from("public-files")
+          .getPublicUrl(filePath);
+        if (data && data.publicUrl) {
+          uploadedUrls.push(data.publicUrl);
+        }
+      } else {
+        alert(`Failed to upload file: ${file.name}`);
+      }
+    }
+    setEditForm((prev) => ({
+      ...prev,
+      files: [...(prev.files || []), ...uploadedUrls],
+    }));
+  };
   const handleEditFormSubmit = async (e) => {
     e.preventDefault();
     if (!editAssignment) return;
-    const error = await updateAssignment(editAssignment.id, editForm);
+    const error = await updateAssignment(editAssignment.id, {
+      ...editForm,
+      files: editForm.files,
+    });
     if (!error) {
       // Refresh assignments
       const assignmentData = await getAssignmentsByTeacher(user.id);
@@ -390,25 +424,36 @@ const TeacherAssignments = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {Array.isArray(assignment.files) &&
-                        assignment.files.length > 0 ? (
-                          <ul>
-                            {assignment.files.map((file, idx) => (
-                              <li key={idx}>
-                                <a
-                                  href={file}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 underline"
-                                >
-                                  File {idx + 1}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <span className="text-gray-400">No files</span>
-                        )}
+                        {(() => {
+                          let files = assignment.files;
+                          if (typeof files === "string") {
+                            try {
+                              files = JSON.parse(files);
+                            } catch {
+                              files = files ? [files] : [];
+                            }
+                          }
+                          if (!Array.isArray(files))
+                            files = files ? [files] : [];
+                          return files.length > 0 ? (
+                            <ul>
+                              {files.map((file, idx) => (
+                                <li key={idx}>
+                                  <a
+                                    href={file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline"
+                                  >
+                                    File {idx + 1}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="text-gray-400">No files</span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
@@ -488,41 +533,54 @@ const TeacherAssignments = () => {
       )}
       {editAssignment && editForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl">
-            <h2 className="text-xl font-bold mb-2">
+          <div className="bg-white rounded-2xl p-3 w-full max-w-2xl shadow-xl border border-gray-200">
+            <h2 className="text-lg font-semibold mb-1 text-gray-800">
               Edit Assignment: {editAssignment.title}
             </h2>
             <form
               onSubmit={handleEditFormSubmit}
-              className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 space-y-0"
             >
               <div>
-                <label className="block font-semibold">Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title
+                </label>
                 <input
                   name="title"
                   value={editForm.title}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block font-semibold">Subject</label>
-                <input
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject
+                </label>
+                <select
                   name="subject_id"
                   value={editForm.subject_id}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
                   required
-                />
+                >
+                  <option value="">Select Subject</option>
+                  {subjects.map((subj) => (
+                    <option key={subj.id} value={subj.id}>
+                      {subj.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="block font-semibold">Class</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class
+                </label>
                 <select
                   name="class_id"
                   value={editForm.class_id}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
                   required
                 >
                   <option value="">Select Class</option>
@@ -537,46 +595,79 @@ const TeacherAssignments = () => {
                 </select>
               </div>
               <div>
-                <label className="block font-semibold">Year</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Year
+                </label>
                 <input
                   name="year"
                   value={editForm.year}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block font-semibold">Due Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Due Date
+                </label>
                 <input
                   name="due_date"
                   type="date"
                   value={editForm.due_date?.slice(0, 10) || ""}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
                   required
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block font-semibold">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
                 <textarea
                   name="description"
                   value={editForm.description}
                   onChange={handleEditFormChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm min-h-[60px]"
                   required
                 />
               </div>
-              <div className="md:col-span-2 flex gap-2 justify-end">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Files
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleEditFilesChange}
+                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
+                />
+                {Array.isArray(editForm.files) && editForm.files.length > 0 && (
+                  <ul className="mt-1 space-y-1">
+                    {editForm.files.map((file, idx) => (
+                      <li key={idx}>
+                        <a
+                          href={file}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline text-sm"
+                        >
+                          File {idx + 1}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="md:col-span-2 flex gap-2 justify-end mt-2">
                 <button
                   type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                  className="bg-blue-600 text-white px-4 py-1.5 rounded shadow-sm hover:bg-blue-700 text-sm"
                 >
                   Save
                 </button>
                 <button
                   type="button"
-                  className="bg-gray-300 px-4 py-2 rounded"
+                  className="bg-gray-200 px-4 py-1.5 rounded shadow-sm hover:bg-gray-300 text-sm"
                   onClick={() => setEditAssignment(null)}
                 >
                   Cancel

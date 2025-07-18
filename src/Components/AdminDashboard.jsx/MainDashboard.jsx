@@ -89,8 +89,8 @@ const MainDashboard = () => {
     const fees = await getAllFees();
     const paid =
       fees
-        ?.filter((f) => f.status === "paid")
-        .reduce((acc, f) => acc + f.amount, 0) || 0;
+        ?.filter((f) => f.status === "unpaid")
+        .reduce((acc, f) => acc + f.paid_amount, 0) || 0;
     const unpaid =
       fees
         ?.filter((f) => f.status === "unpaid")

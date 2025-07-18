@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
   fetchStudents,
-  updateStudentClass,
+  enrollStudentsInClass,
 } from "../../supabaseConfig/supabaseApi";
 
 const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
@@ -54,11 +54,12 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
       return;
     }
     setLoading(true);
-    await Promise.all(
-      selectedStudents.map((studentId) =>
-        updateStudentClass(studentId, classId)
-      )
-    );
+    const error = await enrollStudentsInClass(selectedStudents, classId);
+    if (error) {
+      alert("Error enrolling students: " + error.message);
+      setLoading(false);
+      return;
+    }
     setLoading(false);
     if (onSuccess) onSuccess();
     if (onClose) onClose();
