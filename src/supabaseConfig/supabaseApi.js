@@ -83,6 +83,12 @@ export const fetchDepartments = async () => {
   return data;
 };
 
+export const fetchSubjects = async () => {
+  const { data, error } = await supabase.from("subjects").select("id, name");
+  if (error) throw error;
+  return data;
+};
+
 export const fetchDepartmentById = async (id) => {
   const { data, error } = await supabase
     .from("departments")
@@ -225,6 +231,20 @@ export const fetchClasses = async () => {
   return data;
 };
 
+export const fetchRooms = async () => {
+  const { data, error } = await supabase
+    .from("sections")
+    .select("room_no, name");
+  if (error) throw error;
+  return data;
+};
+
+export const fetchSections = async () => {
+  const { data, error } = await supabase.from("sections").select("id, name");
+  if (error) throw error;
+  return data;
+};
+
 // ------------------- AUTH -------------------
 export const signIn = async (email, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -301,6 +321,13 @@ export const updateAssignmentSubmissionGrade = async (
     .from("assignment_submissions")
     .update(updates)
     .eq("id", submissionId);
+  return error;
+};
+export const updateAssignment = async (assignmentId, updates) => {
+  const { error } = await supabase
+    .from("assignments")
+    .update(updates)
+    .eq("id", assignmentId);
   return error;
 };
 export const getTeacherDepartmentsWithClasses = async (teacherId) => {
@@ -419,4 +446,8 @@ export const updateStudentClass = async (studentId, classId) => {
     .from("students")
     .update({ class_id: classId })
     .eq("id", studentId);
+};
+
+export const createClass = async (classData) => {
+  return await supabase.from("classes").insert([classData]);
 };

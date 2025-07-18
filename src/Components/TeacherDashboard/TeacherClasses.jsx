@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import { getClassesByTeacher } from "../../supabaseConfig/supabaseApi";
+import {
+  getClassesByTeacher,
+  fetchStudents,
+} from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
   FaClock,
@@ -24,6 +27,7 @@ import {
   Bar,
 } from "recharts";
 import ManageEnrollmentForm from "../Forms/ManageEnrollmentForm";
+import ClassForm from "../Forms/ClassForm";
 
 const TeacherClasses = () => {
   const { user } = useUser();
@@ -32,21 +36,30 @@ const TeacherClasses = () => {
   const [classSizeTrend, setClassSizeTrend] = useState([]); // For AreaChart
   const [classFillStatus, setClassFillStatus] = useState([]); // For StepLine
   const [enrollmentModalClassId, setEnrollmentModalClassId] = useState(null);
+  const [refresh, setRefresh] = useState(false);
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
 
   useEffect(() => {
     const fetchClasses = async () => {
       if (!user?.id) return;
+      setLoading(true);
       try {
         const classes = await getClassesByTeacher(user.id);
-        setClasses(classes || []);
-        // Mock or fetch class size trend data (for demo, use static or generate from classes)
-        const trend = (classes || []).map((cls) => ({
+        const allStudents = await fetchStudents();
+        const classesWithCounts = (classes || []).map((cls) => {
+          const count = allStudents.filter(
+            (s) => s.class_id === cls.class_id
+          ).length;
+          return { ...cls, studentCount: count };
+        });
+        setClasses(classesWithCounts);
+        // Update trend/fill with real data
+        const trend = (classesWithCounts || []).map((cls) => ({
           name: cls.name,
           size: cls.studentCount || 0,
         }));
         setClassSizeTrend(trend);
-        // Mock or fetch class fill status (capacity over time)
-        const fill = (classes || []).map((cls) => ({
+        const fill = (classesWithCounts || []).map((cls) => ({
           name: cls.name,
           fill: cls.capacity
             ? Math.round((cls.studentCount / cls.capacity) * 100)
@@ -60,7 +73,7 @@ const TeacherClasses = () => {
       }
     };
     fetchClasses();
-  }, [user]);
+  }, [user, refresh]);
 
   const getClassStatus = (studentCount, capacity) => {
     const percentage = (studentCount / capacity) * 100;
@@ -111,6 +124,15 @@ const TeacherClasses = () => {
 
   return (
     <div className="w-full p-4">
+      {/* Add Class Button */}
+      {/* <div className="mb-4 flex justify-end">
+        <button
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold"
+          onClick={() => setShowAddClassModal(true)}
+        >
+          + Add Class
+        </button>
+      </div> */}
       {/* Summary Section: Summary Cards */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
@@ -194,10 +216,18 @@ const TeacherClasses = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div>{" "}
       {/* Classes Grid Section - moved to top */}
       <div className="mb-10">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">My Classes</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold text-gray-800">My Classes</h1>
+          <button
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold"
+            onClick={() => setShowAddClassModal(true)}
+          >
+            + Add Class
+          </button>
+        </div>
         <p className="text-gray-600 mb-6">
           Below is a list of all the classes you are currently teaching. You can
           view details, manage enrollments, and monitor class status at a
@@ -242,7 +272,7 @@ const TeacherClasses = () => {
                       <div className="flex items-center text-sm text-gray-600">
                         <FaUsers className="mr-2 text-gray-400" />
                         <span>
-                          {cls.studentCount} / {cls.capacity || 30} students
+                          {cls.studentCount} / {cls.capacity} students
                         </span>
                       </div>
 
@@ -341,7 +371,6 @@ const TeacherClasses = () => {
           )}
         </div>
       </div>
-
       {/* Charts Section: Class Size Trend, Fill Status */}
       <div className="mb-8">
         {/* Class Size Trend Area Chart */}
@@ -458,7 +487,24 @@ const TeacherClasses = () => {
               user={user}
               classId={enrollmentModalClassId}
               onClose={() => setEnrollmentModalClassId(null)}
-              onSuccess={() => setEnrollmentModalClassId(null)}
+              onSuccess={() => {
+                setEnrollmentModalClassId(null);
+                setRefresh((r) => !r);
+              }}
+            />
+          </div>
+        </div>
+      )}
+      {showAddClassModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
+            <ClassForm
+              user={user}
+              onClose={() => setShowAddClassModal(false)}
+              onSuccess={() => {
+                setShowAddClassModal(false);
+                setRefresh((r) => !r);
+              }}
             />
           </div>
         </div>

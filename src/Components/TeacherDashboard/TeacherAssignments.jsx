@@ -7,7 +7,9 @@ import {
   createAssignment,
   deleteAssignment,
   getAssignmentSubmissions,
+  updateAssignment,
 } from "../../supabaseConfig/supabaseApi";
+import { AssignmentForm } from "../Forms/AssignmentForm";
 import {
   FaPlus,
   FaEdit,
@@ -43,6 +45,9 @@ const TeacherAssignments = () => {
     class_id: "", // add this
   });
   const [submissionProgress, setSubmissionProgress] = useState([]); // For StepLine chart
+  const [viewAssignment, setViewAssignment] = useState(null);
+  const [editAssignment, setEditAssignment] = useState(null);
+  const [editForm, setEditForm] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,9 +94,13 @@ const TeacherAssignments = () => {
     fetchData();
   }, [user, role]);
 
+  console.log("Assignments in table:", assignments);
+
   const filteredAssignments = assignments.filter(
     (assignment) =>
-      selectedClass === "all" || assignment.class?.id === selectedClass
+      selectedClass === "all" ||
+      assignment.class?.id === selectedClass ||
+      assignment.class_id === selectedClass
   );
 
   const handleCreateAssignment = async (e) => {
@@ -148,6 +157,56 @@ const TeacherAssignments = () => {
       console.error("Error deleting assignment:", error);
       alert("Failed to delete assignment");
     }
+  };
+
+  const handleViewAssignment = (assignment) => setViewAssignment(assignment);
+  const handleEditAssignment = (assignment) => {
+    setEditAssignment(assignment);
+    setEditForm({
+      title: assignment.title,
+      description: assignment.description,
+      subject_id: assignment.subject_id,
+      due_date: assignment.due_date,
+      year: assignment.year,
+      class_id: assignment.class_id,
+    });
+  };
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleEditFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!editAssignment) return;
+    const error = await updateAssignment(editAssignment.id, editForm);
+    if (!error) {
+      // Refresh assignments
+      const assignmentData = await getAssignmentsByTeacher(user.id);
+      let filtered = assignmentData || [];
+      if (role === "teacher") {
+        filtered = filtered.filter(
+          (a) => a.teacher_id === user.id || a.teacher_id === user.username
+        );
+      }
+      setAssignments(filtered);
+      setEditAssignment(null);
+      setEditForm(null);
+      alert("Assignment updated!");
+    } else {
+      alert("Failed to update assignment.");
+    }
+  };
+
+  const handleAssignmentCreated = async () => {
+    setShowCreateModal(false);
+    const assignmentData = await getAssignmentsByTeacher(user.id);
+    let filtered = assignmentData || [];
+    if (role === "teacher") {
+      filtered = filtered.filter(
+        (a) => a.teacher_id === user.id || a.teacher_id === user.username
+      );
+    }
+    setAssignments(filtered);
   };
 
   const getStatusColor = (dueDate) => {
@@ -239,6 +298,9 @@ const TeacherAssignments = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Files
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -277,7 +339,14 @@ const TeacherAssignments = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {assignment.class?.name}
+                          {(() => {
+                            const cls = classes.find(
+                              (c) =>
+                                c.id === assignment.class_id ||
+                                c.class_id === assignment.class_id
+                            );
+                            return cls ? cls.name : assignment.class_id;
+                          })()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -298,10 +367,16 @@ const TeacherAssignments = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <button className="text-blue-600 hover:text-blue-900">
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleViewAssignment(assignment)}
+                          >
                             <FaEye className="text-lg" />
                           </button>
-                          <button className="text-green-600 hover:text-green-900">
+                          <button
+                            className="text-green-600 hover:text-green-900"
+                            onClick={() => handleEditAssignment(assignment)}
+                          >
                             <FaEdit className="text-lg" />
                           </button>
                           <button
@@ -313,6 +388,27 @@ const TeacherAssignments = () => {
                             <FaTrash className="text-lg" />
                           </button>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {Array.isArray(assignment.files) &&
+                        assignment.files.length > 0 ? (
+                          <ul>
+                            {assignment.files.map((file, idx) => (
+                              <li key={idx}>
+                                <a
+                                  href={file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 underline"
+                                >
+                                  File {idx + 1}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-gray-400">No files</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -354,142 +450,134 @@ const TeacherAssignments = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl">
             <h2 className="text-xl font-bold mb-2">Create New Assignment</h2>
-            <form onSubmit={handleCreateAssignment}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                {/* Row 1: Title + Subject */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newAssignment.title}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        title: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Subject
-                  </label>
-                  <select
-                    required
-                    value={newAssignment.subject_id}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        subject_id: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  >
-                    <option value="">Select a subject</option>
-                    {subjects.map((subj) => (
-                      <option key={subj.id} value={subj.id}>
-                        {subj.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {/* Row 2: Year + Class */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Year
-                  </label>
-                  <select
-                    required
-                    value={newAssignment.year}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        year: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  >
-                    <option value="">Select year</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Class
-                  </label>
-                  <select
-                    required
-                    value={newAssignment.class_id}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        class_id: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  >
-                    <option value="">Select a class</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.name} ({cls.department}, Year {cls.year})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {/* Row 3: Due Date + Description */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={newAssignment.due_date}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        due_date: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  />
-                </div>
-                <div className="md:col-span-1 col-span-1">
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    required
-                    value={newAssignment.description}
-                    onChange={(e) =>
-                      setNewAssignment({
-                        ...newAssignment,
-                        description: e.target.value,
-                      })
-                    }
-                    rows="2"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
-                  />
-                </div>
+            <AssignmentForm
+              onClose={() => setShowCreateModal(false)}
+              onSuccess={handleAssignmentCreated}
+            />
+          </div>
+        </div>
+      )}
+      {viewAssignment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+            <h2 className="text-xl font-bold mb-2">Assignment Details</h2>
+            <p>
+              <strong>Title:</strong> {viewAssignment.title}
+            </p>
+            <p>
+              <strong>Description:</strong> {viewAssignment.description}
+            </p>
+            <p>
+              <strong>Due Date:</strong>{" "}
+              {new Date(viewAssignment.due_date).toLocaleString()}
+            </p>
+            <p>
+              <strong>Year:</strong> {viewAssignment.year}
+            </p>
+            <p>
+              <strong>Class:</strong> {viewAssignment.class?.name}
+            </p>
+            <button
+              className="mt-4 bg-gray-300 px-4 py-2 rounded"
+              onClick={() => setViewAssignment(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {editAssignment && editForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl">
+            <h2 className="text-xl font-bold mb-2">
+              Edit Assignment: {editAssignment.title}
+            </h2>
+            <form
+              onSubmit={handleEditFormSubmit}
+              className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              <div>
+                <label className="block font-semibold">Title</label>
+                <input
+                  name="title"
+                  value={editForm.title}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                />
               </div>
-              <div className="flex space-x-3 mt-6">
+              <div>
+                <label className="block font-semibold">Subject</label>
+                <input
+                  name="subject_id"
+                  value={editForm.subject_id}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-semibold">Class</label>
+                <select
+                  name="class_id"
+                  value={editForm.class_id}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((cls) => (
+                    <option
+                      key={cls.id || cls.class_id}
+                      value={cls.id || cls.class_id}
+                    >
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold">Year</label>
+                <input
+                  name="year"
+                  value={editForm.year}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-semibold">Due Date</label>
+                <input
+                  name="due_date"
+                  type="date"
+                  value={editForm.due_date?.slice(0, 10) || ""}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block font-semibold">Description</label>
+                <textarea
+                  name="description"
+                  value={editForm.description}
+                  onChange={handleEditFormChange}
+                  className="w-full border px-3 py-2 rounded"
+                  required
+                />
+              </div>
+              <div className="md:col-span-2 flex gap-2 justify-end">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold shadow-sm transition-colors"
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
                 >
-                  Create Assignment
+                  Save
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold shadow-sm transition-colors"
+                  className="bg-gray-300 px-4 py-2 rounded"
+                  onClick={() => setEditAssignment(null)}
                 >
                   Cancel
                 </button>

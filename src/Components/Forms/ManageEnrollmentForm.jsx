@@ -7,7 +7,7 @@ import {
 const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState("");
+  const [selectedStudents, setSelectedStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const inputRef = useRef(null);
@@ -29,10 +29,14 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
       s.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSelectStudent = (student) => {
-    setSelectedStudent(student.id);
-    setSearch(`${student.first_name} ${student.last_name} (${student.email})`);
-    setShowDropdown(false);
+  const handleToggleStudent = (studentId) => {
+    setSelectedStudents((prev) => {
+      const updated = prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId];
+      console.log("Selected students:", updated);
+      return updated;
+    });
   };
 
   const handleInputFocus = () => {
@@ -40,17 +44,21 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
   };
 
   const handleInputBlur = () => {
-    setTimeout(() => setShowDropdown(false), 100); // Delay to allow click
+    setTimeout(() => setShowDropdown(false), 100);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedStudent || !classId) {
-      alert("Please select a student.");
+    if (!selectedStudents.length || !classId) {
+      alert("Please select at least one student.");
       return;
     }
     setLoading(true);
-    await updateStudentClass(selectedStudent, classId);
+    await Promise.all(
+      selectedStudents.map((studentId) =>
+        updateStudentClass(studentId, classId)
+      )
+    );
     setLoading(false);
     if (onSuccess) onSuccess();
     if (onClose) onClose();
@@ -62,7 +70,7 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="relative">
         <label className="block mb-1 font-medium">
-          Search and Select Student
+          Search and Select Students
         </label>
         <input
           type="text"
@@ -72,11 +80,9 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setSelectedStudent("");
             setShowDropdown(true);
           }}
           onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
           autoComplete="off"
         />
         {showDropdown && filteredStudents.length > 0 && (
@@ -84,14 +90,30 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
             {filteredStudents.map((s) => (
               <li
                 key={s.id}
-                className="px-3 py-2 cursor-pointer hover:bg-blue-100"
-                onMouseDown={() => handleSelectStudent(s)}
+                className="px-3 py-2 hover:bg-blue-100 flex items-center cursor-pointer"
               >
-                {s.first_name} {s.last_name} ({s.email})
+                <label
+                  className="flex items-center w-full cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleToggleStudent(s.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.includes(s.id)}
+                    readOnly
+                    className="mr-2"
+                  />
+                  <span>
+                    {s.first_name} {s.last_name} ({s.email})
+                  </span>
+                </label>
               </li>
             ))}
           </ul>
         )}
+        {console.log("Current selectedStudents:", selectedStudents)}
       </div>
       <div className="flex gap-2">
         <button
@@ -99,7 +121,7 @@ const ManageEnrollmentForm = ({ user, classId, onClose, onSuccess }) => {
           className="bg-blue-600 text-white px-4 py-2 rounded"
           disabled={loading}
         >
-          {loading ? "Saving..." : "Assign Student"}
+          {loading ? "Saving..." : "Assign Students"}
         </button>
         <button
           type="button"
