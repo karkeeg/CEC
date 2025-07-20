@@ -69,7 +69,7 @@ const Classes = () => {
             </thead>
             <tbody>
               {classes.map((cls, idx) => {
-                const teacher = cls.teacher_department?.teacher;
+                const teacher = cls.teacher;
                 const fullName = teacher
                   ? `${teacher.first_name ?? ""} ${teacher.middle_name ?? ""} ${
                       teacher.last_name ?? ""
@@ -82,11 +82,11 @@ const Classes = () => {
                     className="bg-blue-50 hover:bg-blue-200 transition border-t"
                   >
                     <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
-                      <FaBookOpen /> {cls.class_id}
+                      <FaBookOpen /> {cls.name}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">{fullName}</td>
                     <td className="py-3 px-4 flex items-center gap-2 whitespace-nowrap">
-                      <FaUser /> {cls.subject_id}
+                      <FaUser /> {cls.subject.name}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <button className="flex items-center gap-2 text-blue-600 hover:underline">

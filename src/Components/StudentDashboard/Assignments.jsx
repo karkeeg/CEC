@@ -5,8 +5,9 @@ import { IoMdArrowDropdown } from "react-icons/io";
 import { BiReset } from "react-icons/bi";
 import { MdAssignmentLate } from "react-icons/md";
 import { IoBookOutline } from "react-icons/io5";
-import { FaRegFileAlt } from "react-icons/fa";
+import { FaRegFileAlt, FaEye, FaUpload } from "react-icons/fa";
 import { useUser } from "../../contexts/UserContext";
+import { FaCalendarAlt, FaUser } from "react-icons/fa";
 
 const Assignments = () => {
   const { user, role } = useUser();
@@ -14,10 +15,32 @@ const Assignments = () => {
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("2025-01-01");
   const [loading, setLoading] = useState(true);
+  const [viewModal, setViewModal] = useState(null); // assignment to view
+  const [submitModal, setSubmitModal] = useState(null); // assignment to submit
+  const [file, setFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState({}); // {assignment_id: true/false}
+  const [submissionNotes, setSubmissionNotes] = useState("");
 
   useEffect(() => {
     const fetchAssignments = async () => {
       setLoading(true);
+      let classIdSet = new Set();
+      if (role === "student" && user?.id) {
+        // Fetch all class_ids for this student
+        const { data: studentClasses, error: scError } = await supabase
+          .from("student_classes")
+          .select("class_id")
+          .eq("student_id", user.id);
+        if (scError) {
+          console.error("Error fetching student classes:", scError);
+          setAssignments([]);
+          setLoading(false);
+          return;
+        }
+        classIdSet = new Set(studentClasses?.map((sc) => sc.class_id) || []);
+      }
+      // Fetch all assignments (optionally filtered by date)
       const { data, error } = await supabase
         .from("assignments")
         .select(
@@ -28,38 +51,116 @@ const Assignments = () => {
           teacher_id,
           year,
           class_id,
-          
           description,
           subject:subject_id (
             name
-          )
-          /* optionally include teacher info here if needed */
+          ),
+          files
         `
         )
-        .gte("due_date", date) // filter due_date >= selected date
+        .gte("due_date", date)
         .order("due_date", { ascending: true });
-
       if (error) {
         console.error("Error fetching assignments:", error);
-      } else {
-        setAssignments(data);
+        setAssignments([]);
+        setLoading(false);
+        return;
       }
+      // Only keep assignments for classes the student is enrolled in
+      let filtered = data;
+      if (role === "student") {
+        filtered = data.filter((a) => classIdSet.has(a.class_id));
+      }
+      setAssignments(filtered);
       setLoading(false);
     };
-
     fetchAssignments();
-  }, [date]);
+  }, [date, user, role]);
 
-  // Filter assignments by search term and by user role
-  const filteredAssignments = assignments
-    .filter((a) => a.title.toLowerCase().includes(search.toLowerCase()))
-    .filter((a) => {
-      if (role === "student") {
-        // Ensure both are strings for comparison
-        return String(a.year) === String(user.year);
+  // Fetch submission status for all assignments for this student
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      if (!user?.id || assignments.length === 0) return;
+      const { data, error } = await supabase
+        .from("submissions")
+        .select("assignment_id, files")
+        .in(
+          "assignment_id",
+          assignments.map((a) => a.id)
+        )
+        .eq("student_id", user.id);
+      if (!error && data) {
+        const status = {};
+        data.forEach((s) => {
+          status[s.assignment_id] = { submitted: true, files: s.files };
+        });
+        setSubmissionStatus(status);
       }
-      return true;
-    });
+    };
+    fetchSubmissions();
+  }, [assignments, user]);
+
+  // Filter assignments by search term
+  const filteredAssignments = assignments.filter((a) =>
+    a.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Handle file upload and submission
+  const handleSubmitAssignment = async (assignment) => {
+    if (!file || !user?.id) return;
+    setSubmitting(true);
+    try {
+      // 1. Upload file to Supabase Storage (bucket: public-files)
+      const fileExt = file.name.split(".").pop();
+      const filePath = `submissions/${user.id}/${
+        assignment.id
+      }-${Date.now()}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("public-files")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        alert(uploadError.message || "Failed to upload file.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("public-files")
+        .getPublicUrl(filePath);
+
+      const fileUrl = publicUrlData.publicUrl;
+
+      // 3. Insert submission record
+      const submissionId =
+        window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : `${user.id}-${assignment.id}-${Date.now()}`;
+      const { error } = await supabase.from("submissions").insert([
+        {
+          id: submissionId,
+          assignment_id: assignment.id,
+          student_id: user.id,
+          files: [fileUrl], // must be an array
+          notes: submissionNotes,
+        },
+      ]);
+      if (!error) {
+        setSubmissionStatus((prev) => ({ ...prev, [assignment.id]: true }));
+        setSubmitModal(null);
+        setFile(null);
+        setSubmissionNotes("");
+        alert("Assignment submitted successfully!");
+      } else {
+        alert(error.message || "Failed to submit assignment.");
+      }
+    } catch (err) {
+      alert("Failed to submit assignment.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-white">
@@ -98,79 +199,261 @@ const Assignments = () => {
           </button>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-2xl mt-4">
-          {loading ? (
-            <p className="p-8 text-center text-gray-500 text-lg font-semibold">
-              Loading assignments...
-            </p>
-          ) : (
-            <table className="min-w-full text-base text-left">
-              <thead>
-                <tr className="bg-cyan-900 text-white text-lg">
-                  <th className="px-6 py-4 font-bold">Title</th>
-                  <th className="px-6 py-4 font-bold">Subject</th>
-                  <th className="px-6 py-4 font-bold">Due Date</th>
-                  <th className="px-6 py-4 font-bold">Status</th>
-                  <th className="px-6 py-4 font-bold text-center">Action</th>
+        {/* Modern Table */}
+        <div className="overflow-x-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-xl mt-4 shadow-md">
+          <table className="min-w-full text-sm text-left">
+            <thead>
+              <tr className="bg-cyan-900 text-white text-base">
+                <th className="px-3 py-2 font-bold">#</th>
+                <th className="px-3 py-2 font-bold">Title</th>
+                <th className="px-3 py-2 font-bold">Subject</th>
+                <th className="px-3 py-2 font-bold">Due</th>
+                <th className="px-3 py-2 font-bold">Files</th>
+                <th className="px-3 py-2 font-bold">Assigned by</th>
+                <th className="px-3 py-2 font-bold text-center">Status</th>
+                <th className="px-3 py-2 font-bold text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-3 py-8 text-center text-gray-500 text-base font-semibold"
+                  >
+                    Loading assignments...
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredAssignments.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-6 text-center text-gray-600 text-lg"
-                    >
-                      No assignments found.
+              ) : filteredAssignments.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-3 py-8 text-center text-gray-500 text-base font-semibold"
+                  >
+                    No assignments found.
+                  </td>
+                </tr>
+              ) : (
+                filteredAssignments.map((a, i) => (
+                  <tr
+                    key={a.id}
+                    className={`border-b border-blue-100 ${
+                      i % 2 === 0
+                        ? "bg-blue-50 text-black"
+                        : "bg-white text-black"
+                    } text-sm hover:bg-blue-100 transition`}
+                  >
+                    <td className="px-3 py-2 font-semibold">{i + 1}</td>
+                    <td className="px-3 py-2 font-medium truncate max-w-[120px]">
+                      {a.title}
+                    </td>
+                    <td className="px-3 py-2 flex items-center gap-1 font-medium">
+                      <IoBookOutline className="text-blue-400" />
+                      <span className="truncate max-w-[80px]">
+                        {a.subject?.name ?? "Unknown"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-medium whitespace-nowrap">
+                      {new Date(a.due_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-2 font-medium">
+                      {a.files ? (
+                        Array.isArray(a.files) ? (
+                          a.files.map((file, idx) => (
+                            <a
+                              key={idx}
+                              href={file}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-blue-700 hover:underline mr-1"
+                              title={`Download File ${idx + 1}`}
+                            >
+                              <FaDownload className="inline" />
+                            </a>
+                          ))
+                        ) : (
+                          <a
+                            href={a.files}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-blue-700 hover:underline"
+                            title="Download File"
+                          >
+                            <FaDownload className="inline" />
+                          </a>
+                        )
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 font-medium truncate max-w-[80px]">
+                      {a.teacher_id}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {submissionStatus[a.id] ? (
+                        <span className="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold text-xs">
+                          ✔
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold text-xs">
+                          ⏳
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          className="px-3 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-semibold transition"
+                          onClick={() => setViewModal(a)}
+                          title="View Details"
+                        >
+                          View
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                            submissionStatus[a.id]
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-green-100 hover:bg-green-200 text-green-700"
+                          }`}
+                          onClick={() =>
+                            !submissionStatus[a.id] && setSubmitModal(a)
+                          }
+                          disabled={!!submissionStatus[a.id]}
+                          title={
+                            submissionStatus[a.id]
+                              ? "Already Submitted"
+                              : "Submit Assignment"
+                          }
+                        >
+                          Submit
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  filteredAssignments.map((a, i) => (
-                    <tr
-                      key={a.id}
-                      className={`border-b-2 border-blue-200 ${
-                        i % 2 === 0
-                          ? "bg-blue-100 text-black"
-                          : "bg-indigo-100 text-black"
-                      } text-lg hover:bg-blue-200 transition`}
-                    >
-                      <td className="px-6 py-4 font-medium">{a.title}</td>
-                      <td className="px-6 py-4 flex items-center gap-2 font-medium">
-                        <IoBookOutline />
-                        {a.subject?.name ?? "Unknown"}
-                      </td>
-                      <td className="px-6 py-4 font-medium">
-                        {new Date(a.due_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 flex items-center gap-2 font-medium">
-                        {a.teacher_id}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex gap-3 flex-wrap">
-                          <button
-                            className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            onClick={() => alert(`View Assignment: ${a.title}`)}
-                          >
-                            <FaRegFileAlt size={20} /> View
-                          </button>
-                          <button
-                            className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-green-400"
-                            onClick={() =>
-                              alert(`Submit Assignment: ${a.title}`)
-                            }
-                          >
-                            <FaCheck size={20} /> Submit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
+
+        {/* View Modal */}
+        {viewModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg relative">
+              <button
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl"
+                onClick={() => setViewModal(null)}
+              >
+                &times;
+              </button>
+              <h2 className="text-2xl font-bold mb-4 text-blue-900">
+                {viewModal.title}
+              </h2>
+              {submissionStatus[viewModal.id]?.submitted && (
+                <div className="mb-2">
+                  <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold text-xs mb-2">
+                    Submitted
+                  </span>
+                </div>
+              )}
+              <div className="mb-2 text-gray-700">
+                <strong>Subject:</strong> {viewModal.subject?.name ?? "Unknown"}
+              </div>
+              <div className="mb-2 text-gray-700">
+                <strong>Due Date:</strong>{" "}
+                {new Date(viewModal.due_date).toLocaleDateString()}
+              </div>
+              <div className="mb-2 text-gray-700">
+                <strong>Assigned By:</strong> {viewModal.teacher_id}
+              </div>
+              <div className="mb-4 text-gray-700">
+                <strong>Description:</strong>{" "}
+                {viewModal.description || "No description provided."}
+              </div>
+              {submissionStatus[viewModal.id]?.submitted &&
+                submissionStatus[viewModal.id]?.files && (
+                  <div className="mb-4 text-gray-700">
+                    <strong>
+                      Submitted File
+                      {submissionStatus[viewModal.id].files.length > 1
+                        ? "s"
+                        : ""}
+                      :
+                    </strong>
+                    <ul className="list-disc list-inside mt-1">
+                      {submissionStatus[viewModal.id].files.map(
+                        (fileUrl, idx) => {
+                          // Extract file name from URL
+                          const fileName = fileUrl
+                            .split("/")
+                            .pop()
+                            .split("?")[0];
+                          return (
+                            <li key={idx}>
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-700 underline"
+                              >
+                                {fileName}
+                              </a>
+                            </li>
+                          );
+                        }
+                      )}
+                    </ul>
+                  </div>
+                )}
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold"
+                onClick={() => setViewModal(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Submit Modal */}
+        {submitModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg relative">
+              <button
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl"
+                onClick={() => setSubmitModal(null)}
+              >
+                &times;
+              </button>
+              <h2 className="text-2xl font-bold mb-4 text-green-900">
+                Submit Assignment
+              </h2>
+              <div className="mb-4 text-gray-700">
+                <strong>Assignment:</strong> {submitModal.title}
+              </div>
+              <textarea
+                className="mb-4 border px-3 py-2 rounded w-full"
+                placeholder="Add notes (optional)"
+                value={submissionNotes}
+                onChange={(e) => setSubmissionNotes(e.target.value)}
+                rows={3}
+              />
+              <input
+                type="file"
+                className="mb-4 border px-3 py-2 rounded w-full"
+                onChange={(e) => setFile(e.target.files[0])}
+                accept=".pdf,.doc,.docx,.txt,.jpg,.png"
+              />
+              <button
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded shadow font-semibold disabled:opacity-60"
+                onClick={() => handleSubmitAssignment(submitModal)}
+                disabled={submitting || !file}
+              >
+                {submitting ? "Submitting..." : "Submit"}
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

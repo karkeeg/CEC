@@ -225,7 +225,7 @@ export const fetchClasses = async () => {
   const { data, error } = await supabase
     .from("classes")
     .select(
-      `class_id, name, subject_id, room_no, teacher_department:teacher_id (teacher:teacher_id (first_name, middle_name, last_name))`
+      `class_id, name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name)`
     );
   if (error) throw error;
   return data;

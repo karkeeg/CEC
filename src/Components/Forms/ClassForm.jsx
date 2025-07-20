@@ -42,10 +42,15 @@ const ClassForm = ({ user, onClose, onSuccess }) => {
     setLoading(true);
     setMessage("");
     setError("");
+    // Debug: log the form and teacher_id
+    console.log("Current user:", user);
+    console.log("Submitting class with teacher_id:", form.teacher_id);
     try {
       const { error } = await createClass(form);
       if (error) {
-        setError("Failed to register class. Please try again.");
+        setError(
+          error.message || "Failed to register class. Please try again."
+        );
       } else {
         setMessage("Class registered successfully!");
         setForm({
@@ -63,7 +68,7 @@ const ClassForm = ({ user, onClose, onSuccess }) => {
         if (onSuccess) onSuccess();
       }
     } catch (err) {
-      setError("Failed to register class. Please try again.");
+      setError(err.message || "Failed to register class. Please try again.");
     } finally {
       setLoading(false);
     }
