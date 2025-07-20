@@ -22,41 +22,63 @@ const assignments = [
   { subject: "Nepali", date: "12-07-2025", time: "12:00pm" },
 ];
 
-
 const DashboardCards = () => {
-  const { profile } = useUser();
+  const { user } = useUser();
   const [assignments, setAssignments] = useState([]);
   const [notices, setNotices] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [loadingNotices, setLoadingNotices] = useState(true);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!user) return;
     const fetchAssignments = async () => {
       setLoadingAssignments(true);
       const today = new Date().toISOString().split("T")[0];
+
+      // Get all class_ids for this student
+      const { data: studentClasses, error: scError } = await supabase
+        .from("student_classes")
+        .select("class_id")
+        .eq("student_id", user.id);
+
+      let classIds = [];
+      if (!scError && studentClasses) {
+        classIds = studentClasses.map((sc) => sc.class_id);
+      }
+
       let query = supabase
         .from("assignments")
         .select(`id, title, due_date, subject:subject_id (name), class_id`)
         .gte("due_date", today)
         .order("due_date", { ascending: true })
         .limit(5);
-      // Filter by class/year if available
-      if (profile.class_id) {
-        query = query.eq("class_id", profile.class_id);
-      } else if (profile.semester) {
-        query = query.eq("semester", profile.semester);
-      }
-      const { data, error } = await query;
-      if (!error && data) {
-        setAssignments(data);
+
+      if (classIds.length > 0) {
+        query = query.in("class_id", classIds);
       } else {
+        setAssignments([]);
+        setLoadingAssignments(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await query;
+        if (error) {
+          console.error("Error fetching assignments for dashboard:", error);
+          setAssignments([]);
+        } else if (data) {
+          setAssignments(data);
+        } else {
+          setAssignments([]);
+        }
+      } catch (err) {
+        console.error("Exception fetching assignments for dashboard:", err);
         setAssignments([]);
       }
       setLoadingAssignments(false);
     };
     fetchAssignments();
-  }, [profile]);
+  }, [user]);
 
   useEffect(() => {
     const fetchNotices = async () => {
