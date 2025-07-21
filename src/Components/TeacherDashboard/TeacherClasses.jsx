@@ -132,7 +132,7 @@ const TeacherClasses = () => {
   }
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Add Class Button */}
       {/* <div className="mb-4 flex justify-end">
         <button

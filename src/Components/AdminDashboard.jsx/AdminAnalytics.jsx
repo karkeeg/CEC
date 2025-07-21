@@ -145,7 +145,7 @@ const AdminAnalytics = () => {
     doc.save("analytics-report.pdf");
   };
   return (
-    <div className="min-h-screen bg-black p-6">
+    <div className="min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <span className="text-2xl font-extrabold text-gray-800 flex items-center">

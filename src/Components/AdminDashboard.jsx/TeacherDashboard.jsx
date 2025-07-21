@@ -68,7 +68,7 @@ const TeacherDashboard = () => {
   );
 
   return (
-    <div className="p-4 bg-white">
+    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       <h1 className="text-3xl font-bold mb-4">Teachers Dashboard</h1>
       {/* Stats Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

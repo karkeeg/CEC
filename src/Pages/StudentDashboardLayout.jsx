@@ -7,7 +7,7 @@ const StudentDasboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Header onHamburgerClick={() => setSidebarOpen(true)} />
       <main
@@ -17,7 +17,7 @@ const StudentDasboardLayout = () => {
       >
         <Outlet />
       </main>
-    </>
+    </div>
   );
 };
 

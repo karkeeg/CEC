@@ -123,7 +123,7 @@ const AdminAttandancePage = () => {
   const pieColors = ["#22c55e", "#ef4444", "#facc15"];
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
           <h1 className="text-3xl font-bold text-blue-900">Admin Attendance</h1>

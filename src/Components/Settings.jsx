@@ -118,7 +118,7 @@ const Settings = () => {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Settings</h1>
         <p className="text-gray-600">

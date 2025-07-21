@@ -138,7 +138,7 @@ const StudentDashboard = () => {
   };
 
   return (
-    <div className="p-6 text-black bg-white min-h-screen">
+    <div className="p-6 text-black 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Student Management Dashboard</h1>
         <button

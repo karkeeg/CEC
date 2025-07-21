@@ -271,7 +271,7 @@ const TeacherAssignments = () => {
   }
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Summary Section: Filters and Create Button */}
       <div className="mb-8">
         <div className="flex justify-between items-center">

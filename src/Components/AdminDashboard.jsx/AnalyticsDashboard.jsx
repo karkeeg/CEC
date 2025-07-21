@@ -73,7 +73,7 @@ const AnalyticsDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-500 p-6">
+    <div className="min-h-screen 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6">
       <h1 className="font-bold text-3xl p-2">Analytical Dashboard</h1>
 
       {/* Filters */}

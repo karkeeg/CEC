@@ -47,7 +47,10 @@ const TeacherMainDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [performanceData, setPerformanceData] = useState([]); // For AreaChart
   const [completionData, setCompletionData] = useState([]); // For StepLine
-  const [todaysSchedule, setTodaysSchedule] = useState([]); // For today's classes
+  const [todaysSchedule, setTodaysSchedule] = useState({
+    classes: [],
+    assignments: [],
+  }); // For today's schedule
 
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
@@ -131,10 +134,16 @@ const TeacherMainDashboard = () => {
         setCompletionData(completion);
         // Fetch today's schedule
         const today = new Date().toISOString().split("T")[0];
-        const todays = (classesData || []).filter(
+        const todaysClasses = (classesData || []).filter(
           (c) => c.teacher_id === user.id && c.date === today
         );
-        setTodaysSchedule(todays);
+        const todaysAssignments = (assignmentsData || []).filter(
+          (a) => a.teacher_id === user.id && a.due_date?.split("T")[0] === today
+        );
+        setTodaysSchedule({
+          classes: todaysClasses,
+          assignments: todaysAssignments,
+        });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -241,17 +250,17 @@ const TeacherMainDashboard = () => {
   }
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Summary Section: Stat Cards, Schedule, Recent Activities, Quick Actions */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Welcome back, {user?.first_name}!
+          See Our Dashboard {user?.first_name}!
         </h1>
         <p className="text-gray-600">
           Here's what's happening with your classes today.
         </p>
         {/* Stat Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4 mb-8">
           <StatCard
             icon={<FaUsers className="text-white text-xl" />}
             title="Total Students"
@@ -282,18 +291,46 @@ const TeacherMainDashboard = () => {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Today's Schedule
           </h2>
-          {todaysSchedule.length > 0 ? (
-            <ul className="space-y-2">
-              {todaysSchedule.map((cls, idx) => (
-                <li key={idx} className="flex items-center gap-4">
-                  <FaBook className="text-blue-500" />
-                  <span className="font-medium">{cls.name}</span>
-                  <span className="text-gray-500">{cls.schedule}</span>
-                </li>
-              ))}
-            </ul>
+          {todaysSchedule.classes.length === 0 &&
+          todaysSchedule.assignments.length === 0 ? (
+            <p className="text-gray-500">
+              No classes or assignments due today.
+            </p>
           ) : (
-            <p className="text-gray-500">No classes scheduled for today.</p>
+            <>
+              {todaysSchedule.classes.length > 0 && (
+                <>
+                  <h3 className="font-semibold text-blue-800 mb-2">Classes</h3>
+                  <ul className="space-y-2 mb-4">
+                    {todaysSchedule.classes.map((cls, idx) => (
+                      <li key={idx} className="flex items-center gap-4">
+                        <FaBook className="text-blue-500" />
+                        <span className="font-medium">{cls.name}</span>
+                        <span className="text-gray-500">{cls.schedule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {todaysSchedule.assignments.length > 0 && (
+                <>
+                  <h3 className="font-semibold text-purple-800 mb-2">
+                    Assignments Due
+                  </h3>
+                  <ul className="space-y-2">
+                    {todaysSchedule.assignments.map((a, idx) => (
+                      <li key={idx} className="flex items-center gap-4">
+                        <FaClipboardList className="text-purple-500" />
+                        <span className="font-medium">{a.title}</span>
+                        <span className="text-gray-500">
+                          {a.due_date?.split("T")[1] || "Today"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
           )}
         </div>
         {/* Recent Activities and Quick Actions */}

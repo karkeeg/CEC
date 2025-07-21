@@ -68,7 +68,7 @@ const Feedback = () => {
   const [error, setError] = useState(null);
 
   return (
-    <div className="p-4 text-black bg-white">
+    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
         Feedback Overview
       </h1>

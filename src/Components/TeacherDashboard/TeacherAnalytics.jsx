@@ -128,7 +128,7 @@ const TeacherAnalytics = () => {
   }
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Top Bar: Analytics Title, Export PDF */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div className="flex items-center gap-2 mb-4 md:mb-0">

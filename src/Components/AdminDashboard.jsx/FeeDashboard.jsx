@@ -408,7 +408,7 @@ const FeeDashboard = () => {
   const pieColors = ["#34d399", "#fbbf24", "#60a5fa", "#ef4444"];
 
   return (
-    <div className="min-h-screen bg-white text-gray-500 p-6">
+    <div className="min-h-screen 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6">
       {/* Heading and Top Actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-3xl font-bold text-blue-900">

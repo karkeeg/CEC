@@ -172,7 +172,7 @@ const TeacherAttendance = () => {
   const stats = getAttendanceStats();
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-4 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Only keep the boxed attendance form at the top */}
       <div className="bg-white border border-blue-200 rounded-2xl shadow-lg p-6 mb-10">
         <h2 className="text-2xl font-bold mb-4">Take Attendance</h2>

@@ -70,7 +70,7 @@ const DepartmentsPage = () => {
   };
 
   return (
-    <div className="bg-white p-6">
+    <div className="bg-white p-6 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Departments</h1>
         <button

@@ -198,7 +198,7 @@ const TeacherGrades = () => {
   );
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Summary Section: Assignment Selection and Stats */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>

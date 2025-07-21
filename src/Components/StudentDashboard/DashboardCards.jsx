@@ -104,9 +104,18 @@ const DashboardCards = () => {
   };
 
   return (
-    <div className="space-y-6 mb-10">
+    <div className="space-y-6 p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Class Schedule */}
-      <div className="bg-blue-100 rounded-xl p-6">
+
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800 ">
+          See Your Dashboard {user?.first_name}!
+        </h1>
+        <p className="text-gray-600">
+          Here's what's happening with your classes today.
+        </p>
+      </div>
+      <div className="bg-blue-100  rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <FaCalendarAlt /> Class Schedule

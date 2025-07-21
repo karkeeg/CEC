@@ -90,7 +90,7 @@ const TeacherStudents = () => {
   }));
 
   return (
-    <div className="w-full p-4 text-black  min-h-screen">
+    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black  min-h-screen">
       {/* Summary Section: Filters and Search */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-6">My Students</h1>

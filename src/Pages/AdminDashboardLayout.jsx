@@ -6,7 +6,7 @@ import React, { useState } from "react";
 const AdminDasboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
       <AdminSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       <AdminHeader onHamburgerClick={() => setSidebarOpen(true)} />
       <main
@@ -16,7 +16,7 @@ const AdminDasboardLayout = () => {
       >
         <Outlet />
       </main>
-    </>
+    </div>
   );
 };
 

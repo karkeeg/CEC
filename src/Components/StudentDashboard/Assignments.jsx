@@ -8,6 +8,24 @@ import { IoBookOutline } from "react-icons/io5";
 import { FaRegFileAlt, FaEye, FaUpload } from "react-icons/fa";
 import { useUser } from "../../contexts/UserContext";
 import { FaCalendarAlt, FaUser } from "react-icons/fa";
+import { Bar, Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from "chart.js";
+ChartJS.register(
+  BarElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend
+);
 
 const Assignments = () => {
   const { user, role } = useUser();
@@ -83,7 +101,7 @@ const Assignments = () => {
       if (!user?.id || assignments.length === 0) return;
       const { data, error } = await supabase
         .from("submissions")
-        .select("assignment_id, files")
+        .select("assignment_id, files, notes")
         .in(
           "assignment_id",
           assignments.map((a) => a.id)
@@ -92,7 +110,11 @@ const Assignments = () => {
       if (!error && data) {
         const status = {};
         data.forEach((s) => {
-          status[s.assignment_id] = { submitted: true, files: s.files };
+          status[s.assignment_id] = {
+            submitted: true,
+            files: s.files,
+            notes: s.notes,
+          };
         });
         setSubmissionStatus(status);
       }
@@ -104,6 +126,83 @@ const Assignments = () => {
   const filteredAssignments = assignments.filter((a) =>
     a.title.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Analytics: Progress bar and stats
+  const totalAssignments = assignments.length;
+  const submittedCount = assignments.filter(
+    (a) => submissionStatus[a.id]?.submitted
+  ).length;
+  const overdueCount = assignments.filter(
+    (a) =>
+      !submissionStatus[a.id]?.submitted && new Date(a.due_date) < new Date()
+  ).length;
+  const pendingCount = totalAssignments - submittedCount;
+  const percentSubmitted =
+    totalAssignments > 0
+      ? Math.round((submittedCount / totalAssignments) * 100)
+      : 0;
+  // For chart: assignments due per week
+  const weekMap = {};
+  assignments.forEach((a) => {
+    const due = new Date(a.due_date);
+    // Get ISO week string (YYYY-WW)
+    const week = `${due.getFullYear()}-W${String(
+      Math.ceil(
+        ((due - new Date(due.getFullYear(), 0, 1)) / 86400000 +
+          new Date(due.getFullYear(), 0, 1).getDay() +
+          1) /
+          7
+      )
+    ).padStart(2, "0")}`;
+    weekMap[week] = (weekMap[week] || 0) + 1;
+  });
+  const chartLabels = Object.keys(weekMap).sort();
+  const chartData = chartLabels.map((w) => weekMap[w]);
+  const barChartData = {
+    labels: chartLabels,
+    datasets: [
+      {
+        label: "Assignments Due",
+        data: chartData,
+        backgroundColor: "#2563eb",
+        borderRadius: 6,
+      },
+    ],
+  };
+  const barChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true },
+    },
+    scales: {
+      x: { title: { display: true, text: "Week" }, grid: { display: false } },
+      y: {
+        title: { display: true, text: "Assignments Due" },
+        beginAtZero: true,
+        precision: 0,
+        grid: { color: "#e0e7ef" },
+      },
+    },
+  };
+  // Doughnut chart for status breakdown
+  const doughnutData = {
+    labels: ["Submitted", "Pending", "Overdue"],
+    datasets: [
+      {
+        data: [submittedCount, pendingCount - overdueCount, overdueCount],
+        backgroundColor: ["#22c55e", "#facc15", "#ef4444"],
+        borderWidth: 2,
+      },
+    ],
+  };
+  const doughnutOptions = {
+    cutout: "70%",
+    plugins: {
+      legend: { display: true, position: "bottom" },
+      tooltip: { enabled: true },
+    },
+  };
 
   // Handle file upload and submission
   const handleSubmitAssignment = async (assignment) => {
@@ -147,7 +246,14 @@ const Assignments = () => {
         },
       ]);
       if (!error) {
-        setSubmissionStatus((prev) => ({ ...prev, [assignment.id]: true }));
+        setSubmissionStatus((prev) => ({
+          ...prev,
+          [assignment.id]: {
+            submitted: true,
+            files: [fileUrl],
+            notes: submissionNotes,
+          },
+        }));
         setSubmitModal(null);
         setFile(null);
         setSubmissionNotes("");
@@ -162,9 +268,13 @@ const Assignments = () => {
     }
   };
 
+  // Helper to check if assignment is overdue
+  const isOverdue = (a) =>
+    !submissionStatus[a.id]?.submitted && new Date(a.due_date) < new Date();
+
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-white">
-      <main className="w-full p-4 sm:p-6">
+    <div className="flex flex-col lg:flex-row min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+      <main className="w-full p-6 sm:p-6">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-900">
@@ -290,9 +400,13 @@ const Assignments = () => {
                       {a.teacher_id}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      {submissionStatus[a.id] ? (
+                      {submissionStatus[a.id]?.submitted ? (
                         <span className="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold text-xs">
                           ✔
+                        </span>
+                      ) : isOverdue(a) ? (
+                        <span className="inline-block bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold text-xs">
+                          Overdue
                         </span>
                       ) : (
                         <span className="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold text-xs">
@@ -311,17 +425,23 @@ const Assignments = () => {
                         </button>
                         <button
                           className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            submissionStatus[a.id]
+                            submissionStatus[a.id]?.submitted || isOverdue(a)
                               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                               : "bg-green-100 hover:bg-green-200 text-green-700"
                           }`}
                           onClick={() =>
-                            !submissionStatus[a.id] && setSubmitModal(a)
+                            !submissionStatus[a.id]?.submitted &&
+                            !isOverdue(a) &&
+                            setSubmitModal(a)
                           }
-                          disabled={!!submissionStatus[a.id]}
+                          disabled={
+                            !!submissionStatus[a.id]?.submitted || isOverdue(a)
+                          }
                           title={
-                            submissionStatus[a.id]
+                            submissionStatus[a.id]?.submitted
                               ? "Already Submitted"
+                              : isOverdue(a)
+                              ? "Submission not allowed (Overdue)"
                               : "Submit Assignment"
                           }
                         >
@@ -334,6 +454,46 @@ const Assignments = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Analytics Section - Modern Cards and Charts */}
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-gradient-to-br from-blue-100 via-white to-blue-50 rounded-2xl shadow-lg p-6 flex flex-col items-center">
+            <div className="w-full mb-4">
+              <div className="text-base font-semibold text-blue-900 mb-2">
+                Assignment Completion
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div
+                  className="bg-blue-600 h-4 rounded-full transition-all duration-700"
+                  style={{ width: `${percentSubmitted}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>{submittedCount} submitted</span>
+                <span>{pendingCount} pending</span>
+                <span>{overdueCount} overdue</span>
+                <span>{percentSubmitted}%</span>
+              </div>
+            </div>
+            <div className="w-full">
+              <Doughnut
+                data={doughnutData}
+                options={doughnutOptions}
+                height={180}
+              />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-green-100 via-white to-blue-50 rounded-2xl shadow-lg p-6 flex flex-col items-center">
+            <div className="w-full mb-4">
+              <div className="text-base font-semibold text-green-900 mb-2">
+                Assignments Due Per Week
+              </div>
+            </div>
+            <div className="w-full">
+              <Bar data={barChartData} options={barChartOptions} height={180} />
+            </div>
+          </div>
         </div>
 
         {/* View Modal */}
@@ -349,13 +509,28 @@ const Assignments = () => {
               <h2 className="text-2xl font-bold mb-4 text-blue-900">
                 {viewModal.title}
               </h2>
-              {submissionStatus[viewModal.id]?.submitted && (
+              {submissionStatus[viewModal.id]?.submitted ? (
                 <div className="mb-2">
                   <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold text-xs mb-2">
                     Submitted
                   </span>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <strong>Submitted on:</strong>{" "}
+                    {/* Show submission date if available */}
+                    {/* If you store submission date in the status, show it here. Otherwise, show 'N/A' */}
+                    N/A
+                  </div>
                 </div>
-              )}
+              ) : isOverdue(viewModal) ? (
+                <div className="mb-2">
+                  <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold text-xs mb-2">
+                    Overdue
+                  </span>
+                  <div className="text-xs text-red-500 mt-1">
+                    Submission not allowed. The due date has passed.
+                  </div>
+                </div>
+              ) : null}
               <div className="mb-2 text-gray-700">
                 <strong>Subject:</strong> {viewModal.subject?.name ?? "Unknown"}
               </div>
@@ -403,6 +578,13 @@ const Assignments = () => {
                         }
                       )}
                     </ul>
+                  </div>
+                )}
+              {submissionStatus[viewModal.id]?.submitted &&
+                submissionStatus[viewModal.id]?.notes && (
+                  <div className="mb-4 text-gray-700">
+                    <strong>Submission Notes:</strong>{" "}
+                    {submissionStatus[viewModal.id].notes}
                   </div>
                 )}
               <button
