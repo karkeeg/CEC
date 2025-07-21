@@ -144,8 +144,10 @@ export const fetchAssignments = async (filters = {}) => {
 
 export const fetchAssignmentSubmissions = async (assignmentId) => {
   const { data, error } = await supabase
-    .from("assignment_submissions")
-    .select("assignment_id, class_id, student_id")
+    .from("submissions")
+    .select(
+      `id, assignment_id, class_id, student_id, submitted_at, files, notes, grade, feedback, student:student_id (first_name, middle_name, last_name, email)`
+    ) // join student
     .eq("assignment_id", assignmentId);
   if (error) throw error;
   return data;
@@ -318,7 +320,7 @@ export const updateAssignmentSubmissionGrade = async (
   updates
 ) => {
   const { error } = await supabase
-    .from("assignment_submissions")
+    .from("submissions")
     .update(updates)
     .eq("id", submissionId);
   return error;
@@ -478,4 +480,35 @@ export const removeStudentFromClass = async (studentId, classId) => {
     .eq("student_id", studentId)
     .eq("class_id", classId);
   return error;
+};
+
+export const fetchRecentSubmissions = async (limit = 10) => {
+  const { data, error } = await supabase
+    .from("submissions")
+    .select(
+      "id, student_id, assignment_id, submitted_at, notes, assignments(title), students(first_name, last_name)"
+    )
+    .order("submitted_at", { ascending: false })
+    .limit(limit);
+  return data || [];
+};
+
+export const fetchRecentAssignments = async (limit = 10) => {
+  const { data, error } = await supabase
+    .from("assignments")
+    .select(
+      "id, title, teacher_id, created_at, teachers(first_name, last_name)"
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data || [];
+};
+
+export const fetchRecentNotices = async (limit = 10) => {
+  const { data, error } = await supabase
+    .from("notices")
+    .select("notice_id, title, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data || [];
 };

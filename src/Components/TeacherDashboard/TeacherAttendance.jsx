@@ -45,6 +45,8 @@ const TeacherAttendance = () => {
     []
   ); // For StepLine
   const [subjects, setSubjects] = useState([]);
+  const [attendanceExists, setAttendanceExists] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -60,6 +62,8 @@ const TeacherAttendance = () => {
       setSelectedClassDetails(null);
       setStudents([]);
       setAttendance({});
+      setAttendanceExists(false);
+      setIsEditing(false);
       return;
     }
     // Find class details
@@ -67,23 +71,55 @@ const TeacherAttendance = () => {
       (c) => c.class_id === selectedClass || c.id === selectedClass
     );
     setSelectedClassDetails(cls || null);
+    // If class has a schedule date, set the date picker to it
+    if (cls && cls.schedule) {
+      // Try to extract date part if schedule is ISO string
+      const datePart = cls.schedule.split("T")[0];
+      setSelectedDate(datePart);
+    }
     // Fetch students
     getStudentsByClass(selectedClass).then((studentData) => {
       setStudents(studentData || []);
-      // Initialize attendance state
-      const initialAttendance = {};
-      (studentData || []).forEach((item) => {
-        initialAttendance[item.student.id] = "present";
-      });
-      setAttendance(initialAttendance);
+      // Attendance will be set in the next effect
     });
   }, [selectedClass, classes]);
+
+  // On class or date change, fetch attendance records
+  useEffect(() => {
+    if (!selectedClass || !selectedDate) {
+      setAttendance({});
+      setAttendanceExists(false);
+      setIsEditing(false);
+      return;
+    }
+    getAttendanceByClassAndDate(selectedClass, selectedDate).then((records) => {
+      if (records && records.length > 0) {
+        // Attendance exists, set state to actual status
+        const att = {};
+        records.forEach((rec) => {
+          att[rec.student_id] = rec.status;
+        });
+        setAttendance(att);
+        setAttendanceExists(true);
+        setIsEditing(false);
+      } else {
+        // No attendance yet, set all to 'absent'
+        const att = {};
+        students.forEach((item) => {
+          att[item.student.id] = "absent";
+        });
+        setAttendance(att);
+        setAttendanceExists(false);
+        setIsEditing(false);
+      }
+    });
+  }, [selectedClass, selectedDate, students]);
 
   const handleAttendanceChange = (studentId, status) => {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
   };
 
-  const handleSaveAttendance = async () => {
+  const handleSaveOrUpdateAttendance = async () => {
     if (!selectedClass || !selectedDate) return;
     setSaving(true);
     try {
@@ -106,6 +142,8 @@ const TeacherAttendance = () => {
           }
         }
         alert("Attendance updated successfully!");
+        setAttendanceExists(true);
+        setIsEditing(false);
       } else {
         // Create new attendance records
         const attendanceRecords = Object.entries(attendance).map(
@@ -120,15 +158,15 @@ const TeacherAttendance = () => {
             created_at: new Date().toISOString(),
           })
         );
-        console.log("Saving attendance records:", attendanceRecords);
         const error = await createAttendance(attendanceRecords);
-        console.log("Attendance save error:", error);
         if (error) {
           alert("Failed to save attendance: " + error.message);
           setSaving(false);
           return;
         }
         alert("Attendance saved successfully!");
+        setAttendanceExists(true);
+        setIsEditing(false);
       }
     } catch (error) {
       console.error("Error saving attendance:", error);
@@ -210,18 +248,44 @@ const TeacherAttendance = () => {
             />
           </div>
           <div className="flex items-end">
-            <button
-              onClick={handleSaveAttendance}
-              disabled={saving || !selectedClass}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
-            >
-              {saving ? (
+            {!attendanceExists && (
+              <button
+                onClick={handleSaveOrUpdateAttendance}
+                disabled={saving || !selectedClass}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+              >
+                {saving ? (
+                  <FaSave className="mr-2" />
+                ) : (
+                  <FaCheck className="mr-2" />
+                )}
+                {saving ? "Saving..." : "Save Attendance"}
+              </button>
+            )}
+            {attendanceExists && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                disabled={saving || !selectedClass}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+              >
                 <FaSave className="mr-2" />
-              ) : (
-                <FaCheck className="mr-2" />
-              )}
-              {saving ? "Saving..." : "Save Attendance"}
-            </button>
+                Update Attendance
+              </button>
+            )}
+            {attendanceExists && isEditing && (
+              <button
+                onClick={handleSaveOrUpdateAttendance}
+                disabled={saving || !selectedClass}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+              >
+                {saving ? (
+                  <FaSave className="mr-2" />
+                ) : (
+                  <FaSave className="mr-2" />
+                )}
+                {saving ? "Updating..." : "Save Update"}
+              </button>
+            )}
           </div>
         </div>
         {/* Class details below controls */}
@@ -273,6 +337,24 @@ const TeacherAttendance = () => {
               <h2 className="text-lg font-semibold text-gray-800">
                 Student Attendance
               </h2>
+              {!attendanceExists && (
+                <div className="text-red-500 text-sm mt-2">
+                  Attendance has not been taken for this class and date. Please
+                  save attendance to enable editing.
+                </div>
+              )}
+              {attendanceExists && !isEditing && (
+                <div className="text-green-600 text-sm mt-2">
+                  Attendance was already taken. Click on{" "}
+                  <b>Update Attendance</b> to enable editing.
+                </div>
+              )}
+              {attendanceExists && isEditing && (
+                <div className="text-blue-600 text-sm mt-2">
+                  You are now editing attendance. Make changes and click{" "}
+                  <b>Save Update</b>.
+                </div>
+              )}
             </div>
             <div className="w-full max-h-64 overflow-y-auto border rounded">
               <table className="min-w-full divide-y divide-gray-200">
@@ -322,6 +404,7 @@ const TeacherAttendance = () => {
                                 ? "bg-green-100 text-green-800"
                                 : "bg-gray-100 text-gray-600 hover:bg-green-50"
                             }`}
+                            disabled={attendanceExists && !isEditing}
                           >
                             Present
                           </button>
@@ -337,6 +420,7 @@ const TeacherAttendance = () => {
                                 ? "bg-red-100 text-red-800"
                                 : "bg-gray-100 text-gray-600 hover:bg-red-50"
                             }`}
+                            disabled={attendanceExists && !isEditing}
                           >
                             Absent
                           </button>
@@ -349,6 +433,7 @@ const TeacherAttendance = () => {
                                 ? "bg-yellow-100 text-yellow-800"
                                 : "bg-gray-100 text-gray-600 hover:bg-yellow-50"
                             }`}
+                            disabled={attendanceExists && !isEditing}
                           >
                             Late
                           </button>

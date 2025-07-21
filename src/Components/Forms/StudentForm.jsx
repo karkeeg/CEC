@@ -57,7 +57,11 @@ export const StudentForm = ({ onClose, onSuccess }) => {
       const { error } = await createStudent(form);
       if (error) throw error;
       alert("Student added successfully!");
-      if (onSuccess) onSuccess();
+      const studentName = `${form.first_name} ${form.last_name}`;
+      const studentEmail = form.email;
+      if (onSuccess) {
+        onSuccess({ name: studentName, email: studentEmail });
+      }
       onClose();
     } catch (error) {
       alert("Failed to add student: " + error.message);

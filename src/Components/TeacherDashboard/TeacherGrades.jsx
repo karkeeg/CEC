@@ -49,6 +49,11 @@ const TeacherGrades = () => {
   const [attendanceSubject, setAttendanceSubject] = useState("");
   const [attendanceSubjects, setAttendanceSubjects] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [showGradeModal, setShowGradeModal] = useState(false);
+  const [modalSubmission, setModalSubmission] = useState(null);
+  const [modalFeedback, setModalFeedback] = useState("");
+  const [modalRating, setModalRating] = useState("");
+  const [modalGrade, setModalGrade] = useState("");
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -87,6 +92,7 @@ const TeacherGrades = () => {
         const submissionData = await getAssignmentSubmissions(
           selectedAssignment
         );
+        console.log("Fetched submissions:", submissionData); // DEBUG
         setSubmissions(submissionData || []);
         // Initialize grades state
         const initialGrades = {};
@@ -97,6 +103,9 @@ const TeacherGrades = () => {
           };
         });
         setGrades(initialGrades);
+        if (!submissionData || submissionData.length === 0) {
+          alert("No submissions found for this assignment.");
+        }
       } catch (error) {
         console.error("Error fetching submissions:", error);
       }
@@ -165,9 +174,9 @@ const TeacherGrades = () => {
   };
 
   const filteredSubmissions = submissions.filter((submission) => {
-    const studentName = `${submission.student?.first_name} ${
+    const studentName = `${submission.student?.first_name || ""} ${
       submission.student?.middle_name || ""
-    } ${submission.student?.last_name}`;
+    } ${submission.student?.last_name || ""}`;
     return (
       studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       submission.student?.email
@@ -175,6 +184,7 @@ const TeacherGrades = () => {
         .includes(searchTerm.toLowerCase())
     );
   });
+  console.log("Filtered submissions:", filteredSubmissions); // DEBUG
 
   if (loading) {
     return (
@@ -197,13 +207,26 @@ const TeacherGrades = () => {
     (a) => a.id === selectedAssignment
   );
 
+  // Modal save handler (to be connected to new grades table)
+  const handleSaveGrade = async () => {
+    // TODO: Save to grades table (API call)
+    alert(
+      `Saved!\nFeedback: ${modalFeedback}\nRating: ${modalRating}\nGrade: ${modalGrade}`
+    );
+    setShowGradeModal(false);
+    setModalSubmission(null);
+    setModalFeedback("");
+    setModalRating("");
+    setModalGrade("");
+  };
+
   return (
     <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
       {/* Summary Section: Assignment Selection and Stats */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>
         <p className="text-gray-600">Manage and grade student assignments</p>
-        {/* Assignment Selection */}
+        {/* Assignment Selection and Search */}
         <div className="bg-blue-100 p-6 rounded-xl shadow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -223,63 +246,174 @@ const TeacherGrades = () => {
                 ))}
               </select>
             </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={handleSaveGrades}
-                disabled={saving || !selectedAssignment}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
-              >
-                <FaSave />
-                <span>{saving ? "Saving..." : "Save All Grades"}</span>
-              </button>
+            <div className="flex flex-col justify-end">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search Student
+              </label>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search students by name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
         </div>
-        {/* Stats */}
+
+        {/* List of students who submitted the selected assignment */}
         {selectedAssignment && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-blue-100 p-6 rounded-xl shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">
-                    Total Submissions
-                  </p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">
-                    {stats.total}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-500 rounded-full">
-                  <FaGraduationCap className="text-white text-xl" />
-                </div>
-              </div>
+          <div className="bg-blue-100 p-6 rounded-xl shadow mt-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {selectedAssignmentData?.title} - Submitted Students
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Total Submissions: {filteredSubmissions.length}
+              </p>
             </div>
-            <div className="bg-blue-100 p-6 rounded-xl shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Graded</p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">
-                    {stats.graded}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-500 rounded-full">
-                  <FaEdit className="text-white text-xl" />
-                </div>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submitted At
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Notes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredSubmissions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="px-6 py-4 text-center text-gray-500"
+                      >
+                        No submissions found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSubmissions.map((submission, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-sm">
+                                {submission.student?.first_name?.charAt(0) ||
+                                  "S"}
+                              </span>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {submission.student?.first_name}{" "}
+                                {submission.student?.middle_name || ""}{" "}
+                                {submission.student?.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {submission.student?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {submission.submitted_at
+                            ? new Date(
+                                submission.submitted_at
+                              ).toLocaleDateString()
+                            : "Not submitted"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {submission.notes || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                            onClick={() => {
+                              setShowGradeModal(true);
+                              setModalSubmission(submission);
+                              setModalFeedback(submission.feedback || "");
+                              setModalRating("");
+                              setModalGrade(submission.grade || "");
+                            }}
+                          >
+                            Give Feedback & Grade
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-            <div className="bg-blue-100 p-6 rounded-xl shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">
-                    Average Grade
-                  </p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">
-                    {stats.average}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-500 rounded-full">
-                  <FaGraduationCap className="text-white text-xl" />
-                </div>
+          </div>
+        )}
+
+        {/* Feedback/Grade Modal */}
+        {showGradeModal && modalSubmission && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">Give Feedback & Grade</h2>
+              <div className="mb-2">
+                <strong>Student:</strong> {modalSubmission.student?.first_name}{" "}
+                {modalSubmission.student?.last_name}
+              </div>
+              <div className="mb-2">
+                <strong>Notes:</strong> {modalSubmission.notes || "-"}
+              </div>
+              <div className="mb-2">
+                <label className="block text-sm font-medium mb-1">
+                  Feedback
+                </label>
+                <textarea
+                  className="w-full border rounded px-2 py-1"
+                  rows={3}
+                  value={modalFeedback}
+                  onChange={(e) => setModalFeedback(e.target.value)}
+                />
+              </div>
+              <div className="mb-2">
+                <label className="block text-sm font-medium mb-1">Rating</label>
+                <input
+                  className="w-full border rounded px-2 py-1"
+                  value={modalRating}
+                  onChange={(e) => setModalRating(e.target.value)}
+                  placeholder="e.g. 5 stars"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Grade</label>
+                <input
+                  className="w-full border rounded px-2 py-1"
+                  type="number"
+                  value={modalGrade}
+                  onChange={(e) => setModalGrade(e.target.value)}
+                  placeholder="e.g. 90"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="bg-green-500 text-white px-4 py-2 rounded"
+                  onClick={handleSaveGrade}
+                >
+                  Save
+                </button>
+                <button
+                  className="bg-gray-300 px-4 py-2 rounded"
+                  onClick={() => setShowGradeModal(false)}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
@@ -343,158 +477,52 @@ const TeacherGrades = () => {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Stats */}
       {selectedAssignment && (
-        <div className="bg-blue-100 p-6 rounded-xl shadow">
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search students by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Total Submissions
+                </p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.total}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-500 rounded-full">
+                <FaGraduationCap className="text-white text-xl" />
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Submissions Table */}
-      {selectedAssignment && (
-        <div className="bg-blue-100 p-6 rounded-xl shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800">
-              {selectedAssignmentData?.title} - Submissions
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Total Points: {selectedAssignmentData?.total_points}
-            </p>
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Graded</p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.graded}
+                </p>
+              </div>
+              <div className="p-3 bg-green-500 rounded-full">
+                <FaEdit className="text-white text-xl" />
+              </div>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Submitted
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Grade
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Feedback
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredSubmissions.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="px-6 py-4 text-center text-gray-500"
-                    >
-                      No submissions found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubmissions.map((submission, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {submission.student?.first_name?.charAt(0) || "S"}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {submission.student?.first_name}{" "}
-                              {submission.student?.middle_name || ""}{" "}
-                              {submission.student?.last_name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {submission.student?.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {submission.submitted_at
-                          ? new Date(
-                              submission.submitted_at
-                            ).toLocaleDateString()
-                          : "Not submitted"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max={selectedAssignmentData?.total_points}
-                            value={grades[submission.id]?.grade || ""}
-                            onChange={(e) =>
-                              handleGradeChange(
-                                submission.id,
-                                "grade",
-                                e.target.value
-                              )
-                            }
-                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="0"
-                          />
-                          <span className="text-sm text-gray-500">
-                            / {selectedAssignmentData?.total_points}
-                          </span>
-                          {grades[submission.id]?.grade && (
-                            <span
-                              className={`text-sm font-medium ${getGradeColor(
-                                grades[submission.id].grade,
-                                selectedAssignmentData?.total_points
-                              )}`}
-                            >
-                              (
-                              {Math.round(
-                                (grades[submission.id].grade /
-                                  selectedAssignmentData?.total_points) *
-                                  100
-                              )}
-                              %)
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <textarea
-                          value={grades[submission.id]?.feedback || ""}
-                          onChange={(e) =>
-                            handleGradeChange(
-                              submission.id,
-                              "feedback",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Add feedback..."
-                          rows="2"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Average Grade
+                </p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.average}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-500 rounded-full">
+                <FaGraduationCap className="text-white text-xl" />
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-
-      {selectedAssignment && filteredSubmissions.length === 0 && (
-        <div className="bg-blue-100 p-12 rounded-xl shadow text-center">
-          <div className="text-gray-500 text-lg">No submissions found</div>
-          <p className="text-gray-400 mt-2">
-            There are no submissions for the selected assignment.
-          </p>
         </div>
       )}
     </div>

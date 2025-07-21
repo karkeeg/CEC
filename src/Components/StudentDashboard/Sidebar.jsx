@@ -90,7 +90,7 @@ const Sidebar = ({ open, setOpen }) => {
         className={`bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 z-50 shadow-lg transition-transform duration-300
           ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
           ${open ? "" : "pointer-events-none md:pointer-events-auto"}
-          md:static md:block md:fixed md:top-0 md:left-0 md:z-50
+           md:block md:fixed md:top-0 md:left-0 md:z-50
         `}
         style={{
           // Always visible on md+, controlled by open on mobile

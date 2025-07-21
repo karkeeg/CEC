@@ -14,6 +14,10 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
     first_name: "",
     middle_name: "",
     last_name: "",
+    gender: "",
+    phone: "",
+    password: "",
+    teacher_department: "",
   });
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -43,9 +47,15 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
       "phone",
       "password",
       "hashed_password",
+      "teacher_department",
     ];
-    if (required.some((f) => !form[f])) {
-      alert("Please fill all required fields.");
+    if (
+      required.some(
+        (f) =>
+          !form[f] || (f === "teacher_department" && !form.teacher_department)
+      )
+    ) {
+      alert("Please fill all required fields, including department.");
       return;
     }
 
@@ -61,19 +71,35 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
 
     setLoading(true);
 
+    // Prepare teacher data, only include teacher_department if selected
+    const teacherData = {
+      email: form.email,
+      hashed_password: form.hashed_password,
+      first_name: form.first_name,
+      middle_name: form.middle_name,
+      last_name: form.last_name,
+      gender: form.gender,
+      phone: form.phone,
+      teacher_department: form.teacher_department,
+    };
+    // if (form.teacher_department && form.teacher_department !== "") {
+    //   teacherData.teacher_department = form.teacher_department;
+    // }
+    // Debug: Show what is being sent for teacher_department
+    console.log(
+      "Submitting teacher_department (should be UUID):",
+      form.teacher_department
+    );
+
     try {
-      // Only send teacher fields
-      const { data, error } = await createTeacher({
-        id: form.id,
-        email: form.email,
-        hashed_password: form.hashed_password,
-        first_name: form.first_name,
-        middle_name: form.middle_name,
-        last_name: form.last_name,
-      });
+      const { data, error } = await createTeacher(teacherData);
       if (error) throw error;
       alert("Teacher added successfully!");
-      if (onSuccess) onSuccess();
+      const teacherName = `${form.first_name} ${form.last_name}`;
+      const teacherEmail = form.email;
+      if (onSuccess) {
+        onSuccess({ name: teacherName, email: teacherEmail });
+      }
       onClose();
     } catch (error) {
       alert("Failed to add teacher: " + error.message);
@@ -105,10 +131,10 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
         value={form.gender}
         onChange={handleChange}
       >
-        <option>Select your Gender</option>
-        <option>Male</option>
-        <option>Female</option>
-        <option>Other</option>
+        <option value="">Select your Gender</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
       </select>
       <input
         name="email"
@@ -125,17 +151,24 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
         value={form.phone}
         onChange={handleChange}
       />
-      {/* Remove department_id input from the form */}
-      {/* Add a non-editable placeholder */}
+      {/* Department Dropdown */}
       <div className="col-span-2">
-        <label className="block font-semibold">Department</label>
-        <input
-          type="text"
-          value="Department will be assigned later"
-          className="w-full border px-3 py-2 rounded bg-gray-100 text-gray-500 cursor-not-allowed"
-          disabled
-          readOnly
-        />
+        <label className="block font-semibold mb-1">Department*</label>
+        <select
+          name="teacher_department"
+          className={inputStyle}
+          value={form.teacher_department}
+          onChange={handleChange}
+          required
+          disabled={deptLoading}
+        >
+          <option value="">Select Department</option>
+          {departments.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
       </div>
       <input
         name="password"

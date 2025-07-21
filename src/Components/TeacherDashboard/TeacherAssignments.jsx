@@ -59,12 +59,10 @@ const TeacherAssignments = () => {
         setSubjects(subjectData || []);
         // Fetch assignments
         const assignmentData = await getAssignmentsByTeacher(user.id);
-        let filtered = assignmentData || [];
-        if (role === "teacher") {
-          filtered = filtered.filter(
-            (a) => a.teacher_id === user.id || a.teacher_id === user.username
-          );
-        }
+        // Only show assignments assigned by the logged-in teacher
+        const filtered = (assignmentData || []).filter(
+          (a) => a.teacher_id === user.id
+        );
         setAssignments(filtered);
         // Fetch classes directly from classes table
         const classes = await getClassesByTeacher(user.id);

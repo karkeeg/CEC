@@ -19,12 +19,16 @@ import {
   getAllAssignments,
   getAllDepartments,
   getAllSubjects,
+  fetchRecentSubmissions,
+  fetchRecentAssignments,
+  fetchRecentNotices,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { StudentForm } from "../Forms/StudentForm";
 import { TeacherForm } from "../Forms/TeacherForm";
 import { NoticeForm } from "../Forms/NoticeForm";
 import { AssignmentForm } from "../Forms/AssignmentForm";
+import { sendConfirmationEmail } from "../../utils/emailService";
 
 const Modal = ({ title, children, onClose }) => (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -74,6 +78,9 @@ const MainDashboard = () => {
   const [unpaidFee, setUnpaidFee] = useState(0);
   const [attendancePercent, setAttendancePercent] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
@@ -113,6 +120,48 @@ const MainDashboard = () => {
 
   useEffect(() => {
     fetchStats();
+    // Fetch recent activities
+    const fetchActivities = async () => {
+      const [subs, assigns, notices] = await Promise.all([
+        fetchRecentSubmissions(5),
+        fetchRecentAssignments(5),
+        fetchRecentNotices(5),
+      ]);
+      console.log("Recent Submissions:", subs);
+      console.log("Recent Assignments:", assigns);
+      console.log("Recent Notices:", notices);
+      const activities = [
+        ...subs.map((s) => ({
+          type: "submission",
+          date: s.submitted_at,
+          message: `Student ${
+            s.students
+              ? s.students.first_name + " " + s.students.last_name
+              : s.student_id
+          } submitted "${
+            s.assignments ? s.assignments.title : s.assignment_id
+          }"`,
+        })),
+        ...assigns.map((a) => ({
+          type: "assignment",
+          date: a.created_at,
+          message: `Assignment "${a.title}" created by ${
+            a.teachers
+              ? a.teachers.first_name + " " + a.teachers.last_name
+              : a.teacher_id
+          }`,
+        })),
+        ...notices.map((n) => ({
+          type: "notice",
+          date: n.created_at,
+          message: `Notice "${n.title}" published`,
+          // id: n.notice_id // (optional, if you want to use it)
+        })),
+      ];
+      activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setRecentActivities(activities);
+    };
+    fetchActivities();
   }, []);
 
   const StatCard = ({ icon, label, value, highlight }) => (
@@ -176,6 +225,54 @@ const MainDashboard = () => {
 
     alert("Image uploaded and added to gallery!");
     // Optionally: refresh gallery images here
+  };
+
+  // Handler for when a student is successfully added
+  const handleStudentAdded = async (student) => {
+    console.log("handleStudentAdded called with:", student);
+    await fetchStats();
+    if (student && student.name && student.email) {
+      try {
+        console.log("Calling sendConfirmationEmail...");
+        await sendConfirmationEmail({
+          to_name: student.name,
+          to_email: student.email,
+          role: "student",
+        });
+        alert(`Confirmation email sent to ${student.email}`);
+      } catch (error) {
+        alert(
+          `Failed to send confirmation email to ${student.email}: ${
+            error?.text || error?.message || error
+          }`
+        );
+        console.error("EmailJS send error (student):", error);
+      }
+    } else {
+      console.warn("Student object missing name or email:", student);
+    }
+  };
+
+  // Handler for when a teacher is successfully added
+  const handleTeacherAdded = async (teacher) => {
+    await fetchStats();
+    if (teacher && teacher.name && teacher.email) {
+      try {
+        await sendConfirmationEmail({
+          to_name: teacher.name,
+          to_email: teacher.email,
+          role: "teacher",
+        });
+        alert(`Confirmation email sent to ${teacher.email}`);
+      } catch (error) {
+        alert(
+          `Failed to send confirmation email to ${teacher.email}: ${
+            error?.text || error?.message || error
+          }`
+        );
+        console.error("EmailJS send error (teacher):", error);
+      }
+    }
   };
 
   return (
@@ -255,28 +352,65 @@ const MainDashboard = () => {
       <div className="bg-[#eef1fa] p-4 rounded-md shadow-md">
         <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
         <ul className="space-y-2">
-          {notifications.length === 0 ? (
+          {recentActivities.length === 0 ? (
             <p className="text-gray-500">No activity found.</p>
           ) : (
-            notifications.map((note, idx) => (
+            (showAllActivities
+              ? recentActivities
+              : recentActivities.slice(0, 5)
+            ).map((act, idx) => (
               <li
                 key={idx}
                 className={`flex items-center justify-between px-4 py-2 rounded ${
                   idx === 0 ? "bg-red-200" : "bg-blue-100"
-                }`}
+                } cursor-pointer`}
+                onClick={() => setSelectedActivity(act)}
               >
                 <div className="flex items-center gap-3">
                   <FaBell className="text-gray-700" />
-                  <span className="font-medium text-sm">{note.message}</span>
+                  <span className="font-medium text-sm">{act.message}</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  <p>{note.date}</p>
-                  <p>{note.time}</p>
+                  <p>{new Date(act.date).toLocaleString()}</p>
                 </div>
               </li>
             ))
           )}
         </ul>
+        {recentActivities.length > 5 && (
+          <button
+            className="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            onClick={() => setShowAllActivities((prev) => !prev)}
+          >
+            {showAllActivities ? "See Less" : "See More"}
+          </button>
+        )}
+        {/* Activity Detail Modal */}
+        {selectedActivity && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl"
+                onClick={() => setSelectedActivity(null)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+              <h3 className="text-xl font-bold mb-4">Activity Details</h3>
+              <div className="mb-2">
+                <strong>Type:</strong> {selectedActivity.type}
+              </div>
+              <div className="mb-2">
+                <strong>Message:</strong> {selectedActivity.message}
+              </div>
+              <div className="mb-2">
+                <strong>Date:</strong>{" "}
+                {new Date(selectedActivity.date).toLocaleString()}
+              </div>
+              {/* Add more details here if available in selectedActivity */}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -284,7 +418,7 @@ const MainDashboard = () => {
         <Modal title="Add Student" onClose={() => setShowStudentModal(false)}>
           <StudentForm
             onClose={() => setShowStudentModal(false)}
-            onSuccess={fetchStats}
+            onSuccess={handleStudentAdded}
           />
         </Modal>
       )}
@@ -292,7 +426,7 @@ const MainDashboard = () => {
         <Modal title="Add Teacher" onClose={() => setShowTeacherModal(false)}>
           <TeacherForm
             onClose={() => setShowTeacherModal(false)}
-            onSuccess={fetchStats}
+            onSuccess={handleTeacherAdded}
           />
         </Modal>
       )}
