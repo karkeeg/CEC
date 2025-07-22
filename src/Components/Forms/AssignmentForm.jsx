@@ -3,6 +3,7 @@ import {
   createAssignment,
   getAllSubjects,
   getAllTeachers,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 
@@ -25,7 +26,7 @@ async function uploadFilesToStorage(files, folder = "assignments") {
   return urls;
 }
 
-export const AssignmentForm = ({ onClose, onSuccess }) => {
+export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -83,6 +84,11 @@ export const AssignmentForm = ({ onClose, onSuccess }) => {
       }
       const { error } = await createAssignment({ ...form, files: fileUrls });
       if (error) throw error;
+      await logActivity(
+        `Assignment "${form.title}" created.`,
+        "assignment",
+        currentUser || {}
+      );
       alert("Assignment added successfully!");
       if (onSuccess) onSuccess();
       onClose();

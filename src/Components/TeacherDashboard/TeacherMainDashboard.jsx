@@ -3,13 +3,12 @@ import { useUser } from "../../contexts/UserContext";
 import {
   getAllStudents,
   getAllAssignments,
-  getAllClasses,
   getGradesByTeacher,
   fetchStudents,
   fetchAssignments,
-  fetchClasses,
   getSubjects,
   updateAssignmentSubmissionGrade,
+  getClassesByTeacher,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
@@ -56,12 +55,11 @@ const TeacherMainDashboard = () => {
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showGradeModal, setShowGradeModal] = useState(false);
+  const [reportType, setReportType] = useState("assignment");
 
   useEffect(() => {
-    fetchClasses();
-    getSubjects();
-    fetchAssignments();
     fetchStudents();
+    fetchAssignments();
   }, []);
 
   useEffect(() => {
@@ -70,14 +68,15 @@ const TeacherMainDashboard = () => {
     }
     const fetchDashboardData = async () => {
       try {
-        const [studentsData, assignmentsData, classesData] = await Promise.all([
-          getAllStudents(),
-          getAllAssignments(),
-          getAllClasses(),
-        ]);
+        const [studentsData, assignmentsData, teacherClasses] =
+          await Promise.all([
+            getAllStudents(),
+            getAllAssignments(),
+            getClassesByTeacher(user.id),
+          ]);
         setStats({
           totalStudents: studentsData?.length || 0,
-          totalClasses: classesData?.length || 0,
+          totalClasses: teacherClasses?.length || 0,
           totalAssignments: assignmentsData?.length || 0,
           attendanceRate: 85,
         });
@@ -97,8 +96,11 @@ const TeacherMainDashboard = () => {
           }));
         setCompletionData(completion);
         const today = new Date().toISOString().split("T")[0];
-        const todaysClasses = (classesData || []).filter(
-          (c) => c.teacher.teacher_id === user.id && c.date === today
+        const todaysClasses = (teacherClasses || []).filter(
+          (c) =>
+            c.teacher_id === user.id &&
+            c.schedule &&
+            c.schedule.split("T")[0] === today
         );
         const todaysAssignments = (assignmentsData || []).filter(
           (a) => a.teacher_id === user.id && a.due_date?.split("T")[0] === today
@@ -396,7 +398,16 @@ const TeacherMainDashboard = () => {
       {/* Assignment Modal */}
       {showAssignmentModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Create New Assignment</h2>
+              <button
+                onClick={() => setShowAssignmentModal(false)}
+                className="text-gray-500 hover:text-red-500 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
             <AssignmentForm
               onClose={() => setShowAssignmentModal(false)}
               onSuccess={() => setShowAssignmentModal(false)}
@@ -420,8 +431,37 @@ const TeacherMainDashboard = () => {
       {showReportModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
-            {/* Replace with your actual report component */}
-            <ReportView onClose={() => setShowReportModal(false)} />
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {reportType === "assignment"
+                  ? "Assignment Report"
+                  : reportType === "grades"
+                  ? "Grades Report"
+                  : "Attendance Report"}
+              </h2>
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="text-gray-500 hover:text-red-500 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <select
+              className="w-full bg-yellow-100 text-gray-800 py-2 px-4 rounded-md transition-colors mb-4"
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              <option value="assignment">Assignment Report</option>
+              <option value="grades">Grades Report</option>
+              <option value="attendance">Attendance Report</option>
+            </select>
+            {reportType === "assignment" && (
+              <div>Assignment Report Placeholder</div>
+            )}
+            {reportType === "grades" && <div>Grades Report Placeholder</div>}
+            {reportType === "attendance" && (
+              <div>Attendance Report Placeholder</div>
+            )}
           </div>
         </div>
       )}

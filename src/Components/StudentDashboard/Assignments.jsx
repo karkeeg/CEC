@@ -18,6 +18,7 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
+import { logActivity } from "../../supabaseConfig/supabaseApi";
 ChartJS.register(
   BarElement,
   ArcElement,
@@ -246,6 +247,15 @@ const Assignments = () => {
         },
       ]);
       if (!error) {
+        await logActivity(
+          `Student ${user.first_name} ${user.last_name} submitted "${assignment.title}".`,
+          "submission",
+          {
+            user_id: user.id,
+            user_role: user.role,
+            user_name: `${user.first_name} ${user.last_name}`,
+          }
+        );
         setSubmissionStatus((prev) => ({
           ...prev,
           [assignment.id]: {

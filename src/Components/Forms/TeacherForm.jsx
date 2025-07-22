@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import {
   createTeacher,
   getAllDepartments,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
-export const TeacherForm = ({ onClose, onSuccess }) => {
+export const TeacherForm = ({ onClose, onSuccess, currentUser }) => {
   const [form, setForm] = useState({
     id: "",
     email: "",
@@ -94,6 +95,11 @@ export const TeacherForm = ({ onClose, onSuccess }) => {
     try {
       const { data, error } = await createTeacher(teacherData);
       if (error) throw error;
+      await logActivity(
+        `Teacher "${form.first_name} ${form.last_name}" registered.`,
+        "teacher",
+        currentUser || {}
+      );
       alert("Teacher added successfully!");
       const teacherName = `${form.first_name} ${form.last_name}`;
       const teacherEmail = form.email;

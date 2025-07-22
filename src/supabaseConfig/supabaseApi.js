@@ -222,6 +222,12 @@ export const fetchGalleryItems = async () => {
   return data;
 };
 
+export const addGalleryItems = async (items) => {
+  // items: [{ title, description, image_url, created_at }]
+  const { data, error } = await supabase.from("gallery").insert(items);
+  return { data, error };
+};
+
 // ------------------- CLASSES -------------------
 export const fetchClasses = async () => {
   const { data, error } = await supabase
@@ -511,4 +517,45 @@ export const fetchRecentNotices = async (limit = 10) => {
     .order("created_at", { ascending: false })
     .limit(limit);
   return data || [];
+};
+
+export const updateNotice = async (notice_id, updates) => {
+  const { data, error } = await supabase
+    .from("notices")
+    .update(updates)
+    .eq("notice_id", notice_id);
+  return { data, error };
+};
+
+export const deleteNotice = async (notice_id) => {
+  const { data, error } = await supabase
+    .from("notices")
+    .delete()
+    .eq("notice_id", notice_id);
+  return { data, error };
+};
+
+export const getAllNotices = fetchNotices;
+
+export const logActivity = async (message, type = "notice", user = {}) => {
+  const { user_id, user_role, user_name } = user;
+  const { error } = await supabase.from("notifications").insert([
+    {
+      message,
+      type,
+      date: new Date().toISOString(),
+      user_id,
+      user_role,
+      user_name,
+    },
+  ]);
+  return { error };
+};
+
+export const fetchNotifications = async () => {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .order("date", { ascending: false });
+  return { data, error };
 };

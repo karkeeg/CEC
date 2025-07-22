@@ -46,24 +46,45 @@ const Gallery = () => {
         <h1 className="text-3xl md:text-4xl font-bold text-[#1b3e94] mb-8 text-center">
           Gallery
         </h1>
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-2">
           {items.map((item, idx) => (
             <div
               key={item.id}
-              className="bg-white rounded-lg shadow p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition"
-              onClick={() => openModal(idx)}
+              className="relative group bg-white rounded-3xl shadow-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer min-h-[400px] h-[420px]"
             >
-              <img
-                src={item.image_url}
-                alt={item.title}
-                className="w-full h-40 object-cover rounded mb-2"
-              />
-              <h2 className="text-lg font-bold mb-1 text-[#1b3e94]">
-                {item.title}
-              </h2>
-              <p className="text-gray-600 text-sm text-center">
-                {item.description}
-              </p>
+              {/* Full-size image/video */}
+              <div className="absolute inset-0 w-full h-full">
+                {item.image_url &&
+                  item.image_url.length > 0 &&
+                  (item.image_url[0].match(/\.(mp4|webm|ogg)$/i) ? (
+                    <video
+                      src={item.image_url[0]}
+                      controls
+                      className="w-full h-full object-cover bg-black rounded-3xl"
+                    />
+                  ) : (
+                    <img
+                      src={item.image_url[0]}
+                      alt={item.title}
+                      className="w-full h-full object-cover rounded-3xl"
+                    />
+                  ))}
+              </div>
+              {/* Bottom overlay text with enhanced animation */}
+              <div className="absolute bottom-0 left-0 w-full px-8 py-6 flex flex-col items-start z-10 pointer-events-none">
+                <div
+                  className="text-3xl font-extrabold text-white mb-2 opacity-40 group-hover:opacity-100 group-hover:-translate-y-2 group-hover:drop-shadow-[0_0_16px_rgba(255,255,255,0.7)] transition-all duration-500 drop-shadow-lg transform"
+                  style={{ textShadow: "0 2px 8px rgba(0,0,0,0.7)" }}
+                >
+                  {item.title}
+                </div>
+                <div
+                  className="text-lg text-white opacity-30 group-hover:opacity-90 group-hover:-translate-y-1 group-hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.5)] transition-all duration-500 drop-shadow-lg transform"
+                  style={{ textShadow: "0 2px 8px rgba(0,0,0,0.7)" }}
+                >
+                  {item.description}
+                </div>
+              </div>
             </div>
           ))}
         </div>

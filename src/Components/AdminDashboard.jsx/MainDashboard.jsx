@@ -22,6 +22,9 @@ import {
   fetchRecentSubmissions,
   fetchRecentAssignments,
   fetchRecentNotices,
+  getAllNotices,
+  addGalleryItems,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { StudentForm } from "../Forms/StudentForm";
@@ -85,6 +88,13 @@ const MainDashboard = () => {
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [editNotice, setEditNotice] = useState(null);
+  const [visibleNoticesCount, setVisibleNoticesCount] = useState(3);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryDescription, setGalleryDescription] = useState("");
 
   const fetchStats = async () => {
     const students = await getAllStudents();
@@ -116,6 +126,10 @@ const MainDashboard = () => {
       .select("*")
       .order("date", { ascending: false });
     setNotifications(notifyRes.data || []);
+
+    // Fetch all notices for management
+    const allNotices = await getAllNotices();
+    setNotices(allNotices || []);
   };
 
   useEffect(() => {
@@ -181,50 +195,62 @@ const MainDashboard = () => {
   const fileInputRef = useRef();
 
   const handleAddImageClick = () => {
-    fileInputRef.current.click();
+    setGalleryFiles([]);
+    setGalleryTitle("");
+    setGalleryDescription("");
+    setShowGalleryModal(true);
   };
 
-  const handleFileChange = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleGalleryFileChange = (event) => {
+    setGalleryFiles(Array.from(event.target.files));
+  };
 
-    // 1. Upload to Supabase Storage
-    const filePath = `gallery/${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage
-      .from("gallery")
-      .upload(filePath, file);
-
-    if (error) {
-      alert("Upload failed: " + error.message);
+  const handleGallerySubmit = async (e) => {
+    e.preventDefault();
+    if (!galleryTitle || galleryFiles.length === 0) {
+      alert("Title and at least one image/video are required.");
       return;
     }
-
-    // 2. Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from("gallery")
-      .getPublicUrl(filePath);
-
-    const imageUrl = publicUrlData?.publicUrl;
-    if (!imageUrl) {
-      alert("Failed to get public URL");
-      return;
+    try {
+      const bucket = "gallery";
+      const urls = [];
+      for (let i = 0; i < galleryFiles.length; i++) {
+        const file = galleryFiles[i];
+        const filePath = `${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+        const url = publicUrlData?.publicUrl;
+        if (!url) throw new Error("Failed to get public URL");
+        urls.push(url);
+      }
+      const { error: insertError } = await addGalleryItems([
+        {
+          title: galleryTitle,
+          description: galleryDescription,
+          image_url: urls,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (insertError) throw insertError;
+      await logActivity(
+        `Gallery topic "${galleryTitle}" added with ${urls.length} media file(s).`,
+        "gallery",
+        typeof currentUser !== "undefined" ? currentUser : {}
+      );
+      alert("Gallery topic and media uploaded!");
+      setShowGalleryModal(false);
+      setGalleryFiles([]);
+      setGalleryTitle("");
+      setGalleryDescription("");
+      // Optionally: refresh gallery images here
+    } catch (error) {
+      alert("Failed to upload gallery: " + (error.message || error));
     }
-
-    // 3. Insert into gallery table
-    const { error: insertError } = await supabase.from("gallery").insert([
-      {
-        image_url: imageUrl,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-
-    if (insertError) {
-      alert("Failed to insert into gallery: " + insertError.message);
-      return;
-    }
-
-    alert("Image uploaded and added to gallery!");
-    // Optionally: refresh gallery images here
   };
 
   // Handler for when a student is successfully added
@@ -273,6 +299,24 @@ const MainDashboard = () => {
         console.error("EmailJS send error (teacher):", error);
       }
     }
+  };
+
+  // Add a handler to refresh notices only
+  const refreshNotices = async () => {
+    const allNotices = await getAllNotices();
+    setNotices(allNotices || []);
+  };
+
+  const typeBgClass = {
+    notice: "bg-blue-100",
+    assignment: "bg-purple-100",
+    submission: "bg-green-100",
+    student: "bg-cyan-100",
+    teacher: "bg-yellow-100",
+    class: "bg-orange-100",
+    attendance: "bg-pink-100",
+    fee: "bg-red-100",
+    default: "bg-gray-100",
   };
 
   return (
@@ -362,7 +406,7 @@ const MainDashboard = () => {
               <li
                 key={idx}
                 className={`flex items-center justify-between px-4 py-2 rounded ${
-                  idx === 0 ? "bg-red-200" : "bg-blue-100"
+                  typeBgClass[act.type] || typeBgClass.default
                 } cursor-pointer`}
                 onClick={() => setSelectedActivity(act)}
               >
@@ -413,6 +457,82 @@ const MainDashboard = () => {
         )}
       </div>
 
+      {/* Notices Management Table */}
+      <div className="bg-white rounded shadow p-4 my-8">
+        <h2 className="text-xl font-bold mb-4">Manage Notices</h2>
+        {notices.length === 0 ? (
+          <p className="text-gray-500">No notices found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left border">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="p-2">Title</th>
+                  <th className="p-2">Description</th>
+                  <th className="p-2">Date</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notices.slice(0, visibleNoticesCount).map((notice) => (
+                  <tr key={notice.notice_id}>
+                    <td className="p-2 font-semibold">{notice.title}</td>
+                    <td className="p-2">{notice.description}</td>
+                    <td className="p-2">
+                      {new Date(notice.created_at).toLocaleString()}
+                    </td>
+                    <td className="p-2 flex gap-2">
+                      <button
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => setEditNotice(notice)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={async () => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this notice?"
+                            )
+                          ) {
+                            const { deleteNotice } = await import(
+                              "../../supabaseConfig/supabaseApi"
+                            );
+                            await deleteNotice(notice.notice_id);
+                            await refreshNotices();
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-2 flex gap-2">
+              {visibleNoticesCount < notices.length && (
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  onClick={() => setVisibleNoticesCount((prev) => prev + 3)}
+                >
+                  See More
+                </button>
+              )}
+              {visibleNoticesCount > 3 && (
+                <button
+                  className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                  onClick={() => setVisibleNoticesCount(3)}
+                >
+                  See Less
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Modals */}
       {showStudentModal && (
         <Modal title="Add Student" onClose={() => setShowStudentModal(false)}>
@@ -438,6 +558,22 @@ const MainDashboard = () => {
           />
         </Modal>
       )}
+      {editNotice && (
+        <Modal title="Edit Notice" onClose={() => setEditNotice(null)}>
+          <NoticeForm
+            notice={editNotice}
+            onClose={() => setEditNotice(null)}
+            onSuccess={async () => {
+              setEditNotice(null);
+              await fetchStats();
+            }}
+            onDelete={async () => {
+              setEditNotice(null);
+              await fetchStats();
+            }}
+          />
+        </Modal>
+      )}
       {showAssignmentModal && (
         <Modal
           title="Add Assignment"
@@ -449,13 +585,59 @@ const MainDashboard = () => {
           />
         </Modal>
       )}
-      <input
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        ref={fileInputRef}
-        onChange={handleFileChange}
-      />
+      {/* Gallery Modal */}
+      {showGalleryModal && (
+        <Modal
+          title="Add Gallery Topic"
+          onClose={() => setShowGalleryModal(false)}
+        >
+          <form onSubmit={handleGallerySubmit} className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Title*"
+              className={inputStyle}
+              value={galleryTitle}
+              onChange={(e) => setGalleryTitle(e.target.value)}
+              required
+            />
+            <textarea
+              placeholder="Description"
+              className={inputStyle}
+              value={galleryDescription}
+              onChange={(e) => setGalleryDescription(e.target.value)}
+            />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleGalleryFileChange}
+              className={inputStyle}
+            />
+            <div className="flex flex-wrap gap-2">
+              {galleryFiles.map((file, idx) => (
+                <div key={idx} className="bg-gray-100 p-2 rounded text-xs">
+                  {file.name}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowGalleryModal(false)}
+                className="bg-gray-300 px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Upload
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 };

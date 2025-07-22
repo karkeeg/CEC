@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { createStudent } from "../../supabaseConfig/supabaseApi";
+import { createStudent, logActivity } from "../../supabaseConfig/supabaseApi";
 
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
-export const StudentForm = ({ onClose, onSuccess }) => {
+export const StudentForm = ({ onClose, onSuccess, currentUser }) => {
   const [form, setForm] = useState({
     first_name: "",
     middle_name: "",
@@ -56,6 +56,11 @@ export const StudentForm = ({ onClose, onSuccess }) => {
     try {
       const { error } = await createStudent(form);
       if (error) throw error;
+      await logActivity(
+        `Student "${form.first_name} ${form.last_name}" registered.`,
+        "student",
+        currentUser || {}
+      );
       alert("Student added successfully!");
       const studentName = `${form.first_name} ${form.last_name}`;
       const studentEmail = form.email;

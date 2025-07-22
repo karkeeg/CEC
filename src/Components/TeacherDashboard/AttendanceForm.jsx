@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import {
-  getTeacherDepartmentsWithClasses,
+  getClassesByTeacher,
   getStudentsByClass,
   getAttendanceByClassAndDate,
   updateAttendance,
   createAttendance,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import { FaCheck, FaSave, FaTimes, FaClock } from "react-icons/fa";
 
-const AttendanceForm = ({ user, onSuccess, onCancel }) => {
+const AttendanceForm = ({ user, onSuccess, onClose }) => {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedDate, setSelectedDate] = useState(
@@ -25,20 +26,12 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const teacherClasses = await getTeacherDepartmentsWithClasses(user.id);
-        const allClasses = [];
-        teacherClasses?.forEach((dept) => {
-          dept.classes?.forEach((cls) => {
-            allClasses.push({
-              id: cls.id,
-              name: cls.name,
-              department: dept.department.name,
-            });
-          });
-        });
-        setClasses(allClasses);
-        if (allClasses.length > 0) {
-          setSelectedClass(allClasses[0].id);
+        const teacherClasses = await getClassesByTeacher(user.id);
+        setClasses(teacherClasses || []);
+        if (teacherClasses && teacherClasses.length > 0) {
+          setSelectedClass(teacherClasses[0].id || teacherClasses[0].class_id);
+        } else {
+          setSelectedClass("");
         }
       } catch (error) {
         setError("Error fetching classes");
@@ -113,6 +106,15 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
           })
         );
         await createAttendance(attendanceRecords);
+        await logActivity(
+          `Attendance marked for class ${selectedClass} on ${selectedDate}.`,
+          "attendance",
+          {
+            user_id: user.id,
+            user_role: user.role,
+            user_name: `${user.first_name} ${user.last_name}`,
+          }
+        );
       }
       if (onSuccess) onSuccess();
     } catch (error) {
@@ -139,8 +141,11 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
           >
             <option value="">Select a class</option>
             {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.name} ({cls.department})
+              <option
+                key={cls.id || cls.class_id}
+                value={cls.id || cls.class_id}
+              >
+                {cls.name}
               </option>
             ))}
           </select>
@@ -169,15 +174,6 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
             )}
             {saving ? "Saving..." : "Save Attendance"}
           </button>
-          {onCancel && (
-            <button
-              onClick={onCancel}
-              className="ml-2 bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-md"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-          )}
         </div>
       </div>
       {selectedClass && students.length > 0 && (
@@ -187,7 +183,7 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
               Student Attendance
             </h2>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ maxHeight: '220px', overflowY: 'auto' }}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -200,7 +196,7 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {students.map((student, index) => (
+                {students.slice(0, 3).map((student, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -211,9 +207,7 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {student.student?.first_name}{" "}
-                            {student.student?.middle_name || ""}{" "}
-                            {student.student?.last_name}
+                            {student.student?.first_name} {student.student?.middle_name || ""} {student.student?.last_name}
                           </div>
                           <div className="text-sm text-gray-500">
                             ID: {student.student?.id}
@@ -224,41 +218,20 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() =>
-                            handleAttendanceChange(
-                              student.student.id,
-                              "present"
-                            )
-                          }
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            attendance[student.student.id] === "present"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-600 hover:bg-green-50"
-                          }`}
+                          onClick={() => handleAttendanceChange(student.student.id, "present")}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${attendance[student.student.id] === "present" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600 hover:bg-green-50"}`}
                         >
                           Present
                         </button>
                         <button
-                          onClick={() =>
-                            handleAttendanceChange(student.student.id, "absent")
-                          }
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            attendance[student.student.id] === "absent"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-600 hover:bg-red-50"
-                          }`}
+                          onClick={() => handleAttendanceChange(student.student.id, "absent")}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${attendance[student.student.id] === "absent" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-600 hover:bg-red-50"}`}
                         >
                           Absent
                         </button>
                         <button
-                          onClick={() =>
-                            handleAttendanceChange(student.student.id, "late")
-                          }
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            attendance[student.student.id] === "late"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-600 hover:bg-yellow-50"
-                          }`}
+                          onClick={() => handleAttendanceChange(student.student.id, "late")}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${attendance[student.student.id] === "late" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-600 hover:bg-yellow-50"}`}
                         >
                           Late
                         </button>
@@ -271,6 +244,16 @@ const AttendanceForm = ({ user, onSuccess, onCancel }) => {
           </div>
         </div>
       )}
+      {/* Always show a Cancel button at the bottom */}
+      <div className="flex justify-end mt-6">
+        <button
+          onClick={onClose}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-6 rounded-md"
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 };

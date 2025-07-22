@@ -4,6 +4,7 @@ import {
   fetchDepartments,
   fetchSubjects,
   fetchRooms,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 
 const ClassForm = ({ user, onClose, onSuccess }) => {
@@ -52,6 +53,11 @@ const ClassForm = ({ user, onClose, onSuccess }) => {
           error.message || "Failed to register class. Please try again."
         );
       } else {
+        await logActivity(
+          `Class "${form.name}" registered.`,
+          "class",
+          user || {}
+        );
         setMessage("Class registered successfully!");
         setForm({
           name: "",

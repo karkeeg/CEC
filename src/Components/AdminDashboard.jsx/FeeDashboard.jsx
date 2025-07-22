@@ -26,6 +26,7 @@ import {
   updateFee,
   getAllStudents,
   getAllFees,
+  logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import Select from "react-select";
 
@@ -214,6 +215,7 @@ const FeeDashboard = () => {
       alert("Student, amount, and due date are required.");
       return;
     }
+    let isPayment = false;
     if (editIndex !== null) {
       // Edit: update in database
       const feeId = fees[editIndex].id;
@@ -222,6 +224,11 @@ const FeeDashboard = () => {
         alert("Failed to update fee: " + error.message);
         return;
       }
+      // If paid_amount is set and changed, log payment
+      const prevPaid = fees[editIndex].paid_amount || 0;
+      if (form.paid_amount && Number(form.paid_amount) > prevPaid) {
+        isPayment = true;
+      }
     } else {
       // Add: insert into database
       const { error } = await createFee(form);
@@ -229,6 +236,21 @@ const FeeDashboard = () => {
         alert("Failed to add fee: " + error.message);
         return;
       }
+      if (form.paid_amount && Number(form.paid_amount) > 0) {
+        isPayment = true;
+      }
+    }
+    if (isPayment) {
+      const student = students.find((s) => s.id === form.student_id);
+      await logActivity(
+        `Fee payment of Rs ${form.paid_amount} received from ${
+          student
+            ? student.first_name + " " + student.last_name
+            : form.student_id
+        }.`,
+        "fee",
+        typeof currentUser !== "undefined" ? currentUser : {}
+      );
     }
     // Re-fetch fees from DB
     const feesData = await getAllFees();
