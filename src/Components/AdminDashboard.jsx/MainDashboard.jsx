@@ -31,21 +31,24 @@ import { AssignmentForm } from "../Forms/AssignmentForm";
 import { sendConfirmationEmail } from "../../utils/emailService";
 
 const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-    <div className="bg-[#EEF0FD] rounded-lg w-full max-w-lg relative overflow-hidden shadow-lg">
+  <div className="fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="bg-white rounded-xl w-full max-w-2xl relative overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
       {/* Modal Header */}
-      <div className="bg-[#2C7489] text-white text-lg font-semibold px-6 py-4 flex justify-between items-center">
-        <h2>{title}</h2>
+      <div className="bg-gradient-to-r from-[#2C7489] to-[#1a5a6b] text-white text-xl font-bold px-8 py-5 flex justify-between items-center">
+        <h2 className="flex items-center gap-3">
+          <FaBell className="text-yellow-300" />
+          {title}
+        </h2>
         <button
           onClick={onClose}
-          className="text-white hover:text-red-300 text-xl"
+          className="text-white hover:text-red-300 text-2xl font-bold transition-colors duration-200 hover:rotate-90 transform"
         >
           ✕
         </button>
       </div>
 
       {/* Modal Body */}
-      <div className="px-6 py-4">{children}</div>
+      <div className="px-8 py-6 bg-gray-50">{children}</div>
     </div>
   </div>
 );
@@ -79,6 +82,7 @@ const MainDashboard = () => {
   const [attendancePercent, setAttendancePercent] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [noticeCount, setNoticeCount] = useState(0);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -116,6 +120,12 @@ const MainDashboard = () => {
       .select("*")
       .order("date", { ascending: false });
     setNotifications(notifyRes.data || []);
+
+    // Get notice count
+    const noticesRes = await supabase
+      .from("notices")
+      .select("*", { count: "exact", head: true });
+    setNoticeCount(noticesRes.count || 0);
   };
 
   useEffect(() => {
@@ -279,7 +289,7 @@ const MainDashboard = () => {
     <div className="p-6 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <StatCard
           icon={<FaUserGraduate className="text-cyan-500 text-3xl" />}
           label="# Students"
@@ -291,6 +301,12 @@ const MainDashboard = () => {
           label="# Teachers"
           value={teacherCount}
           highlight="border-green-500"
+        />
+        <StatCard
+          icon={<FaBell className="text-emerald-500 text-3xl" />}
+          label="# Notices"
+          value={noticeCount}
+          highlight="border-emerald-500"
         />
         <div className="bg-white shadow-md border-l-4 border-yellow-500 p-4 rounded-md">
           <div className="flex items-center gap-4">
@@ -330,9 +346,9 @@ const MainDashboard = () => {
         </button>
         <button
           onClick={() => setShowNoticeModal(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-emerald-700"
+          className="bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 hover:bg-emerald-700 transform hover:scale-105 transition-all duration-200 font-semibold"
         >
-          <FaPlus /> Add Notice
+          <FaPlus className="text-lg" /> Add Notice
         </button>
         <button
           onClick={() => setShowAssignmentModal(true)}
