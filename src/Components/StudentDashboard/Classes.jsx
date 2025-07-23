@@ -10,6 +10,7 @@ import {
   FaChalkboardTeacher,
   FaInfoCircle,
 } from "react-icons/fa";
+import Modal from "../Modal";
 
 // Utility to capitalize the first letter
 function capitalizeFirst(str) {
@@ -160,90 +161,82 @@ const Classes = () => {
 
         {/* View Details Modal */}
         {viewModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-2xl relative">
-              <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl"
-                onClick={() => setViewModal(null)}
-              >
-                &times;
-              </button>
-              <div className="mb-3">
-                <h2 className="text-3xl font-extrabold text-blue-800 mb-1">
-                  {capitalizeFirst(viewModal.name)}
-                </h2>
-                <div className="h-1 w-16 bg-blue-200 rounded mb-2" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-                <div>
-                  <strong>Name:</strong> {viewModal.name}
-                </div>
-                <div>
-                  <strong>Year:</strong> {viewModal.year}
-                </div>
-                <div>
-                  <strong>Semester:</strong> {viewModal.semester}
-                </div>
-                <div>
-                  <strong>Room:</strong> {viewModal.room_no}
-                </div>
-                <div>
-                  <strong>Capacity:</strong> {viewModal.capacity}
-                </div>
-                <div>
-                  <strong>Subject:</strong>{" "}
-                  {viewModal.subject?.name ?? viewModal.subject_id}
-                </div>
-                <div>
-                  <strong>Schedule:</strong> {viewModal.schedule}
-                </div>
-                <div>
-                  <strong>Description:</strong> {viewModal.description}
-                </div>
-                <div>
-                  <strong>Department:</strong> {viewModal.department_id}
-                </div>
-              </div>
-              <h3 className="text-lg font-semibold mb-2 mt-3 text-blue-800">
-                Enrolled Students
-              </h3>
-              {modalLoading ? (
-                <div>Loading students...</div>
-              ) : modalStudents.length === 0 ? (
-                <div className="text-gray-500">
-                  No students enrolled in this class.
-                </div>
-              ) : (
-                <div className="w-full max-h-54 overflow-y-auto border rounded mb-2">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {modalStudents.map((s, idx) => (
-                        <tr key={idx}>
-                          <td className="px-3 py-1">
-                            {s.student.first_name} {s.student.middle_name || ""}{" "}
-                            {s.student.last_name}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold mt-4"
-                onClick={() => setViewModal(null)}
-              >
-                Close
-              </button>
+          <Modal
+            title={capitalizeFirst(viewModal.name)}
+            onClose={() => setViewModal(null)}
+          >
+            <div className="mb-3">
+              <div className="h-1 w-16 bg-blue-200 rounded mb-2" />
             </div>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+              <div>
+                <strong>Name:</strong> {viewModal.name}
+              </div>
+              <div>
+                <strong>Year:</strong> {viewModal.year}
+              </div>
+              <div>
+                <strong>Semester:</strong> {viewModal.semester}
+              </div>
+              <div>
+                <strong>Room:</strong> {viewModal.room_no}
+              </div>
+              <div>
+                <strong>Capacity:</strong> {viewModal.capacity}
+              </div>
+              <div>
+                <strong>Subject:</strong>{" "}
+                {viewModal.subject?.name ?? viewModal.subject_id}
+              </div>
+              <div>
+                <strong>Schedule:</strong> {viewModal.schedule}
+              </div>
+              <div>
+                <strong>Description:</strong> {viewModal.description}
+              </div>
+              <div>
+                <strong>Department:</strong> {viewModal.department_id}
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 mt-3 text-blue-800">
+              Enrolled Students
+            </h3>
+            {modalLoading ? (
+              <div>Loading students...</div>
+            ) : modalStudents.length === 0 ? (
+              <div className="text-gray-500">
+                No students enrolled in this class.
+              </div>
+            ) : (
+              <div className="w-full max-h-54 overflow-y-auto border rounded mb-2">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {modalStudents.map((s, idx) => (
+                      <tr key={idx}>
+                        <td className="px-3 py-1">
+                          {s.student.first_name} {s.student.middle_name || ""}{" "}
+                          {s.student.last_name}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold mt-4"
+              onClick={() => setViewModal(null)}
+            >
+              Close
+            </button>
+          </Modal>
         )}
       </div>
     </div>

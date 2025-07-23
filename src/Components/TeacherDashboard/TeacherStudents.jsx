@@ -14,6 +14,7 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import Modal from "../Modal";
 
 const TeacherStudents = () => {
   const [students, setStudents] = useState([]);
@@ -284,42 +285,34 @@ const TeacherStudents = () => {
 
       {/* View Student Modal */}
       {viewStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl"
-              onClick={() => setViewStudent(null)}
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-4">Student Details</h2>
-            <div className="space-y-2">
-              <div>
-                <strong>Name:</strong> {viewStudent.first_name}{" "}
-                {viewStudent.middle_name ?? ""} {viewStudent.last_name}
-              </div>
-              <div>
-                <strong>Email:</strong> {viewStudent.email}
-              </div>
-              <div>
-                <strong>Gender:</strong> {viewStudent.gender}
-              </div>
-              <div>
-                <strong>Year:</strong> {viewStudent.year}
-              </div>
-              <div>
-                <strong>Phone:</strong> {viewStudent.phone}
-              </div>
-              <div>
-                <strong>Date of Birth:</strong> {viewStudent.dob}
-              </div>
-              <div>
-                <strong>Address:</strong> {viewStudent.address}
-              </div>
-              {/* Add more fields as needed */}
+        <Modal title="Student Details" onClose={() => setViewStudent(null)}>
+          <h2 className="text-2xl font-bold mb-4">Student Details</h2>
+          <div className="space-y-2">
+            <div>
+              <strong>Name:</strong> {viewStudent.first_name}{" "}
+              {viewStudent.middle_name ?? ""} {viewStudent.last_name}
             </div>
+            <div>
+              <strong>Email:</strong> {viewStudent.email}
+            </div>
+            <div>
+              <strong>Gender:</strong> {viewStudent.gender}
+            </div>
+            <div>
+              <strong>Year:</strong> {viewStudent.year}
+            </div>
+            <div>
+              <strong>Phone:</strong> {viewStudent.phone}
+            </div>
+            <div>
+              <strong>Date of Birth:</strong> {viewStudent.dob}
+            </div>
+            <div>
+              <strong>Address:</strong> {viewStudent.address}
+            </div>
+            {/* Add more fields as needed */}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

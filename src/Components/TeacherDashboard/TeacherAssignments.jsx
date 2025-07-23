@@ -28,6 +28,7 @@ import {
   Legend,
   Line,
 } from "recharts";
+import Modal from "../Modal";
 
 const TeacherAssignments = () => {
   const { user, role } = useUser();
@@ -95,12 +96,11 @@ const TeacherAssignments = () => {
 
   console.log("Assignments in table:", assignments);
 
-  const filteredAssignments = assignments.filter(
-    (assignment) =>
-      selectedClass === "all" ||
-      assignment.class?.id === selectedClass ||
-      assignment.class_id === selectedClass
-  );
+  // Robust filtering: always compare as strings
+  const filteredAssignments =
+    selectedClass === "all"
+      ? assignments
+      : assignments.filter((a) => String(a.class_id) === String(selectedClass));
 
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
@@ -289,20 +289,32 @@ const TeacherAssignments = () => {
             <span>Create Assignment</span>
           </button>
         </div>
-        {/* Filter */}
-        <div className="bg-blue-100 p-4 rounded-xl shadow mt-2 mb-6">
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.name} ({cls.department})
-              </option>
-            ))}
-          </select>
+        {/* Positive Message and Filter */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <label className="font-medium text-gray-700">
+              Filter by Class:
+            </label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option
+                  key={cls.id || cls.class_id}
+                  value={cls.id || cls.class_id}
+                >
+                  {cls.name} ({cls.department})
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-green-800 font-semibold text-right">
+            To see who submitted the assignment and grade them, go to the grades
+            section.
+          </span>
         </div>
       </div>
 
@@ -490,15 +502,15 @@ const TeacherAssignments = () => {
       </div>
       {/* Create Assignment Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl">
-            <h2 className="text-xl font-bold mb-2">Create New Assignment</h2>
-            <AssignmentForm
-              onClose={() => setShowCreateModal(false)}
-              onSuccess={handleAssignmentCreated}
-            />
-          </div>
-        </div>
+        <Modal
+          title="Create New Assignment"
+          onClose={() => setShowCreateModal(false)}
+        >
+          <AssignmentForm
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleAssignmentCreated}
+          />
+        </Modal>
       )}
       {viewAssignment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

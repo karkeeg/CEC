@@ -81,13 +81,7 @@ const ClassForm = ({ user, onClose, onSuccess }) => {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4 w-full max-w-[600px] bg-white rounded-xl shadow-lg p-6"
-    >
-      <h2 className="text-2xl font-bold text-blue-700 mb-4 text-center">
-        Add New Class
-      </h2>
+    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-[600px]  ">
       {message && (
         <div className="text-green-600 text-center font-semibold mb-2">
           {message}

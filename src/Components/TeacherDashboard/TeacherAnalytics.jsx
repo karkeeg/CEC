@@ -5,6 +5,10 @@ import {
   getAllStudents,
   getAllAssignments,
   getAllClasses,
+  fetchAssignments,
+  fetchAssignmentSubmissions,
+  fetchAttendance,
+  getStudentsByClass,
 } from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
@@ -43,38 +47,20 @@ const TeacherAnalytics = () => {
   const [gradeData, setGradeData] = useState([]);
   const [classData, setClassData] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Score distribution state
+  const [scoreDistribution, setScoreDistribution] = useState([]);
+  // Performance overview state
+  const [performanceOverview, setPerformanceOverview] = useState([
+    { label: "Avg Grade", value: "-" },
+    { label: "Top Score", value: "-" },
+    { label: "Social", value: "-" },
+  ]);
+  // Absence alerts state
+  const [absenceAlerts, setAbsenceAlerts] = useState([]);
 
   // Demo state for filters
   const [semester, setSemester] = useState("Semester I");
-  const [selectedCourses, setSelectedCourses] = useState([
-    "Physics",
-    "Physics",
-    "Physics",
-  ]);
-
-  // Demo data for performance overview
-  const performanceOverview = [
-    { label: "Avg Grade", value: "90%" },
-    { label: "Top Score", value: "Alex 90%" },
-    { label: "Social", value: "89% total" },
-  ];
-
-  // Demo data for absence alerts
-  const absenceAlerts = [
-    { name: "Jhon", assignment: "92%" },
-    { name: "Surasa", assignment: "92%" },
-    { name: "Sai", assignment: "92%" },
-  ];
-
-  // Demo data for score distribution
-  const scoreDistribution = [
-    { course: "Math", marks: 20 },
-    { course: "C programming", marks: 15 },
-    { course: "English", marks: 45 },
-    { course: "Statistics", marks: 50 },
-    { course: "Statistics", marks: 50 },
-    { course: "Course", marks: 18 },
-  ];
+  const [selectedCourses, setSelectedCourses] = useState(["Physics"]);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -82,7 +68,7 @@ const TeacherAnalytics = () => {
       try {
         // Fetch all classes taught by this teacher
         const classesData = await getClassesByTeacher(user.id);
-        const classIds = (classesData || []).map((c) => c.id);
+        const classIds = (classesData || []).map((c) => c.class_id);
         // Fetch students whose class_id is in classIds
         let studentsCount = 0;
         if (classIds.length > 0) {
@@ -100,9 +86,197 @@ const TeacherAnalytics = () => {
           totalAssignments: assignmentsData?.length || 0,
           averageGrade: 0, // Set to 0 or mock unless you want to calculate real grades
         });
-        // Optionally, you can fetch and set attendanceData, gradeData, classData as needed
+        // --- Score Distribution: Real Data ---
+        // 1. Get all assignments for this teacher
+        const teacherAssignments = await fetchAssignments({
+          teacher_id: user.id,
+        });
+        // 2. For each assignment, fetch all submissions and their grades
+        const courseGrades = {};
+        // For performance overview
+        let allGrades = [];
+        let topStudent = null;
+        let topScore = -Infinity;
+        let studentScores = {}; // { studentName: [grades] }
+        for (const assignment of teacherAssignments) {
+          const subject =
+            assignment.subject?.name || assignment.subject || "Unknown";
+          const submissions = await fetchAssignmentSubmissions(assignment.id);
+          for (const submission of submissions) {
+            const gradeValue = submission.grade?.grade;
+            if (gradeValue !== undefined && gradeValue !== null) {
+              if (!courseGrades[subject]) {
+                courseGrades[subject] = [];
+              }
+              courseGrades[subject].push(Number(gradeValue));
+              // For performance overview
+              allGrades.push(Number(gradeValue));
+              const studentName = submission.student
+                ? `${submission.student.first_name || ""} ${
+                    submission.student.last_name || ""
+                  }`.trim()
+                : "Unknown";
+              if (!studentScores[studentName]) studentScores[studentName] = [];
+              studentScores[studentName].push(Number(gradeValue));
+              if (Number(gradeValue) > topScore) {
+                topScore = Number(gradeValue);
+                topStudent = studentName;
+              }
+            }
+          }
+        }
+        // 3. Aggregate: average grade per course
+        const scoreDistArr = Object.entries(courseGrades).map(
+          ([course, grades]) => ({
+            course,
+            marks:
+              grades.length > 0
+                ? grades.reduce((a, b) => a + b, 0) / grades.length
+                : 0,
+          })
+        );
+        setScoreDistribution(scoreDistArr);
+        // --- Performance Overview: Real Data ---
+        const avgGrade =
+          allGrades.length > 0
+            ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length
+            : 0;
+        const numAbove80 = allGrades.filter((g) => g >= 80).length;
+        const numGradedSubmissions = allGrades.length;
+        setPerformanceOverview([
+          { label: "Avg Grade", value: `${avgGrade.toFixed(1)}%` },
+          {
+            label: "Top Score",
+            value: topStudent ? `${topStudent} ${topScore}%` : "-",
+          },
+          { label: "Submissions Graded", value: `${numGradedSubmissions}` },
+        ]);
+        // --- Absence Alerts: Real Data ---
+        // 1. Fetch all students in the teacher's classes
+        let studentsData = [];
+        if (classIds.length > 0) {
+          studentsData = await getAllStudents();
+          studentsData = studentsData.filter((s) =>
+            classIds.includes(s.class_id)
+          );
+        }
+        // 2. Fetch all attendance records for these classes
+        let attendanceRecords = [];
+        if (classIds.length > 0) {
+          attendanceRecords = await fetchAttendance({ teacher_id: user.id });
+        }
+        // 3. Count absences per student
+        const absenceCount = {};
+        attendanceRecords.forEach((record) => {
+          if (record.status === "absent") {
+            absenceCount[record.student_id] =
+              (absenceCount[record.student_id] || 0) + 1;
+          }
+        });
+        // 4. Map to alert format and sort
+        const alerts = Object.entries(absenceCount)
+          .map(([studentId, absences]) => {
+            const student = studentsData.find((s) => s.id === studentId);
+            return {
+              name: student
+                ? `${student.first_name} ${student.last_name}`
+                : "Unknown",
+              absences,
+            };
+          })
+          .sort((a, b) => b.absences - a.absences)
+          .slice(0, 5); // Show top 5
+        setAbsenceAlerts(alerts);
+        // --- Attendance Trends: Last 30 Days ---
+        // 1. Get date range for last 30 days
+        const today = new Date();
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - (29 - i));
+          return d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+        });
+        // 2. Aggregate attendance by date
+        const attendanceByDate = {};
+        last30Days.forEach((date) => {
+          attendanceByDate[date] = { date, present: 0, absent: 0, late: 0 };
+        });
+        attendanceRecords.forEach((record) => {
+          const date = record.date;
+          if (attendanceByDate[date]) {
+            if (record.status === "present") attendanceByDate[date].present++;
+            else if (record.status === "absent")
+              attendanceByDate[date].absent++;
+            else if (record.status === "late") attendanceByDate[date].late++;
+          }
+        });
+        setAttendanceData(Object.values(attendanceByDate));
+        // --- Assignment Completion Rate & Class Performance ---
+        // For each class, calculate completion rate and student count
+        const classDataArr = [];
+        for (const classObj of classesData) {
+          const classId = classObj.class_id;
+          const className = classObj.name || "Class";
+          // Students in this class
+          const studentsInClass = studentsData.filter(
+            (s) => s.class_id === classId
+          );
+          const numStudents = studentsInClass.length;
+          // Assignments for this class
+          const assignmentsForClass = teacherAssignments.filter(
+            (a) => a.class_id === classId
+          );
+          const numAssignments = assignmentsForClass.length;
+          // Submissions for this class
+          let numSubmissions = 0;
+          for (const assignment of assignmentsForClass) {
+            const submissions = await fetchAssignmentSubmissions(assignment.id);
+            numSubmissions += submissions.length;
+          }
+          // Completion rate: submissions / (assignments * students)
+          let completionRate = 0;
+          if (numAssignments > 0 && numStudents > 0) {
+            completionRate =
+              (numSubmissions / (numAssignments * numStudents)) * 100;
+          }
+          classDataArr.push({
+            name: className,
+            completionRate: Number(completionRate.toFixed(1)),
+            students: numStudents,
+          });
+        }
+        setClassData(classDataArr);
+        // --- Class Performance Multi-Bar Chart Data ---
+        const classPerformanceArr = [];
+        for (const classObj of classesData) {
+          const classId = classObj.class_id;
+          const className = classObj.name || "Class";
+          // Students in this class
+          const studentsInClass = await getStudentsByClass(classId);
+          const numStudents = studentsInClass.length;
+          // Assignments for this class
+          const assignmentsForClass = teacherAssignments.filter(
+            (a) => a.class_id === classId
+          );
+          const numAssignments = assignmentsForClass.length;
+          // Attendance for this class
+          const attendanceForClass = attendanceRecords.filter(
+            (rec) => rec.class_id === classId
+          );
+          const presentCount = attendanceForClass.filter(
+            (rec) => rec.status === "present"
+          ).length;
+          const totalAttendance = attendanceForClass.length;
+          const attendanceRate =
+            totalAttendance > 0 ? (presentCount / totalAttendance) * 100 : 0;
+          classPerformanceArr.push({
+            name: className,
+            students: numStudents,
+            assignments: numAssignments,
+            attendanceRate: Number(attendanceRate.toFixed(1)),
+          });
+        }
+        setClassData(classPerformanceArr);
       } catch (error) {
-        console.error("Error fetching analytics:", error);
       } finally {
         setLoading(false);
       }
@@ -128,32 +302,38 @@ const TeacherAnalytics = () => {
   }
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Top Bar: Analytics Title, Export PDF */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <div className="flex items-center gap-2 mb-4 md:mb-0">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-2 min-w-0">
+        <div className="flex items-center gap-2 mb-4 md:mb-0 min-w-0">
           <FaChartLine className="text-2xl text-gray-700 mr-2" />
-          <h1 className="text-3xl font-bold text-gray-800">Analytics</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 break-words min-w-0">
+            Analytics
+          </h1>
         </div>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg flex items-center gap-2 font-semibold shadow">
+        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 rounded-lg flex items-center gap-2 font-semibold shadow w-full md:w-auto justify-center">
           Export pdf <FaFileExport />
         </button>
       </div>
       {/* Filters Row */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-        <div className="flex items-center gap-3">
-          <span className="font-semibold text-lg text-gray-700">Semester</span>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="font-semibold text-base sm:text-lg text-gray-700">
+            Semester
+          </span>
           <select
             value={semester}
             onChange={(e) => setSemester(e.target.value)}
-            className="bg-blue-100 text-blue-900 px-4 py-2 rounded font-semibold"
+            className="bg-blue-100 text-blue-900 px-3 sm:px-4 py-2 rounded font-semibold"
           >
             <option>Semester I</option>
             <option>Semester II</option>
           </select>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-semibold text-lg text-gray-700">Courses:</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="font-semibold text-base sm:text-lg text-gray-700">
+            Courses:
+          </span>
           {selectedCourses.map((course, idx) => (
             <select
               key={idx}
@@ -163,7 +343,7 @@ const TeacherAnalytics = () => {
                 newCourses[idx] = e.target.value;
                 setSelectedCourses(newCourses);
               }}
-              className="bg-blue-100 text-blue-900 px-4 py-2 rounded font-semibold"
+              className="bg-blue-100 text-blue-900 px-3 sm:px-4 py-2 rounded font-semibold"
             >
               <option>Physics</option>
               <option>Math</option>
@@ -178,87 +358,91 @@ const TeacherAnalytics = () => {
       {/* Summary Section: Stat Cards */}
       <div className="mb-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 min-w-0">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md min-w-0">
+            <div className="flex items-center justify-between min-w-0">
+              <div className="min-w-0">
+                <p className="text-gray-600 text-xs sm:text-sm font-medium">
                   Total Students
                 </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 mt-2 break-words">
                   {analytics.totalStudents}
                 </p>
               </div>
-              <div className="p-3 bg-blue-500 rounded-full">
-                <FaUsers className="text-white text-xl" />
+              <div className="p-2 sm:p-3 bg-blue-500 rounded-full">
+                <FaUsers className="text-white text-lg sm:text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md min-w-0">
+            <div className="flex items-center justify-between min-w-0">
+              <div className="min-w-0">
+                <p className="text-gray-600 text-xs sm:text-sm font-medium">
                   Total Classes
                 </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 mt-2 break-words">
                   {analytics.totalClasses}
                 </p>
               </div>
-              <div className="p-3 bg-green-500 rounded-full">
-                <FaBook className="text-white text-xl" />
+              <div className="p-2 sm:p-3 bg-green-500 rounded-full">
+                <FaBook className="text-white text-lg sm:text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Assignments</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md min-w-0">
+            <div className="flex items-center justify-between min-w-0">
+              <div className="min-w-0">
+                <p className="text-gray-600 text-xs sm:text-sm font-medium">
+                  Assignments
+                </p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 mt-2 break-words">
                   {analytics.totalAssignments}
                 </p>
               </div>
-              <div className="p-3 bg-purple-500 rounded-full">
-                <FaGraduationCap className="text-white text-xl" />
+              <div className="p-2 sm:p-3 bg-purple-500 rounded-full">
+                <FaGraduationCap className="text-white text-lg sm:text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Avg Grade</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md min-w-0">
+            <div className="flex items-center justify-between min-w-0">
+              <div className="min-w-0">
+                <p className="text-gray-600 text-xs sm:text-sm font-medium">
+                  Avg Grade
+                </p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 mt-2 break-words">
                   {analytics.averageGrade}%
                 </p>
               </div>
-              <div className="p-3 bg-orange-500 rounded-full">
-                <FaChartLine className="text-white text-xl" />
+              <div className="p-2 sm:p-3 bg-orange-500 rounded-full">
+                <FaChartLine className="text-white text-lg sm:text-xl" />
               </div>
             </div>
           </div>
         </div>
       </div>
       {/* Main Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 min-w-0">
         {/* Left Column: Performance Overview & Absence Alerts */}
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4 sm:gap-8 min-w-0">
           {/* Performance Overview */}
-          <div className="bg-blue-100 rounded-xl p-6 shadow flex flex-col items-center">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <div className="bg-blue-100 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center min-w-0">
+            <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4">
               Performance overview
             </h2>
-            <div className="flex flex-row gap-6">
+            <div className="flex flex-row gap-2 min-w-0">
               {performanceOverview.map((item, idx) => (
                 <div
                   key={idx}
-                  className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4 flex flex-col items-center min-w-[110px]"
+                  className="bg-blue-50 border border-blue-200 rounded-lg px-2 sm:px-3 py-2 flex flex-col items-center min-w-[90px] sm:min-w-[110px] min-w-0"
                 >
-                  <span className="text-md text-gray-600 font-medium mb-1">
+                  <span className="text-xs sm:text-md text-gray-600 font-medium mb-1">
                     {item.label}
                   </span>
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-lg sm:text-2xl font-bold text-center text-gray-900 break-words">
                     {item.value}
                   </span>
                 </div>
@@ -266,37 +450,53 @@ const TeacherAnalytics = () => {
             </div>
           </div>
           {/* Absence Alerts */}
-          <div className="bg-blue-100 rounded-xl p-6 shadow">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <div className="bg-blue-100 rounded-xl p-3 sm:p-6 shadow overflow-x-auto min-w-0">
+            <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4">
               Absence Alerts
             </h2>
-            <table className="w-full rounded overflow-hidden">
-              <thead>
-                <tr className="bg-cyan-900 text-white">
-                  <th className="py-2 px-4 text-left">Student Name</th>
-                  <th className="py-2 px-4 text-left">Assignment</th>
-                  <th className="py-2 px-4 text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {absenceAlerts.map((row, idx) => (
-                  <tr key={idx} className="bg-blue-50 border-b last:border-b-0">
-                    <td className="py-2 px-4">{row.name}</td>
-                    <td className="py-2 px-4">{row.assignment}</td>
-                    <td className="py-2 px-4">
-                      <button className="bg-blue-200 hover:bg-blue-300 text-blue-900 px-3 py-1 rounded font-semibold text-sm">
-                        Send
-                      </button>
-                    </td>
+            <div className="overflow-x-auto min-w-0">
+              <table className="w-full rounded overflow-x-auto min-w-0">
+                <thead>
+                  <tr className="bg-cyan-900 text-white">
+                    <th className="py-2 px-2 sm:px-4 text-left text-xs sm:text-base">
+                      Student Name
+                    </th>
+                    <th className="py-2 px-2 sm:px-4 text-left text-xs sm:text-base">
+                      Absences
+                    </th>
+                    <th className="py-2 px-2 sm:px-4 text-left text-xs sm:text-base">
+                      Action
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {absenceAlerts.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={
+                        (idx % 2 === 0 ? "bg-blue-50" : "bg-blue-100") +
+                        " border-b last:border-b-0"
+                      }
+                    >
+                      <td className="py-2 px-2 sm:px-4 break-words">
+                        {row.name}
+                      </td>
+                      <td className="py-2 px-2 sm:px-4">{row.absences}</td>
+                      <td className="py-2 px-2 sm:px-4">
+                        <button className="bg-blue-200 hover:bg-blue-300 text-blue-900 px-2 sm:px-3 py-1 rounded font-semibold text-xs sm:text-sm">
+                          Send
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
         {/* Right Column: Score Distribution Chart */}
-        <div className="bg-blue-50 rounded-xl p-6 shadow flex flex-col">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-blue-50 rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 overflow-x-auto">
+          <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4 flex items-center gap-2">
             <span className="inline-block">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -315,119 +515,123 @@ const TeacherAnalytics = () => {
             </span>
             Score Distribution
           </h2>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart
-              data={scoreDistribution}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis
-                dataKey="course"
-                label={{
-                  value: "Course",
-                  position: "insideBottomRight",
-                  offset: 0,
-                }}
-              />
-              <YAxis
-                label={{ value: "Marks", angle: -90, position: "insideLeft" }}
-                domain={[0, 100]}
-              />
-              <Tooltip />
-              <Bar
-                dataKey="marks"
-                fill="#1E90FF"
-                barSize={40}
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full min-w-0 overflow-x-auto">
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={scoreDistribution}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <XAxis
+                  dataKey="course"
+                  label={{
+                    value: "Course",
+                    position: "insideBottomRight",
+                    offset: 0,
+                  }}
+                />
+                <YAxis
+                  label={{ value: "Marks", angle: -90, position: "insideLeft" }}
+                  domain={[0, 100]}
+                />
+                <Tooltip />
+                <Bar
+                  dataKey="marks"
+                  fill="#1E90FF"
+                  barSize={40}
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
       {/* Charts Section: Attendance, Grade, Class Performance, etc. */}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-4 mb-8 min-w-0">
         {/* Attendance Mountain Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-4">
             Attendance Trends (Last 30 Days)
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart
-              data={attendanceData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="present"
-                stroke="#10B981"
-                fillOpacity={1}
-                fill="url(#colorPresent)"
-              />
-              <Area
-                type="monotone"
-                dataKey="absent"
-                stroke="#EF4444"
-                fill="#fee2e2"
-              />
-              <Area
-                type="monotone"
-                dataKey="late"
-                stroke="#F59E0B"
-                fill="#fef3c7"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Assignment Completion Ladder Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Assignment Completion Rate (Step/Ladder Chart)
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart
-              data={classData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="stepAfter"
-                dataKey="completionRate"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <div className="w-full min-w-0 overflow-x-auto">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart
+                data={attendanceData}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="present"
+                  stroke="#10B981"
+                  fillOpacity={1}
+                  fill="url(#colorPresent)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="absent"
+                  stroke="#EF4444"
+                  fill="#fee2e2"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="late"
+                  stroke="#F59E0B"
+                  fill="#fef3c7"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Class Performance */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-4">
             Class Performance
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={classData}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="students" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full min-w-0 overflow-x-auto">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={classData}>
+                <XAxis dataKey="name" />
+                <YAxis yAxisId="left" orientation="left" />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tickFormatter={(v) => `${v}%`}
+                />
+                <Tooltip />
+                <Legend />
+                <Bar
+                  yAxisId="left"
+                  dataKey="students"
+                  fill="#3B82F6"
+                  name="Students"
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="assignments"
+                  fill="#10B981"
+                  name="Assignments"
+                />
+                <Bar
+                  yAxisId="right"
+                  dataKey="attendanceRate"
+                  fill="#F59E0B"
+                  name="Attendance Rate (%)"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>

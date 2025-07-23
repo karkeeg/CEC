@@ -41,14 +41,14 @@ const Modal = ({ title, children, onClose }) => (
         <h2>{title}</h2>
         <button
           onClick={onClose}
-          className="text-white hover:text-red-300 text-xl"
+          className="text-white hover:text-red-200 text-xl"
         >
           ✕
         </button>
       </div>
 
       {/* Modal Body */}
-      <div className="px-6 py-4">{children}</div>
+      <div className="px-6 py-4 bg-[#EEF0FD]">{children}</div>
     </div>
   </div>
 );

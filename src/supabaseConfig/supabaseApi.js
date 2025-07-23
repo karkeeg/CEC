@@ -143,12 +143,15 @@ export const fetchAssignments = async (filters = {}) => {
 };
 
 export const fetchAssignmentSubmissions = async (assignmentId) => {
-  const { data, error } = await supabase
+  let query = supabase
     .from("submissions")
     .select(
-      `id, assignment_id, class_id, student_id, submitted_at, files, notes, grade, feedback, student:student_id (first_name, middle_name, last_name, email)`
-    ) // join student
-    .eq("assignment_id", assignmentId);
+      `id, assignment_id, class_id, student_id, submitted_at, files, notes, student:student_id (first_name, middle_name, last_name, email), grade:grades(id, grade, feedback, rated_at, rated_by)`
+    ); // join student and grades
+  if (assignmentId) {
+    query = query.eq("assignment_id", assignmentId);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return data;
 };
@@ -470,6 +473,15 @@ export const createClass = async (classData) => {
   return await supabase.from("classes").insert([classData]);
 };
 
+export const updateClass = async (classId, updates) => {
+  const { error } = await supabase
+    .from("classes")
+    .update(updates)
+    .eq("class_id", classId)
+    .select();
+  return error;
+};
+
 export const getStudentCountByClass = async (classId) => {
   const { count, error } = await supabase
     .from("student_classes")
@@ -557,5 +569,31 @@ export const fetchNotifications = async () => {
     .from("notifications")
     .select("*")
     .order("date", { ascending: false });
+  return { data, error };
+};
+
+export const createGrade = async (grade) => {
+  const { data, error } = await supabase
+    .from("grades")
+    .insert([grade])
+    .select();
+  return { data, error };
+};
+
+export const updateGrade = async (gradeId, updates) => {
+  const { data, error } = await supabase
+    .from("grades")
+    .update(updates)
+    .eq("id", gradeId)
+    .select();
+  return { data, error };
+};
+
+export const getGradeBySubmissionId = async (submissionId) => {
+  const { data, error } = await supabase
+    .from("grades")
+    .select("*")
+    .eq("submission_id", submissionId)
+    .single();
   return { data, error };
 };

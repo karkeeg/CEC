@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
-  getAllTeacherDepartments,
   getAllTeachers,
   getAllDepartments,
   getAllSubjects,
   getAllAssignments,
 } from "../../supabaseConfig/supabaseApi";
+import supabase from "../../supabaseConfig/supabaseClient";
 import {
   BarChart,
   Bar,
@@ -30,8 +30,12 @@ const TeacherDashboard = () => {
     const fetchStatsAndTeachers = async () => {
       setLoading(true);
       // Fetch teachers for table/chart
-      const teacherDepts = await getAllTeacherDepartments();
-      setTeachers(teacherDepts);
+      const { data: teacherData, error } = await supabase
+        .from("teachers")
+        .select(
+          "id, first_name, middle_name, last_name, email, teacher_department, department:teacher_department(id, name)"
+        );
+      setTeachers(teacherData || []);
       // Fetch stats
       const [teachersData, departmentsData, subjectsData, assignmentsData] =
         await Promise.all([
@@ -50,20 +54,18 @@ const TeacherDashboard = () => {
   }, []);
 
   const filtered = teachers.filter((t) =>
-    `${t.teacher?.first_name ?? ""} ${t.teacher?.middle_name ?? ""} ${
-      t.teacher?.last_name ?? ""
-    }`
+    `${t.first_name ?? ""} ${t.middle_name ?? ""} ${t.last_name ?? ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  const groupedBySubject = filtered.reduce((acc, t) => {
-    const subject = t.department?.name || "Unknown";
-    acc[subject] = (acc[subject] || 0) + 1;
+  const groupedByDepartment = filtered.reduce((acc, t) => {
+    const department = t.department?.name || "Unknown";
+    acc[department] = (acc[department] || 0) + 1;
     return acc;
   }, {});
 
-  const subjectChartData = Object.entries(groupedBySubject).map(
+  const departmentChartData = Object.entries(groupedByDepartment).map(
     ([name, count]) => ({ name, count })
   );
 
@@ -134,10 +136,9 @@ const TeacherDashboard = () => {
               {filtered.slice(0, visibleCount).map((t, idx) => (
                 <tr key={idx} className="text-center border-t">
                   <td className="px-4 py-2">
-                    {t.teacher?.first_name} {t.teacher?.middle_name ?? ""}{" "}
-                    {t.teacher?.last_name}
+                    {t.first_name} {t.middle_name ?? ""} {t.last_name}
                   </td>
-                  <td className="px-4 py-2">{t.teacher?.email}</td>
+                  <td className="px-4 py-2">{t.email}</td>
                   <td className="px-4 py-2">
                     {t.department?.name || "Unknown"}
                   </td>
@@ -159,9 +160,9 @@ const TeacherDashboard = () => {
 
       {/* Chart Section */}
       <div className="bg-white p-4 shadow rounded mb-10">
-        <h2 className="text-xl font-semibold mb-4">Teachers by Subject</h2>
+        <h2 className="text-xl font-semibold mb-4">Teachers by Department</h2>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={subjectChartData}>
+          <BarChart data={departmentChartData}>
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />

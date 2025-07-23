@@ -31,6 +31,8 @@ import {
 } from "recharts";
 import { AssignmentForm } from "../Forms/AssignmentForm";
 import AttendanceForm from "./AttendanceForm";
+import GradeAssignmentsModal from "../Forms/GradeAssignmentsModal";
+import Modal from "../Modal";
 
 const TeacherMainDashboard = () => {
   const { user } = useUser();
@@ -395,39 +397,29 @@ const TeacherMainDashboard = () => {
         </div>
       </div>
 
-      {/* Assignment Modal */}
       {showAssignmentModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Create New Assignment</h2>
-              <button
-                onClick={() => setShowAssignmentModal(false)}
-                className="text-gray-500 hover:text-red-500 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <AssignmentForm
-              onClose={() => setShowAssignmentModal(false)}
-              onSuccess={() => setShowAssignmentModal(false)}
-            />
-          </div>
-        </div>
+        <Modal
+          title="Create New Assignment"
+          onClose={() => setShowAssignmentModal(false)}
+        >
+          <AssignmentForm
+            onClose={() => setShowAssignmentModal(false)}
+            onSuccess={() => setShowAssignmentModal(false)}
+          />
+        </Modal>
       )}
-      {/* Attendance Modal */}
       {showAttendanceModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
-            <AttendanceForm
-              user={user}
-              onClose={() => setShowAttendanceModal(false)}
-              onSuccess={() => setShowAttendanceModal(false)}
-            />
-          </div>
-        </div>
+        <Modal
+          title="Take Attendance"
+          onClose={() => setShowAttendanceModal(false)}
+        >
+          <AttendanceForm
+            user={user}
+            onClose={() => setShowAttendanceModal(false)}
+            onSuccess={() => setShowAttendanceModal(false)}
+          />
+        </Modal>
       )}
-      {/* Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
@@ -465,14 +457,16 @@ const TeacherMainDashboard = () => {
           </div>
         </div>
       )}
-      {/* Grade Assignments Modal */}
       {showGradeModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl">
-            {/* Replace with your actual grade assignments component */}
-            <GradeAssignments onClose={() => setShowGradeModal(false)} />
-          </div>
-        </div>
+        <Modal
+          title="Grade Assignments"
+          onClose={() => setShowGradeModal(false)}
+        >
+          <GradeAssignmentsModal
+            user={user}
+            onClose={() => setShowGradeModal(false)}
+          />
+        </Modal>
       )}
     </div>
   );

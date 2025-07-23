@@ -6,6 +6,7 @@ import {
   getStudentCountByClass,
   getStudentsByClass,
   removeStudentFromClass,
+  updateClass,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
@@ -31,6 +32,7 @@ import {
 } from "recharts";
 import ManageEnrollmentForm from "../Forms/ManageEnrollmentForm";
 import ClassForm from "../Forms/ClassForm";
+import Modal from "../Modal";
 
 const TeacherClasses = () => {
   const { user } = useUser();
@@ -45,6 +47,7 @@ const TeacherClasses = () => {
   const [detailsModalStudents, setDetailsModalStudents] = useState([]);
   const [detailsModalLoading, setDetailsModalLoading] = useState(false);
   const [showAllStudents, setShowAllStudents] = useState(false);
+  const [editCapacity, setEditCapacity] = useState(null);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -361,6 +364,7 @@ const TeacherClasses = () => {
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
                         onClick={async () => {
                           setDetailsModalClass(cls);
+                          setEditCapacity(cls.capacity);
                           setDetailsModalLoading(true);
                           const students = await getStudentsByClass(
                             cls.class_id || cls.id
@@ -501,139 +505,179 @@ const TeacherClasses = () => {
       </div>
       {/* Enrollment Modal */}
       {enrollmentModalClassId && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
-            <ManageEnrollmentForm
-              user={user}
-              classId={enrollmentModalClassId}
-              onClose={() => setEnrollmentModalClassId(null)}
-              onSuccess={() => {
-                setEnrollmentModalClassId(null);
-                setRefresh((r) => !r);
-              }}
-            />
-          </div>
-        </div>
+        <Modal
+          title="Manage Enrollment"
+          onClose={() => setEnrollmentModalClassId(null)}
+        >
+          <ManageEnrollmentForm
+            user={user}
+            classId={enrollmentModalClassId}
+            classCapacity={
+              classes.find(
+                (c) =>
+                  c.class_id === enrollmentModalClassId ||
+                  c.id === enrollmentModalClassId
+              )?.capacity
+            }
+            currentEnrolled={
+              classes.find(
+                (c) =>
+                  c.class_id === enrollmentModalClassId ||
+                  c.id === enrollmentModalClassId
+              )?.studentCount
+            }
+            onClose={() => setEnrollmentModalClassId(null)}
+            onSuccess={() => {
+              setEnrollmentModalClassId(null);
+              setRefresh((r) => !r);
+            }}
+          />
+        </Modal>
       )}
       {showAddClassModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
-            <ClassForm
-              user={user}
-              onClose={() => setShowAddClassModal(false)}
-              onSuccess={() => {
-                setShowAddClassModal(false);
-                setRefresh((r) => !r);
-              }}
-            />
-          </div>
-        </div>
+        <Modal title="Add Class" onClose={() => setShowAddClassModal(false)}>
+          <ClassForm
+            user={user}
+            onClose={() => setShowAddClassModal(false)}
+            onSuccess={() => {
+              setShowAddClassModal(false);
+              setRefresh((r) => !r);
+            }}
+          />
+        </Modal>
       )}
       {detailsModalClass && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl"
-              onClick={() => setDetailsModalClass(null)}
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-2">Class Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-              <div>
-                <strong>Name:</strong> {detailsModalClass.name}
-              </div>
-              <div>
-                <strong>Year:</strong> {detailsModalClass.year}
-              </div>
-              <div>
-                <strong>Semester:</strong> {detailsModalClass.semester}
-              </div>
-              <div>
-                <strong>Room:</strong> {detailsModalClass.room_no}
-              </div>
-              <div>
-                <strong>Capacity:</strong> {detailsModalClass.capacity}
-              </div>
-              <div>
-                <strong>Subject:</strong> {detailsModalClass.subject_id}
-              </div>
-              <div>
-                <strong>Schedule:</strong> {detailsModalClass.schedule}
-              </div>
-              <div>
-                <strong>Description:</strong> {detailsModalClass.description}
-              </div>
-              <div>
-                <strong>Department:</strong> {detailsModalClass.department}
-              </div>
+        <Modal title="Class Details" onClose={() => setDetailsModalClass(null)}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+            <div>
+              <strong>Name:</strong> {detailsModalClass.name}
             </div>
-            <h3 className="text-lg font-semibold mb-2 mt-4">
-              Enrolled Students
-            </h3>
-            {detailsModalLoading ? (
-              <div>Loading students...</div>
-            ) : detailsModalStudents.length === 0 ? (
-              <div className="text-gray-500">
-                No students enrolled in this class.
-              </div>
-            ) : (
-              <div className="w-full max-h-64 overflow-y-auto border rounded mb-2">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {detailsModalStudents.map((s) => (
-                      <tr key={s.student.id}>
-                        <td className="px-4 py-2">
-                          {s.student.first_name} {s.student.middle_name || ""}{" "}
-                          {s.student.last_name}
-                        </td>
-                        <td className="px-4 py-2">
-                          <button
-                            className="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded text-xs"
-                            onClick={async () => {
-                              if (
-                                !window.confirm(
-                                  "Remove this student from the class?"
-                                )
-                              )
-                                return;
-                              await removeStudentFromClass(
-                                s.student.id,
-                                detailsModalClass.class_id ||
-                                  detailsModalClass.id
-                              );
-                              // Refresh student list
-                              setDetailsModalLoading(true);
-                              const students = await getStudentsByClass(
-                                detailsModalClass.class_id ||
-                                  detailsModalClass.id
-                              );
-                              setDetailsModalStudents(students || []);
-                              setDetailsModalLoading(false);
-                              setRefresh((r) => !r);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div>
+              <strong>Year:</strong> {detailsModalClass.year}
+            </div>
+            <div>
+              <strong>Semester:</strong> {detailsModalClass.semester}
+            </div>
+            <div>
+              <strong>Room:</strong> {detailsModalClass.room_no}
+            </div>
+            <div>
+              <strong>Capacity:</strong>{" "}
+              {editCapacity !== null ? (
+                <>
+                  <input
+                    type="number"
+                    min="1"
+                    className="border px-2 py-1 rounded w-20 mr-2"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                  />
+                  <button
+                    className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                    onClick={async () => {
+                      await updateClass(
+                        detailsModalClass.class_id || detailsModalClass.id,
+                        { capacity: Number(editCapacity) }
+                      );
+                      setEditCapacity(null);
+                      setRefresh((r) => !r);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="ml-2 text-xs text-gray-500 hover:text-gray-800"
+                    onClick={() => setEditCapacity(null)}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {detailsModalClass.capacity}
+                  <button
+                    className="ml-2 text-xs text-blue-600 underline"
+                    onClick={() => setEditCapacity(detailsModalClass.capacity)}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
+            <div>
+              <strong>Subject:</strong> {detailsModalClass.subject_id}
+            </div>
+            <div>
+              <strong>Schedule:</strong> {detailsModalClass.schedule}
+            </div>
+            <div>
+              <strong>Description:</strong> {detailsModalClass.description}
+            </div>
+            <div>
+              <strong>Department:</strong> {detailsModalClass.department}
+            </div>
           </div>
-        </div>
+          <h3 className="text-lg font-semibold mb-2 mt-4">Enrolled Students</h3>
+          {detailsModalLoading ? (
+            <div>Loading students...</div>
+          ) : detailsModalStudents.length === 0 ? (
+            <div className="text-gray-500">
+              No students enrolled in this class.
+            </div>
+          ) : (
+            <div className="w-full max-h-64 overflow-y-auto border rounded mb-2">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {detailsModalStudents.map((s) => (
+                    <tr key={s.student.id}>
+                      <td className="px-4 py-2">
+                        {s.student.first_name} {s.student.middle_name || ""}{" "}
+                        {s.student.last_name}
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          className="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded text-xs"
+                          onClick={async () => {
+                            if (
+                              !window.confirm(
+                                "Remove this student from the class?"
+                              )
+                            )
+                              return;
+                            await removeStudentFromClass(
+                              s.student.id,
+                              detailsModalClass.class_id || detailsModalClass.id
+                            );
+                            // Refresh student list
+                            setDetailsModalLoading(true);
+                            const students = await getStudentsByClass(
+                              detailsModalClass.class_id || detailsModalClass.id
+                            );
+                            setDetailsModalStudents(students || []);
+                            setDetailsModalLoading(false);
+                            setRefresh((r) => !r);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );

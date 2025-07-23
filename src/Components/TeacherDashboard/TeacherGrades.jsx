@@ -8,6 +8,8 @@ import {
   getStudentsByClass,
   createAttendance,
   getSubjects,
+  updateGrade,
+  createGrade,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaSearch,
@@ -60,6 +62,7 @@ const TeacherGrades = () => {
       if (!user?.id) return;
       try {
         const assignmentData = await getAssignmentsByTeacher(user.id);
+        console.log("[DEBUG] Assignments fetched:", assignmentData);
         setAssignments(assignmentData || []);
         if (assignmentData && assignmentData.length > 0) {
           setSelectedAssignment(assignmentData[0].id);
@@ -77,7 +80,7 @@ const TeacherGrades = () => {
         }));
         setGradeCompletion(completion);
       } catch (error) {
-        console.error("Error fetching assignments:", error);
+        console.error("[DEBUG] Error fetching assignments:", error);
       } finally {
         setLoading(false);
       }
@@ -87,31 +90,49 @@ const TeacherGrades = () => {
 
   useEffect(() => {
     const fetchSubmissions = async () => {
-      if (!selectedAssignment) return;
       try {
-        const submissionData = await getAssignmentSubmissions(
-          selectedAssignment
-        );
-        console.log("Fetched submissions:", submissionData); // DEBUG
+        let submissionData = [];
+        if (!selectedAssignment) {
+          // Fetch all submissions for all assignments by this teacher
+          const allAssignments = await getAssignmentsByTeacher(user.id);
+          console.log("[DEBUG] All assignments for teacher:", allAssignments);
+          const allSubmissions = await getAssignmentSubmissions();
+          console.log("[DEBUG] All submissions:", allSubmissions);
+          // Only include submissions for assignments by this teacher
+          const teacherAssignmentIds = (allAssignments || []).map((a) => a.id);
+          submissionData = (allSubmissions || []).filter((s) =>
+            teacherAssignmentIds.includes(s.assignment_id)
+          );
+        } else {
+          // Fetch submissions for the selected assignment
+          submissionData = await getAssignmentSubmissions(selectedAssignment);
+          console.log(
+            "[DEBUG] Submissions for assignment",
+            selectedAssignment,
+            ":",
+            submissionData
+          );
+        }
         setSubmissions(submissionData || []);
         // Initialize grades state
         const initialGrades = {};
         submissionData?.forEach((submission) => {
           initialGrades[submission.id] = {
-            grade: submission.grade || "",
-            feedback: submission.feedback || "",
+            grade: submission.grade?.grade || "",
+            feedback: submission.grade?.feedback || "",
+            gradeId: submission.grade?.id || null,
           };
         });
         setGrades(initialGrades);
+        console.log("[DEBUG] Grades state initialized:", initialGrades);
         if (!submissionData || submissionData.length === 0) {
-          alert("No submissions found for this assignment.");
         }
       } catch (error) {
-        console.error("Error fetching submissions:", error);
+        console.error("[DEBUG] Error fetching submissions:", error);
       }
     };
     fetchSubmissions();
-  }, [selectedAssignment]);
+  }, [selectedAssignment, user]);
 
   // Remove attendance-related imports, state, effects, and UI from this file.
   // Only keep assignment grading logic and UI.
@@ -129,22 +150,34 @@ const TeacherGrades = () => {
   const handleSaveGrades = async () => {
     setSaving(true);
     try {
-      const updates = Object.entries(grades).map(
-        ([submissionId, gradeData]) => ({
-          id: submissionId,
-          grade: gradeData.grade ? parseInt(gradeData.grade) : null,
-          feedback: gradeData.feedback,
-        })
-      );
-      for (const update of updates) {
-        await updateAssignmentSubmissionGrade(update.id, {
-          grade: update.grade,
-          feedback: update.feedback,
-        });
+      for (const [submissionId, gradeData] of Object.entries(grades)) {
+        console.log(
+          "[DEBUG] Saving grade for submission:",
+          submissionId,
+          gradeData
+        );
+        if (gradeData.gradeId) {
+          // Update existing grade
+          const { data, error } = await updateGrade(gradeData.gradeId, {
+            grade: gradeData.grade ? parseInt(gradeData.grade) : null,
+            feedback: gradeData.feedback,
+            rated_at: new Date().toISOString(),
+          });
+          console.log("[DEBUG] updateGrade response:", data, error);
+        } else {
+          // Create new grade
+          const { data, error } = await createGrade({
+            submission_id: submissionId,
+            grade: gradeData.grade ? parseInt(gradeData.grade) : null,
+            feedback: gradeData.feedback,
+            rated_at: new Date().toISOString(),
+          });
+          console.log("[DEBUG] createGrade response:", data, error);
+        }
       }
       alert("Grades saved successfully!");
     } catch (error) {
-      console.error("Error saving grades:", error);
+      console.error("[DEBUG] Error saving grades:", error);
       alert("Failed to save grades");
     } finally {
       setSaving(false);
@@ -226,19 +259,19 @@ const TeacherGrades = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>
         <p className="text-gray-600">Manage and grade student assignments</p>
-        {/* Assignment Selection and Search */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        {/* Combined Filter and Submissions Table Section */}
+        <div className="bg-blue-50 p-6 rounded-2xl shadow mb-8 border border-blue-100">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-0 md:mr-2">
                 Select Assignment
               </label>
               <select
                 value={selectedAssignment}
                 onChange={(e) => setSelectedAssignment(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="">Select an assignment</option>
+                <option value="">All Assignments</option>
                 {assignments.map((assignment) => (
                   <option key={assignment.id} value={assignment.id}>
                     {assignment.title} - {assignment.class?.name}
@@ -246,118 +279,170 @@ const TeacherGrades = () => {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col justify-end">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
+              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-0 md:mr-2">
                 Search Student
               </label>
-              <div className="relative">
+              <div className="relative w-full md:w-64">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search students by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
             </div>
           </div>
-        </div>
-
-        {/* List of students who submitted the selected assignment */}
-        {selectedAssignment && (
-          <div className="bg-blue-100 p-6 rounded-xl shadow mt-6">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-800">
-                {selectedAssignmentData?.title} - Submitted Students
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Total Submissions: {filteredSubmissions.length}
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+          <div className="mt-2 text-blue-700 text-sm font-medium mb-4">
+            Select an assignment to see who submitted and grade them, or choose
+            'All Assignments' to see all submissions.
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assignment
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Student
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Submitted At
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48 max-w-xs truncate">
+                    Notes
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredSubmissions.length === 0 ? (
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Submitted At
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Notes
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <td
+                      colSpan="5"
+                      className="px-2 py-4 text-center text-gray-500"
+                    >
+                      No submissions found
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSubmissions.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="4"
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        No submissions found
+                ) : (
+                  filteredSubmissions.map((submission, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-2 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {assignments.find(
+                            (a) => a.id === submission.assignment_id
+                          )?.title || "-"}
+                        </span>
                       </td>
-                    </tr>
-                  ) : (
-                    filteredSubmissions.map((submission, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                              <span className="text-white font-semibold text-sm">
-                                {submission.student?.first_name?.charAt(0) ||
-                                  "S"}
-                              </span>
+                      <td className="px-2 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {submission.student?.first_name?.charAt(0) || "S"}
+                            </span>
+                          </div>
+                          <div className="ml-2">
+                            <div className="text-sm font-medium text-gray-900">
+                              {submission.student?.first_name}{" "}
+                              {submission.student?.middle_name || ""}{" "}
+                              {submission.student?.last_name}
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {submission.student?.first_name}{" "}
-                                {submission.student?.middle_name || ""}{" "}
-                                {submission.student?.last_name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {submission.student?.email}
-                              </div>
+                            <div className="text-sm text-gray-500">
+                              {submission.student?.email}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {submission.submitted_at
-                            ? new Date(
-                                submission.submitted_at
-                              ).toLocaleDateString()
-                            : "Not submitted"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {submission.notes || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                            onClick={() => {
-                              setShowGradeModal(true);
-                              setModalSubmission(submission);
-                              setModalFeedback(submission.feedback || "");
-                              setModalRating("");
-                              setModalGrade(submission.grade || "");
-                            }}
-                          >
-                            Give Feedback & Grade
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                        </div>
+                      </td>
+                      <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {submission.submitted_at
+                          ? new Date(
+                              submission.submitted_at
+                            ).toLocaleDateString()
+                          : "Not submitted"}
+                      </td>
+                      <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-48 max-w-xs truncate overflow-hidden">
+                        {submission.notes || "-"}
+                      </td>
+                      <td className="px-2 py-4 whitespace-nowrap">
+                        <button
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                          onClick={() => {
+                            setShowGradeModal(true);
+                            setModalSubmission(submission);
+                            setModalFeedback(submission.grade?.feedback || "");
+                            setModalRating(submission.grade?.rating || "");
+                            setModalGrade(submission.grade?.grade || "");
+                          }}
+                        >
+                          Give Feedback & Grade
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {/* Show message below table if no submissions found
+          {filteredSubmissions.length === 0 && (
+            <div className="text-center text-gray-500 py-4 text-sm">
+              No submissions found for the selected assignment.
+            </div>
+          )} */}
+        </div>
+
+        {/* Stats: Always show, for all or selected assignment */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Total Submissions
+                </p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.total}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-500 rounded-full">
+                <FaGraduationCap className="text-white text-xl" />
+              </div>
             </div>
           </div>
-        )}
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Graded</p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.graded}
+                </p>
+              </div>
+              <div className="p-3 bg-green-500 rounded-full">
+                <FaEdit className="text-white text-xl" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-blue-100 p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Average Grade
+                </p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {stats.average}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-500 rounded-full">
+                <FaGraduationCap className="text-white text-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Feedback/Grade Modal */}
         {showGradeModal && modalSubmission && (
@@ -384,12 +469,21 @@ const TeacherGrades = () => {
               </div>
               <div className="mb-2">
                 <label className="block text-sm font-medium mb-1">Rating</label>
-                <input
+                <select
                   className="w-full border rounded px-2 py-1"
                   value={modalRating}
                   onChange={(e) => setModalRating(e.target.value)}
-                  placeholder="e.g. 5 stars"
-                />
+                >
+                  <option value="">Select rating</option>
+                  {[...Array(10)].map((_, i) => {
+                    const val = (i + 1) * 0.5;
+                    return (
+                      <option key={val} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">Grade</label>
@@ -404,7 +498,48 @@ const TeacherGrades = () => {
               <div className="flex justify-end gap-2">
                 <button
                   className="bg-green-500 text-white px-4 py-2 rounded"
-                  onClick={handleSaveGrade}
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      if (grades[modalSubmission.id]?.gradeId) {
+                        await updateGrade(grades[modalSubmission.id].gradeId, {
+                          grade: modalGrade ? parseInt(modalGrade) : null,
+                          feedback: modalFeedback,
+                          rating: modalRating ? parseFloat(modalRating) : null,
+                          rated_by: user?.id || null,
+                          rated_at: new Date().toISOString(),
+                        });
+                      } else {
+                        await createGrade({
+                          submission_id: modalSubmission.id,
+                          grade: modalGrade ? parseInt(modalGrade) : null,
+                          feedback: modalFeedback,
+                          rating: modalRating ? parseFloat(modalRating) : null,
+                          rated_by: user?.id || null,
+                          rated_at: new Date().toISOString(),
+                        });
+                      }
+                      // Refresh submissions
+                      const refreshed = selectedAssignment
+                        ? await getAssignmentSubmissions(selectedAssignment)
+                        : (await getAssignmentSubmissions()).filter((s) =>
+                            assignments
+                              .map((a) => a.id)
+                              .includes(s.assignment_id)
+                          );
+                      setSubmissions(refreshed || []);
+                      setShowGradeModal(false);
+                      setModalSubmission(null);
+                      setModalFeedback("");
+                      setModalRating("");
+                      setModalGrade("");
+                      alert("Grade saved!");
+                    } catch (error) {
+                      alert("Failed to save grade");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
                 >
                   Save
                 </button>
@@ -419,6 +554,7 @@ const TeacherGrades = () => {
           </div>
         )}
       </div>
+
       {/* Charts Section: Grade Trend, Completion */}
       <div className="mb-8">
         {/* Grade Trend Area Chart */}
@@ -476,55 +612,6 @@ const TeacherGrades = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Stats */}
-      {selectedAssignment && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-blue-100 p-6 rounded-xl shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Total Submissions
-                </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-500 rounded-full">
-                <FaGraduationCap className="text-white text-xl" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-blue-100 p-6 rounded-xl shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Graded</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.graded}
-                </p>
-              </div>
-              <div className="p-3 bg-green-500 rounded-full">
-                <FaEdit className="text-white text-xl" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-blue-100 p-6 rounded-xl shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Average Grade
-                </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.average}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-500 rounded-full">
-                <FaGraduationCap className="text-white text-xl" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

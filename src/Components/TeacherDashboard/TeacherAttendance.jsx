@@ -10,14 +10,15 @@ import {
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   Legend,
-  ComposedChart,
-  Line,
 } from "recharts";
 import {
   getClassesByTeacher,
@@ -47,6 +48,8 @@ const TeacherAttendance = () => {
   const [subjects, setSubjects] = useState([]);
   const [attendanceExists, setAttendanceExists] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // New: State for all attendance records for all classes (for overall stats)
+  const [allAttendanceRecords, setAllAttendanceRecords] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -115,6 +118,19 @@ const TeacherAttendance = () => {
     });
   }, [selectedClass, selectedDate, students]);
 
+  // Fetch all attendance records for all classes for the teacher (for overall stats)
+  useEffect(() => {
+    if (!user?.id) return;
+    if (selectedClass === "") {
+      // Use fetchAttendance from supabaseApi
+      import("../../supabaseConfig/supabaseApi").then((api) => {
+        api.fetchAttendance({ teacher_id: user.id }).then((records) => {
+          setAllAttendanceRecords(records || []);
+        });
+      });
+    }
+  }, [user, selectedClass]);
+
   const handleAttendanceChange = (studentId, status) => {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
   };
@@ -128,46 +144,46 @@ const TeacherAttendance = () => {
         selectedDate
       );
       const subject_id = selectedClassDetails?.subject_id || "";
-      if (existingAttendance && existingAttendance.length > 0) {
-        // Update existing attendance
-        const attendanceRecords = Object.entries(attendance).map(
-          ([studentId, status]) => ({
-            id: existingAttendance.find((a) => a.student_id === studentId)?.id,
-            status: status,
-          })
-        );
-        for (const record of attendanceRecords) {
-          if (record.id) {
-            await updateAttendance(record.id, { status: record.status });
-          }
-        }
-        alert("Attendance updated successfully!");
-        setAttendanceExists(true);
-        setIsEditing(false);
-      } else {
-        // Create new attendance records
-        const attendanceRecords = Object.entries(attendance).map(
-          ([studentId, status]) => ({
+      // Map of student_id to attendance record id
+      const existingMap = {};
+      (existingAttendance || []).forEach((a) => {
+        existingMap[a.student_id] = a.id;
+      });
+      // Split attendance into updates and creates
+      const toUpdate = [];
+      const toCreate = [];
+      Object.entries(attendance).forEach(([studentId, status]) => {
+        if (existingMap[studentId]) {
+          toUpdate.push({ id: existingMap[studentId], status });
+        } else {
+          toCreate.push({
             student_id: studentId,
             class_id: selectedClass,
             date: selectedDate,
-            status: status,
+            status,
             teacher_id: user.id,
             subject_id,
             note: "",
             created_at: new Date().toISOString(),
-          })
-        );
-        const error = await createAttendance(attendanceRecords);
+          });
+        }
+      });
+      // Update existing records
+      for (const record of toUpdate) {
+        await updateAttendance(record.id, { status: record.status });
+      }
+      // Create new records for new students
+      if (toCreate.length > 0) {
+        const error = await createAttendance(toCreate);
         if (error) {
-          alert("Failed to save attendance: " + error.message);
+          alert("Failed to save attendance for new students: " + error.message);
           setSaving(false);
           return;
         }
-        alert("Attendance saved successfully!");
-        setAttendanceExists(true);
-        setIsEditing(false);
       }
+      alert("Attendance saved/updated successfully!");
+      setAttendanceExists(true);
+      setIsEditing(false);
     } catch (error) {
       console.error("Error saving attendance:", error);
       alert("Failed to save attendance");
@@ -191,6 +207,81 @@ const TeacherAttendance = () => {
     return { total, present, absent, late };
   };
 
+  // Helper to get stats for all classes
+  const getOverallAttendanceStats = () => {
+    const total = allAttendanceRecords.length;
+    const present = allAttendanceRecords.filter(
+      (a) => a.status === "present"
+    ).length;
+    const absent = allAttendanceRecords.filter(
+      (a) => a.status === "absent"
+    ).length;
+    const late = allAttendanceRecords.filter((a) => a.status === "late").length;
+    return { total, present, absent, late };
+  };
+
+  // Helper to get chart data for all classes
+  const getOverallAttendanceTrend = () => {
+    // Group by date
+    const trendMap = {};
+    allAttendanceRecords.forEach((rec) => {
+      const date = rec.date?.slice(0, 10);
+      if (!trendMap[date])
+        trendMap[date] = { name: date, present: 0, absent: 0, late: 0 };
+      if (rec.status === "present") trendMap[date].present++;
+      if (rec.status === "absent") trendMap[date].absent++;
+      if (rec.status === "late") trendMap[date].late++;
+    });
+    return Object.values(trendMap).sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  // Helper to get student progress for all classes
+  const getOverallStudentProgress = () => {
+    // Group by student
+    const progressMap = {};
+    allAttendanceRecords.forEach((rec) => {
+      if (!progressMap[rec.student_id])
+        progressMap[rec.student_id] = { name: rec.student_id, progress: 0 };
+      if (rec.status === "present") progressMap[rec.student_id].progress++;
+    });
+    return Object.values(progressMap);
+  };
+
+  // Use overall or class-specific stats/charts
+  const stats =
+    selectedClass && selectedClass !== ""
+      ? getAttendanceStats()
+      : getOverallAttendanceStats();
+  const attendanceTrendData =
+    selectedClass && selectedClass !== ""
+      ? attendanceTrend
+      : getOverallAttendanceTrend();
+  const studentAttendanceProgressData =
+    selectedClass && selectedClass !== ""
+      ? studentAttendanceProgress
+      : getOverallStudentProgress();
+
+  // Pie chart colors
+  const ATTENDANCE_COLORS = ["#10B981", "#EF4444", "#F59E0B"];
+
+  // Pie chart data for status distribution
+  const pieData = [
+    { name: "Present", value: stats.present },
+    { name: "Absent", value: stats.absent },
+    { name: "Late", value: stats.late },
+  ];
+  // Bar chart data: attendance per date (for all or selected class)
+  const barData = (
+    selectedClass && selectedClass !== ""
+      ? attendanceTrend
+      : getOverallAttendanceTrend()
+  ).map((d) => ({
+    name: d.name,
+    Present: d.present,
+    Absent: d.absent,
+    Late: d.late,
+  }));
+
   if (loading) {
     return (
       <div className="p-6">
@@ -206,8 +297,6 @@ const TeacherAttendance = () => {
       </div>
     );
   }
-
-  const stats = getAttendanceStats();
 
   return (
     <div className="w-full p-4 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
@@ -225,7 +314,7 @@ const TeacherAttendance = () => {
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select a class</option>
+              <option value="">All Classes</option>
               {classes.map((cls) => (
                 <option
                   key={cls.class_id || cls.id}
@@ -247,49 +336,39 @@ const TeacherAttendance = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex items-center justify-end">
+            {/* Button logic: Save, Update, Save Update */}
             {!attendanceExists && (
               <button
                 onClick={handleSaveOrUpdateAttendance}
-                disabled={saving || !selectedClass}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                disabled={saving}
               >
-                {saving ? (
-                  <FaSave className="mr-2" />
-                ) : (
-                  <FaCheck className="mr-2" />
-                )}
                 {saving ? "Saving..." : "Save Attendance"}
               </button>
             )}
             {attendanceExists && !isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                disabled={saving || !selectedClass}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                disabled={saving}
               >
-                <FaSave className="mr-2" />
                 Update Attendance
               </button>
             )}
             {attendanceExists && isEditing && (
               <button
                 onClick={handleSaveOrUpdateAttendance}
-                disabled={saving || !selectedClass}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center justify-center space-x-2 transition-colors"
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                disabled={saving}
               >
-                {saving ? (
-                  <FaSave className="mr-2" />
-                ) : (
-                  <FaSave className="mr-2" />
-                )}
-                {saving ? "Updating..." : "Save Update"}
+                {saving ? "Saving..." : "Save Update"}
               </button>
             )}
           </div>
         </div>
-        {/* Class details below controls */}
-        {selectedClassDetails && (
+        {/* Only show attendance form/student list if a specific class is selected */}
+        {selectedClass && selectedClass !== "" && selectedClassDetails && (
           <div className="bg-blue-50 p-4 rounded-xl shadow mb-4">
             <h3 className="text-lg font-semibold mb-2">Class Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -325,13 +404,12 @@ const TeacherAttendance = () => {
             </div>
           </div>
         )}
-        {/* Student list below class details */}
-        {selectedClass && students.length === 0 && (
+        {selectedClass && selectedClass !== "" && students.length === 0 && (
           <div className="bg-yellow-100 p-6 rounded-xl shadow text-center text-yellow-700 font-medium">
             No students found for the selected class.
           </div>
         )}
-        {selectedClass && students.length > 0 && (
+        {selectedClass && selectedClass !== "" && students.length > 0 && (
           <div className="bg-blue-100 p-6 rounded-xl shadow overflow-hidden my-4">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-800">
@@ -447,9 +525,9 @@ const TeacherAttendance = () => {
           </div>
         )}
       </div>
-      {/* Stats and charts below */}
+      {/* Stats and charts below: always render, aggregate if no class selected */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {/* Stats */}
+        {/* Stats: calculate for selected class or all classes */}
         <div className="bg-blue-100 p-6 rounded-xl shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -505,72 +583,54 @@ const TeacherAttendance = () => {
           </div>
         </div>
       </div>
-      {/* Charts Section: Attendance Trend, Student Progress */}
-      <div className="mb-8">
-        {/* Attendance Trend Area Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Attendance Trend (Mountain Chart)
+      {/* Charts Section: Attendance Overview */}
+      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Pie Chart: Attendance Status Distribution */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow flex flex-col items-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
+            Attendance Status Distribution
           </h2>
           <ResponsiveContainer width="100%" height={250}>
-            <AreaChart
-              data={attendanceTrend}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" />
-              <YAxis />
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+              >
+                {pieData.map((entry, idx) => (
+                  <Cell
+                    key={`cell-${idx}`}
+                    fill={ATTENDANCE_COLORS[idx % ATTENDANCE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
               <Tooltip />
               <Legend />
-              <Area
-                type="monotone"
-                dataKey="present"
-                stroke="#10B981"
-                fillOpacity={1}
-                fill="url(#colorPresent)"
-              />
-              <Area
-                type="monotone"
-                dataKey="absent"
-                stroke="#EF4444"
-                fill="#fee2e2"
-              />
-              <Area
-                type="monotone"
-                dataKey="late"
-                stroke="#F59E0B"
-                fill="#fef3c7"
-              />
-            </AreaChart>
+            </PieChart>
           </ResponsiveContainer>
         </div>
-        {/* Student Attendance Progress Ladder Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Student Attendance Progress (Ladder Chart)
+        {/* Bar Chart: Attendance per Date */}
+        <div className="bg-blue-100 p-6 rounded-xl shadow flex flex-col items-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
+            Attendance by Date
           </h2>
           <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart
-              data={studentAttendanceProgress}
+            <BarChart
+              data={barData}
               margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
             >
               <XAxis dataKey="name" />
-              <YAxis />
+              <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line
-                type="stepAfter"
-                dataKey="progress"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={false}
-              />
-            </ComposedChart>
+              <Bar dataKey="Present" fill="#10B981" />
+              <Bar dataKey="Absent" fill="#EF4444" />
+              <Bar dataKey="Late" fill="#F59E0B" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
