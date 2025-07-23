@@ -437,7 +437,7 @@ const TeacherAnalytics = () => {
               {performanceOverview.map((item, idx) => (
                 <div
                   key={idx}
-                  className="bg-blue-50 border border-blue-200 rounded-lg px-2 sm:px-3 py-2 flex flex-col items-center min-w-[90px] sm:min-w-[110px] min-w-0"
+                  className="bg-blue-50 border border-blue-200 rounded-lg px-2 sm:px-3 py-2 flex flex-col items-center min-w-[90px] sm:min-w-[110px]"
                 >
                   <span className="text-xs sm:text-md text-gray-600 font-medium mb-1">
                     {item.label}

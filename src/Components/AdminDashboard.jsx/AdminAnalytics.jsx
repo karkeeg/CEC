@@ -45,50 +45,6 @@ const courseWiseData = [
   { course: "Statistics", days: 75 },
   { course: "Statistics", days: 55 },
 ];
-
-// Attendance heatmap mock data (7 days x 31 days)
-const attendanceHeatmap = Array.from({ length: 7 }, (_, row) =>
-  Array.from({ length: 31 }, (_, col) => {
-    // 0: Present, 1: Absent, 2: Public Holiday
-    if ((col + row) % 13 === 0) return 2;
-    if ((col + row) % 5 === 0) return 1;
-    return 0;
-  })
-);
-const daysShort = ["S", "M", "T", "W", "T", "F", "S"];
-
-const Heatmap = () => (
-  <div className="overflow-x-auto">
-    <div className="grid grid-cols-32 gap-0.5">
-      <div></div>
-      {Array.from({ length: 31 }, (_, i) => (
-        <div key={i} className="text-[10px] text-center text-gray-500">
-          {i + 1}
-        </div>
-      ))}
-    </div>
-    {attendanceHeatmap.map((row, i) => (
-      <div key={i} className="grid grid-cols-32 gap-0.5">
-        <div className="text-[10px] text-gray-500 flex items-center justify-center h-4">
-          {daysShort[i]}
-        </div>
-        {row.map((cell, j) => (
-          <div
-            key={j}
-            className={`w-4 h-4 rounded ${
-              cell === 0
-                ? "bg-green-200"
-                : cell === 1
-                ? "bg-red-200"
-                : "bg-yellow-200"
-            }`}
-          ></div>
-        ))}
-      </div>
-    ))}
-  </div>
-);
-
 const AdminAnalytics = () => {
   const exportToPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -247,29 +203,6 @@ const AdminAnalytics = () => {
                 <Bar dataKey="days" fill="#60a5fa" />
               </ReBarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-        {/* Attendance Heatmap */}
-        <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl">🗓️</span>
-            <span className="font-bold text-xl">Attendance Heatmap</span>
-            <span className="ml-auto text-gray-400 text-lg">^</span>
-          </div>
-          <Heatmap />
-          <div className="flex gap-4 mt-4 text-xs">
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-4 bg-green-200 inline-block rounded"></span>{" "}
-              Present
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-4 bg-red-200 inline-block rounded"></span>{" "}
-              Absent
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-4 bg-yellow-200 inline-block rounded"></span>{" "}
-              Public Holiday
-            </span>
           </div>
         </div>
       </div>

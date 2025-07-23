@@ -45,33 +45,6 @@ const AnalyticsDashboard = () => {
     { subject: "Statistics", student: 50, average: 45 },
   ];
 
-  const attendanceGrid = [
-    ["S", "M", "T", "W", "T", "F"],
-    ...Array(5)
-      .fill(0)
-      .map((_, i) =>
-        Array(6)
-          .fill(0)
-          .map(
-            () =>
-              ["present", "absent", "holiday"][Math.floor(Math.random() * 3)]
-          )
-      ),
-  ];
-
-  const getColor = (status) => {
-    switch (status) {
-      case "present":
-        return "#B8E986";
-      case "absent":
-        return "#FBC7C7";
-      case "holiday":
-        return "#BFD8F7";
-      default:
-        return "#eee";
-    }
-  };
-
   return (
     <div className="min-h-screen 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6">
       <h1 className="font-bold text-3xl p-2">Analytical Dashboard</h1>
@@ -163,34 +136,6 @@ const AnalyticsDashboard = () => {
               <Bar dataKey="average" fill="#6FCF97" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
-        {/* Attendance Heatmap */}
-        <div className="bg-[#EEF0FD] text-black p-4 rounded">
-          <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
-            📅 Attendance Heatmap
-          </h2>
-          <div className="grid grid-cols-6 gap-1 text-sm">
-            {attendanceGrid.flat().map((status, idx) => (
-              <div
-                key={idx}
-                className="w-6 h-6 rounded"
-                style={{ backgroundColor: getColor(status) }}
-                title={status}
-              />
-            ))}
-          </div>
-          <div className="flex gap-4 mt-3 text-xs text-gray-700">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#B8E986] rounded" /> Present
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#FBC7C7] rounded" /> Absent
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#BFD8F7] rounded" /> Public Holiday
-            </div>
-          </div>
         </div>
       </div>
     </div>
