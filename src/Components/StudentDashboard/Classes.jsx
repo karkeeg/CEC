@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { getAllClasses } from "../../supabaseConfig/supabaseApi";
+import {
+  getAllClasses,
+  fetchDepartments,
+} from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { useUser } from "../../contexts/UserContext";
 import {
@@ -27,6 +30,8 @@ const Classes = () => {
   const [modalStudents, setModalStudents] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [enrolledClassIds, setEnrolledClassIds] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [departmentMap, setDepartmentMap] = useState({});
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -50,6 +55,23 @@ const Classes = () => {
     };
     fetchEnrolledClasses();
   }, [user]);
+
+  useEffect(() => {
+    // Fetch departments for department name lookup
+    const fetchAllDepartments = async () => {
+      try {
+        const data = await fetchDepartments();
+        setDepartments(data || []);
+        // Build a map: id -> name
+        const map = {};
+        (data || []).forEach((d) => {
+          map[d.id] = d.name;
+        });
+        setDepartmentMap(map);
+      } catch {}
+    };
+    fetchAllDepartments();
+  }, []);
 
   // Only show classes the student is enrolled in
   const filteredClasses = classes.filter((cls) =>
@@ -195,7 +217,9 @@ const Classes = () => {
                 <strong>Description:</strong> {viewModal.description}
               </div>
               <div>
-                <strong>Department:</strong> {viewModal.department_id}
+                <strong>Department:</strong>{" "}
+                {departmentMap[viewModal.department_id] ||
+                  viewModal.department_id}
               </div>
             </div>
             <h3 className="text-lg font-semibold mb-2 mt-3 text-blue-800">
@@ -208,26 +232,22 @@ const Classes = () => {
                 No students enrolled in this class.
               </div>
             ) : (
-              <div className="w-full max-h-54 overflow-y-auto border rounded mb-2 min-w-0">
-                <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {modalStudents.map((s, idx) => (
-                      <tr key={idx}>
-                        <td className="px-3 py-1">
-                          {s.student.first_name} {s.student.middle_name || ""}{" "}
-                          {s.student.last_name}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div
+                className="w-full border rounded mb-2 min-w-0 p-2"
+                style={{ maxHeight: "88px", overflowY: "auto" }}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {modalStudents.map((s, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold shadow"
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      {s.student.first_name} {s.student.middle_name || ""}{" "}
+                      {s.student.last_name}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             <button

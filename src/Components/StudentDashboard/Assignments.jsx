@@ -365,7 +365,7 @@ const Assignments = () => {
                       )}
                     </td>
                     <td className="px-3 py-2 font-medium truncate max-w-[80px]">
-                      {a.teacher_id}
+                      {a.teacher.first_name} {a.teacher.last_name}
                     </td>
                     <td className="px-3 py-2 text-center">
                       {submissionStatus[a.id]?.submitted ? (

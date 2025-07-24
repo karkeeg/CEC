@@ -640,7 +640,7 @@ export const getAssignmentsForStudent = async (studentId, fromDate) => {
   let query = supabase
     .from("assignments")
     .select(
-      "id, title, due_date, subject:subject_id(name), class_id, teacher_id, year, description, files"
+      "id, title, due_date, subject:subject_id(name), class_id, teacher:teacher_id(first_name, last_name), year, description, files"
     )
     .gte("due_date", fromDate)
     .order("due_date", { ascending: true })
@@ -672,4 +672,27 @@ export const getRecentNotices = async (limit = 5) => {
     .limit(limit);
   if (error) return [];
   return data;
+};
+
+// Fetch all feedback for a student (joins submissions, assignments, grades, teachers)
+export const getFeedbackForStudent = async (studentId) => {
+  // Get all submissions for this student
+  const { data: submissions, error: subError } = await supabase
+    .from("submissions")
+    .select(
+      `
+      id,
+      assignment_id,
+      submitted_at,
+      files,
+      notes,
+      assignment:assignment_id (title, subject:subject_id(name)),
+      grade:grades(id, grade, feedback, rated_at, rated_by, rating),
+      teacher:assignment_id(teacher_id)
+    `
+    )
+    .eq("student_id", studentId)
+    .order("submitted_at", { ascending: false });
+  if (subError) throw subError;
+  return submissions;
 };

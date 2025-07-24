@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaUser,
   FaBookOpen,
@@ -7,65 +7,76 @@ import {
   FaFilePdf,
   FaStar,
   FaEye,
+  FaStarHalfAlt,
+  FaRegStar,
 } from "react-icons/fa";
-
-const feedbackData = [
-  {
-    id: 1,
-    assignment_title: "Essay on Climate Change",
-    subject_id: "English Literature",
-    submission_date: "2025-01-15",
-    feedback_text:
-      "Excellent analysis of the topic. Well-structured arguments with good supporting evidence. Minor grammar issues need attention.",
-    score: 85,
-    teacher_name: "Dr. Sarah Johnson",
-  },
-  {
-    id: 2,
-    assignment_title: "Physics Lab Report",
-    subject_id: "Physics",
-    submission_date: "2025-01-12",
-    feedback_text:
-      "Good experimental setup and methodology. Calculations are accurate. Consider improving the conclusion section.",
-    score: 92,
-    teacher_name: "Prof. Michael Chen",
-  },
-  {
-    id: 3,
-    assignment_title: "Mathematics Problem Set",
-    subject_id: "Advanced Calculus",
-    submission_date: "2025-01-10",
-    feedback_text:
-      "Most solutions are correct. Show more detailed steps in problem 3 and 7. Good work on derivatives.",
-    score: 78,
-    teacher_name: "Dr. Emily Rodriguez",
-  },
-  {
-    id: 4,
-    assignment_title: "Chemistry Research Paper",
-    subject_id: "Organic Chemistry",
-    submission_date: "2025-01-08",
-    feedback_text:
-      "Comprehensive research with excellent references. Lab procedures are well documented. Outstanding work!",
-    score: 95,
-    teacher_name: "Prof. David Thompson",
-  },
-  {
-    id: 5,
-    assignment_title: "History Term Paper",
-    subject_id: "World History",
-    submission_date: "2025-01-05",
-    feedback_text:
-      "Good historical analysis but needs more primary sources. Timeline is accurate. Improve citation format.",
-    score: 82,
-    teacher_name: "Dr. Lisa Williams",
-  },
-];
+import { useUser } from "../../contexts/UserContext";
+import {
+  getFeedbackForStudent,
+  fetchTeachers,
+} from "../../supabaseConfig/supabaseApi";
+import Modal from "../Modal";
 
 const Feedback = () => {
-  const [feedback, setFeedback] = useState(feedbackData);
-  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
+  const [feedback, setFeedback] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewModal, setViewModal] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [teacherMap, setTeacherMap] = useState({});
+
+  const renderStars = (value, max = 5) => {
+    const stars = [];
+    for (let i = 1; i <= max; i++) {
+      if (value >= i) {
+        stars.push(<FaStar key={i} className="text-yellow-400 text-xs" />);
+      } else if (value >= i - 0.5) {
+        stars.push(
+          <FaStarHalfAlt key={i} className="text-yellow-400 text-xs" />
+        );
+      } else {
+        stars.push(<FaRegStar key={i} className="text-gray-300 text-xs" />);
+      }
+    }
+    return stars;
+  };
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const data = await getFeedbackForStudent(user.id);
+        setFeedback(data || []);
+        setError(null);
+      } catch (err) {
+        setError(err);
+        setFeedback([]);
+      }
+      setLoading(false);
+    };
+    fetchFeedback();
+  }, [user]);
+
+  useEffect(() => {
+    // Fetch teachers for checked by name lookup
+    const fetchAllTeachers = async () => {
+      try {
+        const data = await fetchTeachers();
+        setTeachers(data || []);
+        // Build a map: id -> full name
+        const map = {};
+        (data || []).forEach((t) => {
+          map[t.id] = [t.first_name, t.middle_name, t.last_name]
+            .filter(Boolean)
+            .join(" ");
+        });
+        setTeacherMap(map);
+      } catch {}
+    };
+    fetchAllTeachers();
+  }, []);
 
   return (
     <div className="p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black w-full min-w-0">
@@ -124,61 +135,166 @@ const Feedback = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {feedback.map((item, idx) => (
-                <tr
-                  key={idx}
-                  className="hover:bg-blue-50 transition duration-200"
-                >
-                  {/* Assignment */}
-                  <td className="py-4 px-5 text-sm whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <FaBookOpen className="text-blue-500" />
-                      <span>{item.assignment_title}</span>
-                    </div>
-                  </td>
-
-                  {/* Subject */}
-                  <td className="py-4 px-5 text-sm whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <FaUser className="text-green-500" />
-                      <span>{item.subject_id}</span>
-                    </div>
-                  </td>
-
-                  {/* Submission Date */}
-                  <td className="py-4 px-5 text-sm text-gray-600 whitespace-nowrap">
-                    {item.submission_date}
-                  </td>
-
-                  {/* Feedback */}
-                  <td className="py-4 px-5 text-sm max-w-xs truncate">
-                    {item.feedback_text}
-                  </td>
-
-                  {/* Score */}
-                  <td className="py-4 px-5 text-sm text-gray-800 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.floor(item.score / 20) }).map(
-                        (_, i) => (
-                          <FaStar key={i} className="text-yellow-400 text-xs" />
-                        )
-                      )}
-                      <span className="ml-1 font-medium">{item.score}%</span>
-                    </div>
-                  </td>
-
-                  {/* View Button */}
-                  <td className="py-4 px-5 whitespace-nowrap">
-                    <button className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium">
-                      <FaEye /> View
-                    </button>
+              {feedback.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="p-4 text-gray-500 text-center">
+                    No feedback found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                feedback.map((item, idx) => {
+                  const assignment = item.assignment || {};
+                  const subjectName = assignment.subject?.name || "-";
+                  const grade = item.grade || {};
+                  // Prefer rating (decimal, e.g., 3.5) if available, else grade (percentage)
+                  const score =
+                    grade.rating != null ? grade.rating : grade.grade;
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-blue-50 transition duration-200"
+                    >
+                      {/* Assignment */}
+                      <td className="py-4 px-5 text-sm whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <FaBookOpen className="text-blue-500" />
+                          <span>{assignment.title || "-"}</span>
+                        </div>
+                      </td>
+
+                      {/* Subject */}
+                      <td className="py-4 px-5 text-sm whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <FaUser className="text-green-500" />
+                          <span>{subjectName}</span>
+                        </div>
+                      </td>
+
+                      {/* Submission Date */}
+                      <td className="py-4 px-5 text-sm text-gray-600 whitespace-nowrap">
+                        {item.submitted_at
+                          ? new Date(item.submitted_at).toLocaleDateString()
+                          : "-"}
+                      </td>
+
+                      {/* Feedback */}
+                      <td className="py-4 px-5 text-sm max-w-xs truncate">
+                        {grade.feedback || "-"}
+                      </td>
+
+                      {/* Score */}
+                      <td className="py-4 px-5 text-sm text-gray-800 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          {grade.grade != null && !isNaN(grade.grade) ? (
+                            <div className="flex items-center gap-1">
+                              {renderStars((grade.grade / 100) * 5, 5)}
+                              <span className="ml-1 font-medium">
+                                {grade.grade}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="ml-1 font-medium">-</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* View Button */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <button
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          onClick={() => setViewModal(item)}
+                        >
+                          <FaEye /> View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Modal for viewing feedback details */}
+      {viewModal && (
+        <Modal title={"Feedback Details"} onClose={() => setViewModal(null)}>
+          <div className="p-4 max-w-md w-full">
+            <div className="mb-2">
+              <strong>Assignment:</strong> {viewModal.assignment?.title || "-"}
+            </div>
+            <div className="mb-2">
+              <strong>Subject:</strong>{" "}
+              {viewModal.assignment?.subject?.name || "-"}
+            </div>
+            <div className="mb-2">
+              <strong>Submission Date:</strong>{" "}
+              {viewModal.submitted_at
+                ? new Date(viewModal.submitted_at).toLocaleDateString()
+                : "-"}
+            </div>
+            <div className="mb-2">
+              <strong>Feedback:</strong> {viewModal.grade?.feedback || "-"}
+            </div>
+            <div className="mb-2 flex items-center gap-2">
+              <strong>Grade:</strong>
+              {viewModal.grade?.grade != null &&
+              !isNaN(viewModal.grade.grade) ? (
+                <>
+                  {renderStars((viewModal.grade.grade / 100) * 5, 5)}
+                  <span className="ml-1 font-medium">
+                    {viewModal.grade.grade}%
+                  </span>
+                </>
+              ) : (
+                <span>-</span>
+              )}
+            </div>
+            <div className="mb-2">
+              <strong>Checked by:</strong>{" "}
+              {viewModal.grade?.rated_by
+                ? teacherMap[viewModal.grade.rated_by] ||
+                  viewModal.grade.rated_by
+                : "-"}
+            </div>
+            {viewModal.notes && (
+              <div className="mb-2">
+                <strong>Submission Notes:</strong> {viewModal.notes}
+              </div>
+            )}
+            {viewModal.files &&
+              Array.isArray(viewModal.files) &&
+              viewModal.files.length > 0 && (
+                <div className="mb-2">
+                  <strong>Files:</strong>
+                  <ul className="list-disc list-inside mt-1">
+                    {viewModal.files.map((fileUrl, idx) => {
+                      const fileName = fileUrl.split("/").pop().split("?")[0];
+                      return (
+                        <li key={idx}>
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-700 underline"
+                          >
+                          Submitted File
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            <button
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold w-full"
+              onClick={() => setViewModal(null)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
