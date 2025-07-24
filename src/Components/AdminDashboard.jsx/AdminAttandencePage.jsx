@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import supabase from "../../supabaseConfig/supabaseClient";
 import html2pdf from "html2pdf.js";
-import { fetchClasses, fetchStudents } from "../../supabaseConfig/supabaseApi";
+import {
+  fetchClasses,
+  fetchStudents,
+  getAttendanceByDateRange,
+} from "../../supabaseConfig/supabaseApi";
 import {
   ResponsiveContainer,
   BarChart,
@@ -42,18 +46,8 @@ const AdminAttandancePage = () => {
   }, []);
 
   useEffect(() => {
-    fetchAttendance();
+    getAttendanceByDateRange(fromDate, toDate).then(setAttendance);
   }, [fromDate, toDate]);
-
-  const fetchAttendance = async () => {
-    const { data, error } = await supabase
-      .from("attendance")
-      .select("*")
-      .gte("date", fromDate)
-      .lte("date", toDate);
-    if (!error) setAttendance(data || []);
-    else setAttendance([]);
-  };
 
   const exportToPDF = () => {
     const element = document.getElementById("attendance-table");

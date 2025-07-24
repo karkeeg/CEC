@@ -3,6 +3,10 @@ import { FaCalendarAlt, FaBook, FaBell, FaChartBar } from "react-icons/fa";
 import { MdExpandLess } from "react-icons/md";
 import { useUser } from "../../contexts/UserContext";
 import supabase from "../../supabaseConfig/supabaseClient";
+import {
+  getAssignmentsForStudent,
+  getRecentNotices,
+} from "../../supabaseConfig/supabaseApi";
 
 const classSchedule = [
   { subject: "English", time: "6:30 - 8:00" },
@@ -34,47 +38,8 @@ const DashboardCards = () => {
     const fetchAssignments = async () => {
       setLoadingAssignments(true);
       const today = new Date().toISOString().split("T")[0];
-
-      // Get all class_ids for this student
-      const { data: studentClasses, error: scError } = await supabase
-        .from("student_classes")
-        .select("class_id")
-        .eq("student_id", user.id);
-
-      let classIds = [];
-      if (!scError && studentClasses) {
-        classIds = studentClasses.map((sc) => sc.class_id);
-      }
-
-      let query = supabase
-        .from("assignments")
-        .select(`id, title, due_date, subject:subject_id (name), class_id`)
-        .gte("due_date", today)
-        .order("due_date", { ascending: true })
-        .limit(5);
-
-      if (classIds.length > 0) {
-        query = query.in("class_id", classIds);
-      } else {
-        setAssignments([]);
-        setLoadingAssignments(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await query;
-        if (error) {
-          console.error("Error fetching assignments for dashboard:", error);
-          setAssignments([]);
-        } else if (data) {
-          setAssignments(data);
-        } else {
-          setAssignments([]);
-        }
-      } catch (err) {
-        console.error("Exception fetching assignments for dashboard:", err);
-        setAssignments([]);
-      }
+      const data = await getAssignmentsForStudent(user.id, today);
+      setAssignments(data || []);
       setLoadingAssignments(false);
     };
     fetchAssignments();
@@ -83,16 +48,8 @@ const DashboardCards = () => {
   useEffect(() => {
     const fetchNotices = async () => {
       setLoadingNotices(true);
-      const { data, error } = await supabase
-        .from("notices")
-        .select("title, description, created_at, notice_id")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (!error && data) {
-        setNotices(data);
-      } else {
-        setNotices([]);
-      }
+      const data = await getRecentNotices(5);
+      setNotices(data || []);
       setLoadingNotices(false);
     };
     fetchNotices();

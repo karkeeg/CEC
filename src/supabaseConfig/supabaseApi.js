@@ -616,3 +616,60 @@ export const getGradeBySubmissionId = async (submissionId) => {
     .single();
   return { data, error };
 };
+
+// Fetch attendance by date range (for admin attendance page)
+export const getAttendanceByDateRange = async (fromDate, toDate) => {
+  let query = supabase.from("attendance").select("*");
+  if (fromDate) query = query.gte("date", fromDate);
+  if (toDate) query = query.lte("date", toDate);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
+
+// Fetch assignments for a student (by student_id and after a date)
+export const getAssignmentsForStudent = async (studentId, fromDate) => {
+  // Get all class_ids for this student
+  const { data: studentClasses, error: scError } = await supabase
+    .from("student_classes")
+    .select("class_id")
+    .eq("student_id", studentId);
+  if (scError) return [];
+  const classIds = (studentClasses || []).map((sc) => sc.class_id);
+  if (!classIds.length) return [];
+  let query = supabase
+    .from("assignments")
+    .select(
+      "id, title, due_date, subject:subject_id(name), class_id, teacher_id, year, description, files"
+    )
+    .gte("due_date", fromDate)
+    .order("due_date", { ascending: true })
+    .in("class_id", classIds)
+    .limit(5);
+  const { data, error } = await query;
+  if (error) return [];
+  return data;
+};
+
+// Fetch submissions for a student for a set of assignments
+export const getSubmissionsForStudent = async (studentId, assignmentIds) => {
+  if (!assignmentIds.length) return [];
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("assignment_id, files, notes")
+    .in("assignment_id", assignmentIds)
+    .eq("student_id", studentId);
+  if (error) return [];
+  return data;
+};
+
+// Fetch recent notices (limit N)
+export const getRecentNotices = async (limit = 5) => {
+  const { data, error } = await supabase
+    .from("notices")
+    .select("title, description, created_at, notice_id")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return data;
+};

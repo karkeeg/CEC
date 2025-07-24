@@ -29,6 +29,7 @@ import {
   logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import Select from "react-select";
+import Modal from "../Modal";
 
 const COLORS = ["#A5D8FF", "#FBC7C7", "#666"];
 
@@ -98,27 +99,6 @@ const FeeDashboard = () => {
       : id;
   };
 
-  const getStatus = (fee) => {
-    if (fee.paid_amount >= fee.amount) return "paid";
-    if (fee.paid_amount > 0 && fee.paid_amount < fee.amount) return "partial";
-    if (fee.paid_amount === 0 && new Date(fee.due_date) < new Date())
-      return "overdue";
-    return "unpaid";
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800";
-      case "partial":
-        return "bg-yellow-100 text-yellow-800";
-      case "overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const handleOpenModal = (idx = null) => {
     setEditIndex(idx);
     if (idx !== null) {
@@ -138,18 +118,15 @@ const FeeDashboard = () => {
   };
 
   const dataSummary = [
-    { name: "Paid", value: fees.filter((f) => getStatus(f) === "paid").length },
+    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
     {
       name: "Partially",
-      value: fees.filter((f) => getStatus(f) === "partial").length,
+      value: fees.filter((f) => f.status === "partial").length,
     },
-    {
-      name: "Unpaid",
-      value: fees.filter((f) => getStatus(f) === "unpaid").length,
-    },
+    { name: "Unpaid", value: fees.filter((f) => f.status === "unpaid").length },
     {
       name: "Overdue",
-      value: fees.filter((f) => getStatus(f) === "overdue").length,
+      value: fees.filter((f) => f.status === "overdue").length,
     },
   ];
 
@@ -180,7 +157,7 @@ const FeeDashboard = () => {
 
   // Overdue Fees Table
   const overdueFees = fees
-    .filter((f) => getStatus(f) === "overdue")
+    .filter((f) => f.status === "overdue")
     .map((fee) => {
       const student = students.find((s) => s.id === fee.student_id);
       return {
@@ -215,28 +192,38 @@ const FeeDashboard = () => {
       alert("Student, amount, and due date are required.");
       return;
     }
+    // Convert empty paid_amount and paid_date to null
+    const feeData = {
+      ...form,
+      paid_amount:
+        form.paid_amount === "" || form.paid_amount == null
+          ? null
+          : Number(form.paid_amount),
+      paid_date:
+        form.paid_date === "" || form.paid_date == null ? null : form.paid_date,
+    };
     let isPayment = false;
     if (editIndex !== null) {
       // Edit: update in database
       const feeId = fees[editIndex].id;
-      const { error } = await updateFee(feeId, form);
+      const { error } = await updateFee(feeId, feeData);
       if (error) {
         alert("Failed to update fee: " + error.message);
         return;
       }
       // If paid_amount is set and changed, log payment
       const prevPaid = fees[editIndex].paid_amount || 0;
-      if (form.paid_amount && Number(form.paid_amount) > prevPaid) {
+      if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
         isPayment = true;
       }
     } else {
       // Add: insert into database
-      const { error } = await createFee(form);
+      const { error } = await createFee(feeData);
       if (error) {
         alert("Failed to add fee: " + error.message);
         return;
       }
-      if (form.paid_amount && Number(form.paid_amount) > 0) {
+      if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
         isPayment = true;
       }
     }
@@ -278,7 +265,7 @@ const FeeDashboard = () => {
       body: fees.map((fee) => [
         getStudentName(fee.student_id),
         fee.amount,
-        getStatus(fee).toUpperCase(),
+        fee.status.toUpperCase(),
       ]),
       theme: "grid",
       headStyles: {
@@ -372,7 +359,7 @@ const FeeDashboard = () => {
         fee.paid_amount,
         fee.due_date,
         fee.paid_date,
-        getStatus(fee).toUpperCase(),
+        fee.status.toUpperCase(),
         fee.notes,
       ];
     });
@@ -400,7 +387,7 @@ const FeeDashboard = () => {
       : true;
     const dueRemaining = fee.amount - (fee.paid_amount || 0);
     const maxDueMatch = maxDue ? dueRemaining <= Number(maxDue) : true;
-    const statusMatch = statusFilter ? getStatus(fee) === statusFilter : true;
+    const statusMatch = statusFilter ? fee.status === statusFilter : true;
     return nameMatch && yearMatch && maxDueMatch && statusMatch;
   });
 
@@ -408,23 +395,20 @@ const FeeDashboard = () => {
   const summary = {
     totalDue: fees.reduce((sum, f) => sum + Number(f.amount), 0),
     totalPaid: fees.reduce((sum, f) => sum + Number(f.paid_amount || 0), 0),
-    overdue: fees.filter((f) => getStatus(f) === FEE_STATUS.OVERDUE).length,
-    unpaid: fees.filter((f) => getStatus(f) === FEE_STATUS.UNPAID).length,
+    overdue: fees.filter((f) => f.status === FEE_STATUS.OVERDUE).length,
+    unpaid: fees.filter((f) => f.status === FEE_STATUS.UNPAID).length,
   };
 
   const statusData = [
-    { name: "Paid", value: fees.filter((f) => getStatus(f) === "paid").length },
+    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
     {
       name: "Partial",
-      value: fees.filter((f) => getStatus(f) === "partial").length,
+      value: fees.filter((f) => f.status === "partial").length,
     },
-    {
-      name: "Unpaid",
-      value: fees.filter((f) => getStatus(f) === "unpaid").length,
-    },
+    { name: "Unpaid", value: fees.filter((f) => f.status === "unpaid").length },
     {
       name: "Overdue",
-      value: fees.filter((f) => getStatus(f) === "overdue").length,
+      value: fees.filter((f) => f.status === "overdue").length,
     },
   ];
   const pieColors = ["#34d399", "#fbbf24", "#60a5fa", "#ef4444"];
@@ -570,7 +554,7 @@ const FeeDashboard = () => {
           <tbody>
             {filteredFees.map((fee, idx) => {
               const student = students.find((s) => s.id === fee.student_id);
-              const status = getStatus(fee);
+              const status = fee.status;
               return (
                 <tr
                   key={fee.id}
@@ -603,9 +587,15 @@ const FeeDashboard = () => {
                   <td className="p-2">{fee.paid_date}</td>
                   <td className="p-2">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
-                        status
-                      )}`}
+                      className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        status === "paid"
+                          ? "bg-green-100 text-green-800"
+                          : status === "partial"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : status === "overdue"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
                     >
                       {status.toUpperCase()}
                     </span>
@@ -635,140 +625,128 @@ const FeeDashboard = () => {
       </div>
       {/* Add/Edit Fee Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative mx-2">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl"
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-4">
-              {editIndex !== null ? "Edit Fee" : "Add Fee"}
-            </h2>
-            {formError && (
-              <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
-                {formError}
-              </div>
-            )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!validateForm()) return;
-                handleSubmit(e);
-              }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Student
-                </label>
-                <Select
-                  options={students.map((stu) => ({
-                    value: stu.id,
-                    label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                      stu.last_name
-                    }`.trim(),
-                  }))}
-                  value={
-                    students
-                      .map((stu) => ({
-                        value: stu.id,
-                        label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                          stu.last_name
-                        }`.trim(),
-                      }))
-                      .find((opt) => opt.value === form.student_id) || null
-                  }
-                  onChange={(opt) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      student_id: opt ? opt.value : "",
+        <Modal
+          title={editIndex !== null ? "Edit Fee" : "Add Fee"}
+          onClose={() => setShowModal(false)}
+        >
+          {formError && (
+            <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
+              {formError}
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!validateForm()) return;
+              handleSubmit(e);
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1">Student</label>
+              <Select
+                options={students.map((stu) => ({
+                  value: stu.id,
+                  label: `${stu.first_name} ${stu.middle_name ?? ""} ${
+                    stu.last_name
+                  }`.trim(),
+                }))}
+                value={
+                  students
+                    .map((stu) => ({
+                      value: stu.id,
+                      label: `${stu.first_name} ${stu.middle_name ?? ""} ${
+                        stu.last_name
+                      }`.trim(),
                     }))
-                  }
-                  isClearable
-                  isSearchable
-                  placeholder="Search and select student..."
-                  classNamePrefix="react-select"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Total Amount
-                </label>
-                <input
-                  name="amount"
-                  type="number"
-                  value={form.amount}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Due Date
-                </label>
-                <input
-                  name="due_date"
-                  type="date"
-                  value={form.due_date}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Paid Amount
-                </label>
-                <input
-                  name="paid_amount"
-                  type="number"
-                  value={form.paid_amount}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Paid Date
-                </label>
-                <input
-                  name="paid_date"
-                  type="date"
-                  value={form.paid_date}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <textarea
-                  name="notes"
-                  value={form.notes}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                <button
-                  type="button"
-                  className="bg-gray-300 px-4 py-2 rounded"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
-                >
-                  {editIndex !== null ? "Save" : "Add"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                    .find((opt) => opt.value === form.student_id) || null
+                }
+                onChange={(opt) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    student_id: opt ? opt.value : "",
+                  }))
+                }
+                isClearable
+                isSearchable
+                placeholder="Search and select student..."
+                classNamePrefix="react-select"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Total Amount
+              </label>
+              <input
+                name="amount"
+                type="number"
+                value={form.amount}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Due Date</label>
+              <input
+                name="due_date"
+                type="date"
+                value={form.due_date}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Paid Amount
+              </label>
+              <input
+                name="paid_amount"
+                type="number"
+                value={form.paid_amount || ""}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Paid Date
+              </label>
+              <input
+                name="paid_date"
+                type="date"
+                value={form.paid_date || ""}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Notes</label>
+              <textarea
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+              <button
+                type="button"
+                className="bg-gray-300 px-4 py-2 rounded"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                {editIndex !== null ? "Save" : "Add"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Analytics Section */}

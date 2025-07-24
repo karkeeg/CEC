@@ -19,6 +19,10 @@ import {
   ArcElement,
 } from "chart.js";
 import { logActivity } from "../../supabaseConfig/supabaseApi";
+import {
+  getAssignmentsForStudent,
+  getSubmissionsForStudent,
+} from "../../supabaseConfig/supabaseApi";
 ChartJS.register(
   BarElement,
   ArcElement,
@@ -44,71 +48,25 @@ const Assignments = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       setLoading(true);
-      let classIdSet = new Set();
-      if (role === "student" && user?.id) {
-        // Fetch all class_ids for this student
-        const { data: studentClasses, error: scError } = await supabase
-          .from("student_classes")
-          .select("class_id")
-          .eq("student_id", user.id);
-        if (scError) {
-          console.error("Error fetching student classes:", scError);
-          setAssignments([]);
-          setLoading(false);
-          return;
-        }
-        classIdSet = new Set(studentClasses?.map((sc) => sc.class_id) || []);
-      }
-      // Fetch all assignments (optionally filtered by date)
-      const { data, error } = await supabase
-        .from("assignments")
-        .select(
-          `
-          id,
-          title,
-          due_date,
-          teacher_id,
-          year,
-          class_id,
-          description,
-          subject:subject_id (
-            name
-          ),
-          files
-        `
-        )
-        .gte("due_date", date)
-        .order("due_date", { ascending: true });
-      if (error) {
-        console.error("Error fetching assignments:", error);
-        setAssignments([]);
-        setLoading(false);
-        return;
-      }
-      // Only keep assignments for classes the student is enrolled in
-      let filtered = data;
+      let data = await getAssignmentsForStudent(user?.id, date);
       if (role === "student") {
-        filtered = data.filter((a) => classIdSet.has(a.class_id));
+        setAssignments(data || []);
+      } else {
+        setAssignments(data || []);
       }
-      setAssignments(filtered);
       setLoading(false);
     };
     fetchAssignments();
   }, [date, user, role]);
 
-  // Fetch submission status for all assignments for this student
   useEffect(() => {
     const fetchSubmissions = async () => {
       if (!user?.id || assignments.length === 0) return;
-      const { data, error } = await supabase
-        .from("submissions")
-        .select("assignment_id, files, notes")
-        .in(
-          "assignment_id",
-          assignments.map((a) => a.id)
-        )
-        .eq("student_id", user.id);
-      if (!error && data) {
+      const data = await getSubmissionsForStudent(
+        user.id,
+        assignments.map((a) => a.id)
+      );
+      if (data) {
         const status = {};
         data.forEach((s) => {
           status[s.assignment_id] = {

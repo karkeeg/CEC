@@ -104,7 +104,7 @@ const MyRoutes = () => {
           <Route path="assignment" element={<AdminAssignmentsPage />} />
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="fee" element={<FeeDashboard />} />
-          <Route path="analytics" element={<AdminAnalytics />} />
+
           <Route path="settings" element={<Settings />} />
         </Route>
 
