@@ -151,7 +151,7 @@ const TeacherMainDashboard = () => {
   }
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Summary Section: Stat Cards, Schedule, Recent Activities, Quick Actions */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -161,7 +161,7 @@ const TeacherMainDashboard = () => {
           Here's what's happening with your classes today.
         </p>
         {/* Stat Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mt-4 mb-8 min-w-0">
           <StatCard
             icon={<FaUsers className="text-white text-xl" />}
             title="Total Students"
@@ -188,7 +188,7 @@ const TeacherMainDashboard = () => {
           />
         </div>
         {/* Today's Schedule */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Today's Schedule
           </h2>
@@ -235,15 +235,15 @@ const TeacherMainDashboard = () => {
           )}
         </div>
         {/* Recent Activities and Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-blue-100 p-6 rounded-xl shadow">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+          <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow min-w-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">
                 Recent Activities
               </h2>
               <FaBell className="text-gray-400" />
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               {recentActivities.length > 0 ? (
                 (showAllActivities
                   ? recentActivities
@@ -303,14 +303,14 @@ const TeacherMainDashboard = () => {
               )}
             </div>
           </div>
-          <div className="bg-blue-100 p-6 rounded-xl shadow">
+          <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow min-w-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">
                 Quick Actions
               </h2>
               <FaChartLine className="text-gray-400" />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               <button
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors"
                 onClick={() => setShowAssignmentModal(true)}
@@ -342,7 +342,7 @@ const TeacherMainDashboard = () => {
       {/* Charts Section: Performance, Completion, etc. */}
       <div>
         {/* Student Performance Area Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Student Performance (Avg Grade Over Time)
           </h2>
@@ -372,7 +372,7 @@ const TeacherMainDashboard = () => {
           </ResponsiveContainer>
         </div>
         {/* Assignment Completion Ladder Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Assignment Completion (Ladder Chart)
           </h2>

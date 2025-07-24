@@ -57,9 +57,9 @@ const Classes = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-10">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black w-full min-w-0">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8 min-w-0">
+        <div className="mb-10 min-w-0">
           <h1 className="text-3xl md:text-4xl font-extrabold text-blue-900 mb-2 tracking-tight drop-shadow text-left">
             My Classes
           </h1>
@@ -70,11 +70,11 @@ const Classes = () => {
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-10">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-10 min-w-0">
           <button className="flex items-center gap-2 bg-[#007bff] text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
             <FaCalendarAlt /> 2025-01-01
           </button>
-          <div className="relative w-full md:w-1/2">
+          <div className="relative w-full md:w-1/2 min-w-0">
             <input
               type="text"
               placeholder="Search classes..."
@@ -92,7 +92,7 @@ const Classes = () => {
         ) : error ? (
           <p className="p-4 text-red-600">Error: {error.message}</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 min-w-0">
             {filteredClasses.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16">
                 <div className="text-5xl mb-4">📚</div>
@@ -114,7 +114,7 @@ const Classes = () => {
                 return (
                   <div
                     key={idx}
-                    className="bg-white/90 rounded-3xl shadow-2xl border border-blue-200 hover:shadow-2xl transition-all duration-300 p-10 flex flex-col justify-between min-h-[220px] relative group ring-1 ring-blue-100 hover:ring-2 hover:ring-blue-400 gap-4"
+                    className="bg-white/90 rounded-3xl shadow-2xl border border-blue-200 hover:shadow-2xl transition-all duration-300 p-5 sm:p-8 flex flex-col justify-between min-h-[220px] relative group ring-1 ring-blue-100 hover:ring-2 hover:ring-blue-400 gap-4 min-w-0"
                   >
                     <div className="flex items-center gap-3 mb-2">
                       <FaBookOpen className="text-blue-500 text-2xl" />
@@ -135,7 +135,7 @@ const Classes = () => {
                       <span>Room: {cls.room_no}</span>
                     </div>
                     <button
-                      className="mt-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center gap-2"
+                      className="mt-auto bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2 rounded-lg shadow text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center gap-2"
                       onClick={async () => {
                         setViewModal(cls);
                         setModalLoading(true);
@@ -168,7 +168,7 @@ const Classes = () => {
             <div className="mb-3">
               <div className="h-1 w-16 bg-blue-200 rounded mb-2" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 min-w-0">
               <div>
                 <strong>Name:</strong> {viewModal.name}
               </div>
@@ -208,8 +208,8 @@ const Classes = () => {
                 No students enrolled in this class.
               </div>
             ) : (
-              <div className="w-full max-h-54 overflow-y-auto border rounded mb-2">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div className="w-full max-h-54 overflow-y-auto border rounded mb-2 min-w-0">
+                <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -231,7 +231,7 @@ const Classes = () => {
               </div>
             )}
             <button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold mt-4"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-semibold mt-4 w-full sm:w-auto"
               onClick={() => setViewModal(null)}
             >
               Close

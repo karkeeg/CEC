@@ -101,6 +101,25 @@ export const fetchDepartmentById = async (id) => {
   return data;
 };
 
+export const createDepartment = async (department) => {
+  // department: { id, name, faculty_id, description, courses, image_url }
+  const { data, error } = await supabase
+    .from("departments")
+    .insert([department]);
+  if (error) throw error;
+  return data;
+};
+
+export const updateDepartment = async (id, updates) => {
+  // updates: { name, faculty_id, description, courses, image_url }
+  const { data, error } = await supabase
+    .from("departments")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+  return data;
+};
+
 // ------------------- STUDENTS -------------------
 export const fetchStudents = async () => {
   const { data, error } = await supabase.from("students").select("*");

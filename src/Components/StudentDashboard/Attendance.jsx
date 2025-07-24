@@ -90,13 +90,13 @@ const Attendance = () => {
   ];
 
   return (
-    <div className="min-h-screen text-white p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="min-h-screen text-white p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
         Attendance
       </h1>
 
       {/* Date Picker and Tabs */}
-      <div className="bg-[#6750A41A] mt-6 rounded-lg overflow-hidden">
+      <div className="bg-[#6750A41A] mt-6 rounded-lg overflow-hidden min-w-0">
         <div className="p-4 flex justify-center text-gray-600 items-center text-sm font-semibold">
           <span>2025-01-01</span>
           <MdCalendarToday className="ml-2" />
@@ -122,9 +122,9 @@ const Attendance = () => {
       </div>
 
       {/* Calendar View */}
-      <div className="overflow-x-auto mt-6">
+      <div className="overflow-x-auto mt-6 min-w-0">
         {view === "monthly" ? (
-          <table className="min-w-full border-collapse">
+          <table className="min-w-full border-collapse text-sm md:text-base">
             <thead>
               <tr className="bg-[#327ea4] text-white text-sm">
                 {[
@@ -151,7 +151,7 @@ const Attendance = () => {
             </tbody>
           </table>
         ) : (
-          <table className="min-w-full border-collapse">
+          <table className="min-w-full border-collapse text-sm md:text-base">
             <thead>
               <tr className="bg-[#327ea4] text-white text-sm">
                 <th className="p-2 text-center border">Date</th>
@@ -198,7 +198,7 @@ const Attendance = () => {
         )}
 
         {/* Legend */}
-        <div className="flex text-right gap-6 text-sm mt-2">
+        <div className="flex flex-wrap text-right gap-4 sm:gap-6 text-sm mt-2 min-w-0">
           <div className="flex items-center text-center text-gray-500 gap-2">
             <div className="w-4 h-4 bg-[#5BAE9199]" /> Present
           </div>
@@ -212,8 +212,8 @@ const Attendance = () => {
       </div>
 
       {/* Statistics Section */}
-      <div className="mt-10">
-        <div className="flex justify-between items-center mb-2">
+      <div className="mt-10 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2 min-w-0">
           <h2 className="text-lg font-semibold text-gray-300">
             Your statistics
           </h2>
@@ -223,7 +223,7 @@ const Attendance = () => {
         </div>
 
         {/* Real Attendance Chart */}
-        <div className="bg-white rounded-lg p-4">
+        <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
           <ResponsiveContainer width="100%" height={260}>
             <LineChart
               data={attendanceStats}

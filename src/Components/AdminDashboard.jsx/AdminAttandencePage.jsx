@@ -18,9 +18,12 @@ import {
 } from "recharts";
 
 const AdminAttandancePage = () => {
-  const [fromDate, setFromDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [fromDate, setFromDate] = useState(() => {
+    const today = new Date();
+    const oneMonthAgo = new Date(today);
+    oneMonthAgo.setMonth(today.getMonth() - 1);
+    return oneMonthAgo.toISOString().slice(0, 10);
+  });
   const [toDate, setToDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -123,9 +126,9 @@ const AdminAttandancePage = () => {
   const pieColors = ["#22c55e", "#ef4444", "#facc15"];
 
   return (
-    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">
+      <div className="max-w-5xl mx-auto min-w-0">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4 min-w-0">
           <h1 className="text-3xl font-bold text-blue-900">Admin Attendance</h1>
           <button
             onClick={exportToPDF}
@@ -136,7 +139,7 @@ const AdminAttandancePage = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6 min-w-0">
           <input
             type="date"
             value={fromDate}
@@ -153,10 +156,10 @@ const AdminAttandancePage = () => {
 
         {/* Class Attendance Table (moved above charts) */}
         <div
-          className="overflow-x-auto border rounded bg-white mb-8"
+          className="overflow-x-auto border rounded bg-white mb-8 min-w-0"
           id="attendance-table"
         >
-          <table className="min-w-full text-center border-collapse">
+          <table className="min-w-full text-center border-collapse text-sm md:text-base">
             <thead className="bg-blue-900 text-white">
               <tr>
                 <th className="p-3 border">Class</th>
@@ -214,9 +217,9 @@ const AdminAttandancePage = () => {
         </div>
 
         {/* Charts Section (now below table) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 min-w-0">
           {/* Bar Chart: Daily Attendance % */}
-          <div className="bg-blue-50 rounded-xl p-4 shadow flex flex-col items-center">
+          <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center min-w-0 overflow-x-auto">
             <h3 className="text-md font-semibold mb-2 text-blue-800">
               Daily Attendance %
             </h3>
@@ -237,7 +240,7 @@ const AdminAttandancePage = () => {
             </ResponsiveContainer>
           </div>
           {/* Pie Chart: Present/Absent/Late */}
-          <div className="bg-blue-50 rounded-xl p-4 shadow flex flex-col items-center">
+          <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center min-w-0 overflow-x-auto">
             <h3 className="text-md font-semibold mb-2 text-blue-800">
               Attendance Breakdown
             </h3>
@@ -266,7 +269,7 @@ const AdminAttandancePage = () => {
         </div>
 
         {/* Additional Analytics: Line chart for daily total records */}
-        <div className="bg-blue-50 rounded-xl p-4 shadow flex flex-col items-center mb-6">
+        <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center mb-6 min-w-0 overflow-x-auto">
           <h3 className="text-md font-semibold mb-2 text-blue-800">
             Daily Total Attendance Records
           </h3>
@@ -290,7 +293,7 @@ const AdminAttandancePage = () => {
         </div>
 
         {/* Additional Analytics: Stacked Bar chart for present/absent/late per day */}
-        <div className="bg-blue-50 rounded-xl p-4 shadow flex flex-col items-center mb-6">
+        <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center mb-6 min-w-0 overflow-x-auto">
           <h3 className="text-md font-semibold mb-2 text-blue-800">
             Daily Present/Absent/Late Breakdown
           </h3>
@@ -318,7 +321,7 @@ const AdminAttandancePage = () => {
         {/* Modal for class details */}
         {showModal && selectedClass && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-full max-w-2xl relative">
+            <div className="bg-white p-3 sm:p-6 rounded shadow-lg w-full max-w-2xl relative min-w-0">
               <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl"
                 onClick={() => setShowModal(false)}

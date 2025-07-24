@@ -72,13 +72,13 @@ const classAverageData = [
 
 const StudentAnalytics = () => {
   return (
-    <div className="min-h-screen p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="min-h-screen p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
       <h1 className="text-3xl font-bold mb-4 text-gray-800 tracking-tight drop-shadow-sm">
         Student Analytics Dashboard
       </h1>
       {/* Top Bar */}
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center bg-[#30B0C733] rounded px-4 py-2 w-80">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 min-w-0">
+        <div className="flex items-center bg-[#30B0C733] rounded px-4 py-2 w-full sm:w-80 min-w-0">
           <input
             type="text"
             placeholder="Search..."
@@ -92,9 +92,9 @@ const StudentAnalytics = () => {
       </div>
 
       {/* Grades Section */}
-      <div className="mb-12">
+      <div className="mb-12 min-w-0">
         <h3 className="text-lg font-bold text-gray-700 mb-4">Your Grades</h3>
-        <div className="bg-blue-50 rounded-md p-6 flex flex-col items-center text-gray-800">
+        <div className="bg-blue-50 rounded-md p-3 sm:p-6 flex flex-col items-center text-gray-800 min-w-0 overflow-x-auto">
           <div className="w-full h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
@@ -134,7 +134,7 @@ const StudentAnalytics = () => {
       </div>
 
       {/* Course-wise Performance Section */}
-      <div className="bg-blue-100 rounded-md p-6 mt-8">
+      <div className="bg-blue-100 rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
         <div className="flex items-center mb-4">
           <FaRegChartBar className="text-2xl mr-2" />
           <h3 className="text-xl font-bold text-gray-800">
@@ -160,7 +160,7 @@ const StudentAnalytics = () => {
       </div>
 
       {/* Attendance Trend Section */}
-      <div className="bg-[#f5f7fa] rounded-md p-6 mt-8">
+      <div className="bg-[#f5f7fa] rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
         <div className="flex items-center mb-4">
           <span className="text-2xl mr-2">📈</span>
           <h3 className="text-xl font-bold text-gray-800">Attendance Trend</h3>
@@ -204,7 +204,7 @@ const StudentAnalytics = () => {
       </div>
 
       {/* Assignment Submission Rate Section */}
-      <div className="bg-[#f5f7fa] rounded-md p-6 mt-8">
+      <div className="bg-[#f5f7fa] rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
         <div className="flex items-center mb-4">
           <span className="text-2xl mr-2">📊</span>
           <h3 className="text-xl font-bold text-gray-800">
@@ -269,7 +269,7 @@ const StudentAnalytics = () => {
       </div>
 
       {/* Comparison to Class Average Section */}
-      <div className="bg-blue-50 rounded-md p-6 mt-8">
+      <div className="bg-blue-50 rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
         <div className="flex items-center mb-4">
           <span className="text-2xl mr-2">📚</span>
           <h3 className="text-xl font-bold text-gray-800">

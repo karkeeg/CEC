@@ -104,7 +104,7 @@ const DashboardCards = () => {
   };
 
   return (
-    <div className="space-y-6 p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="space-y-6 p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
       {/* Class Schedule */}
 
       <div>
@@ -115,7 +115,7 @@ const DashboardCards = () => {
           Here's what's happening with your classes today.
         </p>
       </div>
-      <div className="bg-blue-100  rounded-xl p-6">
+      <div className="bg-blue-100  rounded-xl p-3 sm:p-6 min-w-0 overflow-x-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <FaCalendarAlt /> Class Schedule
@@ -136,9 +136,9 @@ const DashboardCards = () => {
       </div>
 
       {/* Assignment and Notices */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 min-w-0">
         {/* Upcoming Assignments */}
-        <div className="bg-gradient-to-br from-blue-100 via-blue-50 to-white rounded-2xl p-8 shadow-lg min-h-[260px] flex flex-col">
+        <div className="bg-gradient-to-br from-blue-100 via-blue-50 to-white rounded-2xl p-3 sm:p-8 shadow-lg min-h-[260px] flex flex-col min-w-0 overflow-x-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 text-blue-900">
               <FaBook /> Upcoming Assignments
@@ -173,7 +173,7 @@ const DashboardCards = () => {
         </div>
 
         {/* Notice */}
-        <div className="bg-gradient-to-br from-pink-100 via-pink-50 to-white rounded-2xl p-8 shadow-lg min-h-[260px] flex flex-col">
+        <div className="bg-gradient-to-br from-pink-100 via-pink-50 to-white rounded-2xl p-3 sm:p-8 shadow-lg min-h-[260px] flex flex-col min-w-0 overflow-x-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 text-pink-900">
               <FaBell /> Notice
@@ -205,7 +205,7 @@ const DashboardCards = () => {
       </div>
 
       {/* Attendance Summary */}
-      <div className="bg-gradient-to-br from-green-100 via-blue-50 to-white rounded-2xl p-8 shadow-lg flex flex-col items-start min-h-[180px] mt-2">
+      <div className="bg-gradient-to-br from-green-100 via-blue-50 to-white rounded-2xl p-3 sm:p-8 shadow-lg flex flex-col items-start min-h-[180px] mt-2 min-w-0 overflow-x-auto">
         <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-green-900">
           <FaChartBar /> Attendance Summary
         </h2>

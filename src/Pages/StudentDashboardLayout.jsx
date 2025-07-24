@@ -10,11 +10,7 @@ const StudentDasboardLayout = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       <Header onHamburgerClick={() => setSidebarOpen(true)} />
-      <main
-        className={`pt-24 px-6 bg-gray-100 min-h-screen transition-all duration-300 ${
-          sidebarOpen ? "ml-64" : "ml-0"
-        } md:ml-64`}
-      >
+      <main className="pt-[80px] px-6 bg-gray-100 min-h-screen transition-all duration-300 md:ml-64">
         <Outlet />
       </main>
     </div>

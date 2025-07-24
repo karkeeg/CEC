@@ -6,6 +6,7 @@ import {
   FaPercentage,
   FaBell,
   FaPlus,
+  FaTimes,
 } from "react-icons/fa";
 import {
   createStudent,
@@ -25,6 +26,7 @@ import {
   getAllNotices,
   addGalleryItems,
   logActivity,
+  fetchGalleryItems,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { StudentForm } from "../Forms/StudentForm";
@@ -95,6 +97,44 @@ const MainDashboard = () => {
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [galleryTitle, setGalleryTitle] = useState("");
   const [galleryDescription, setGalleryDescription] = useState("");
+  const [galleryCategoryInput, setGalleryCategoryInput] = useState("");
+  const [galleryCategories, setGalleryCategories] = useState([]);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryBoxRef = useRef();
+  const [galleries, setGalleries] = useState([]);
+  const [editGallery, setEditGallery] = useState(null);
+  const [showEditGalleryModal, setShowEditGalleryModal] = useState(false);
+
+  // Fetch unique categories from gallery items
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from("gallery").select("category");
+      const cats = (data || []).map((g) => g.category).filter(Boolean);
+      setGalleryCategories([...new Set(cats)]);
+    };
+    if (showGalleryModal) fetchCategories();
+  }, [showGalleryModal]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showCategoryDropdown) return;
+    const handleClick = (e) => {
+      if (
+        categoryBoxRef.current &&
+        !categoryBoxRef.current.contains(e.target)
+      ) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showCategoryDropdown]);
+
+  // Fetch all galleries
+  const fetchGalleries = async () => {
+    const data = await fetchGalleryItems();
+    setGalleries(data || []);
+  };
 
   const fetchStats = async () => {
     const students = await getAllStudents();
@@ -134,6 +174,7 @@ const MainDashboard = () => {
 
   useEffect(() => {
     fetchStats();
+    fetchGalleries();
     // Fetch recent activities
     const fetchActivities = async () => {
       const [subs, assigns, notices] = await Promise.all([
@@ -211,6 +252,11 @@ const MainDashboard = () => {
       alert("Title and at least one image/video are required.");
       return;
     }
+    const category = galleryCategoryInput.trim();
+    if (!category) {
+      alert("Please select or enter a category.");
+      return;
+    }
     try {
       const bucket = "gallery";
       const urls = [];
@@ -233,6 +279,7 @@ const MainDashboard = () => {
           title: galleryTitle,
           description: galleryDescription,
           image_url: urls,
+          category,
           created_at: new Date().toISOString(),
         },
       ]);
@@ -247,6 +294,7 @@ const MainDashboard = () => {
       setGalleryFiles([]);
       setGalleryTitle("");
       setGalleryDescription("");
+      setGalleryCategoryInput("");
       // Optionally: refresh gallery images here
     } catch (error) {
       alert("Failed to upload gallery: " + (error.message || error));
@@ -317,6 +365,138 @@ const MainDashboard = () => {
     attendance: "bg-pink-100",
     fee: "bg-red-100",
     default: "bg-gray-100",
+  };
+
+  // Helper to get preview image
+  const getPreviewImage = (gallery) => {
+    let arr = [];
+    try {
+      arr =
+        typeof gallery.image_url === "string"
+          ? JSON.parse(gallery.image_url)
+          : gallery.image_url;
+      if (!Array.isArray(arr)) arr = [];
+    } catch {
+      arr = [];
+    }
+    return arr.length > 0 ? arr[0] : null;
+  };
+
+  // Edit Gallery Modal logic (reuse add modal, but prefill and update on submit)
+  const [editGalleryFiles, setEditGalleryFiles] = useState([]);
+  const [editGalleryTitle, setEditGalleryTitle] = useState("");
+  const [editGalleryDescription, setEditGalleryDescription] = useState("");
+  const [editGalleryCategoryInput, setEditGalleryCategoryInput] = useState("");
+  const [editGalleryCategories, setEditGalleryCategories] = useState([]);
+  const [showEditCategoryDropdown, setShowEditCategoryDropdown] =
+    useState(false);
+  const editCategoryBoxRef = useRef();
+
+  useEffect(() => {
+    if (showEditGalleryModal && editGallery) {
+      setEditGalleryTitle(editGallery.title || "");
+      setEditGalleryDescription(editGallery.description || "");
+      setEditGalleryCategoryInput(editGallery.category || "");
+      setEditGalleryFiles([]); // New files to upload
+      // Fetch categories
+      const fetchCategories = async () => {
+        const { data } = await supabase.from("gallery").select("category");
+        const cats = (data || []).map((g) => g.category).filter(Boolean);
+        setEditGalleryCategories([...new Set(cats)]);
+      };
+      fetchCategories();
+    }
+  }, [showEditGalleryModal, editGallery]);
+
+  useEffect(() => {
+    if (!showEditCategoryDropdown) return;
+    const handleClick = (e) => {
+      if (
+        editCategoryBoxRef.current &&
+        !editCategoryBoxRef.current.contains(e.target)
+      ) {
+        setShowEditCategoryDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEditCategoryDropdown]);
+
+  const handleEditGalleryFileChange = (event) => {
+    setEditGalleryFiles(Array.from(event.target.files));
+  };
+
+  const handleEditGallerySubmit = async (e) => {
+    e.preventDefault();
+    if (!editGalleryTitle) {
+      alert("Title is required.");
+      return;
+    }
+    const category = editGalleryCategoryInput.trim();
+    if (!category) {
+      alert("Please select or enter a category.");
+      return;
+    }
+    try {
+      let urls = [];
+      // If new files are uploaded, upload and use them; else keep existing
+      if (editGalleryFiles.length > 0) {
+        const bucket = "gallery";
+        for (let i = 0; i < editGalleryFiles.length; i++) {
+          const file = editGalleryFiles[i];
+          const filePath = `${Date.now()}_${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from(bucket)
+            .upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: publicUrlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(filePath);
+          const url = publicUrlData?.publicUrl;
+          if (!url) throw new Error("Failed to get public URL");
+          urls.push(url);
+        }
+      } else {
+        urls =
+          typeof editGallery.image_url === "string"
+            ? JSON.parse(editGallery.image_url)
+            : editGallery.image_url;
+        if (!Array.isArray(urls)) urls = [];
+      }
+      // Update gallery item
+      const { error: updateError } = await supabase
+        .from("gallery")
+        .update({
+          title: editGalleryTitle,
+          description: editGalleryDescription,
+          image_url: urls,
+          category,
+        })
+        .eq("id", editGallery.id);
+      if (updateError) throw updateError;
+      alert("Gallery updated!");
+      setShowEditGalleryModal(false);
+      setEditGallery(null);
+      await fetchGalleries();
+    } catch (error) {
+      alert("Failed to update gallery: " + (error.message || error));
+    }
+  };
+
+  const handleDeleteGallery = async (gallery) => {
+    if (!window.confirm("Are you sure you want to delete this gallery item?"))
+      return;
+    try {
+      const { error } = await supabase
+        .from("gallery")
+        .delete()
+        .eq("id", gallery.id);
+      if (error) throw error;
+      alert("Gallery deleted!");
+      await fetchGalleries();
+    } catch (error) {
+      alert("Failed to delete gallery: " + (error.message || error));
+    }
   };
 
   return (
@@ -533,6 +713,71 @@ const MainDashboard = () => {
         )}
       </div>
 
+      {/* Manage Gallery Table */}
+      <div className="bg-white rounded shadow p-4 my-8">
+        <h2 className="text-xl font-bold mb-4">Manage Gallery</h2>
+        {galleries.length === 0 ? (
+          <p className="text-gray-500">No gallery items found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left border">
+              <thead className="bg-indigo-100">
+                <tr>
+                  <th className="p-2">Preview</th>
+                  <th className="p-2">Title</th>
+                  <th className="p-2">Description</th>
+                  <th className="p-2">Category</th>
+                  <th className="p-2">Date</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {galleries.map((gallery) => (
+                  <tr key={gallery.id}>
+                    <td className="p-2">
+                      {getPreviewImage(gallery) ? (
+                        <img
+                          src={getPreviewImage(gallery)}
+                          alt={gallery.title}
+                          className="w-20 h-16 object-cover rounded shadow"
+                        />
+                      ) : (
+                        <span className="text-gray-400">No image</span>
+                      )}
+                    </td>
+                    <td className="p-2 font-semibold">{gallery.title}</td>
+                    <td className="p-2 max-w-xs truncate">
+                      {gallery.description}
+                    </td>
+                    <td className="p-2">{gallery.category}</td>
+                    <td className="p-2">
+                      {new Date(gallery.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 flex gap-2">
+                      <button
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => {
+                          setEditGallery(gallery);
+                          setShowEditGalleryModal(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => handleDeleteGallery(gallery)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Modals */}
       {showStudentModal && (
         <Modal title="Add Student" onClose={() => setShowStudentModal(false)}>
@@ -606,6 +851,55 @@ const MainDashboard = () => {
               value={galleryDescription}
               onChange={(e) => setGalleryDescription(e.target.value)}
             />
+            {/* Category Combobox */}
+            <div className="flex flex-col gap-2 relative" ref={categoryBoxRef}>
+              <label className="font-semibold">Category*</label>
+              <input
+                type="text"
+                className={inputStyle}
+                placeholder="Type or select category"
+                value={galleryCategoryInput}
+                onChange={(e) => {
+                  setGalleryCategoryInput(e.target.value);
+                  setShowCategoryDropdown(true);
+                }}
+                onFocus={() => setShowCategoryDropdown(true)}
+                autoComplete="off"
+                required
+              />
+              {showCategoryDropdown && galleryCategories.length > 0 && (
+                <div className="absolute top-full left-0 w-full bg-white border border-blue-200 rounded shadow z-20 max-h-40 overflow-y-auto">
+                  {galleryCategories
+                    .filter((cat) =>
+                      cat
+                        .toLowerCase()
+                        .includes(galleryCategoryInput.toLowerCase())
+                    )
+                    .map((cat) => (
+                      <button
+                        type="button"
+                        key={cat}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-100 focus:bg-blue-200 focus:outline-none"
+                        onClick={() => {
+                          setGalleryCategoryInput(cat);
+                          setShowCategoryDropdown(false);
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  {galleryCategories.filter(
+                    (cat) =>
+                      cat.toLowerCase() === galleryCategoryInput.toLowerCase()
+                  ).length === 0 &&
+                    galleryCategoryInput.trim() && (
+                      <div className="px-4 py-2 text-blue-600 font-semibold bg-blue-50">
+                        Add "{galleryCategoryInput.trim()}" as new category
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
             <input
               type="file"
               accept="image/*,video/*"
@@ -633,6 +927,164 @@ const MainDashboard = () => {
                 className="bg-blue-600 text-white px-4 py-2 rounded"
               >
                 Upload
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {/* Edit Gallery Modal */}
+      {showEditGalleryModal && editGallery && (
+        <Modal
+          title="Edit Gallery Item"
+          onClose={() => {
+            setShowEditGalleryModal(false);
+            setEditGallery(null);
+          }}
+        >
+          <form
+            onSubmit={handleEditGallerySubmit}
+            className="flex flex-col gap-4"
+          >
+            <input
+              type="text"
+              placeholder="Title*"
+              className={inputStyle}
+              value={editGalleryTitle}
+              onChange={(e) => setEditGalleryTitle(e.target.value)}
+              required
+            />
+            <textarea
+              placeholder="Description"
+              className={inputStyle}
+              value={editGalleryDescription}
+              onChange={(e) => setEditGalleryDescription(e.target.value)}
+            />
+            {/* Category Combobox */}
+            <div
+              className="flex flex-col gap-2 relative"
+              ref={editCategoryBoxRef}
+            >
+              <label className="font-semibold">Category*</label>
+              <input
+                type="text"
+                className={inputStyle}
+                placeholder="Type or select category"
+                value={editGalleryCategoryInput}
+                onChange={(e) => {
+                  setEditGalleryCategoryInput(e.target.value);
+                  setShowEditCategoryDropdown(true);
+                }}
+                onFocus={() => setShowEditCategoryDropdown(true)}
+                autoComplete="off"
+                required
+              />
+              {showEditCategoryDropdown && editGalleryCategories.length > 0 && (
+                <div className="absolute top-full left-0 w-full bg-white border border-blue-200 rounded shadow z-20 max-h-40 overflow-y-auto">
+                  {editGalleryCategories
+                    .filter((cat) =>
+                      cat
+                        .toLowerCase()
+                        .includes(editGalleryCategoryInput.toLowerCase())
+                    )
+                    .map((cat) => (
+                      <button
+                        type="button"
+                        key={cat}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-100 focus:bg-blue-200 focus:outline-none"
+                        onClick={() => {
+                          setEditGalleryCategoryInput(cat);
+                          setShowEditCategoryDropdown(false);
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  {editGalleryCategories.filter(
+                    (cat) =>
+                      cat.toLowerCase() ===
+                      editGalleryCategoryInput.toLowerCase()
+                  ).length === 0 &&
+                    editGalleryCategoryInput.trim() && (
+                      <div className="px-4 py-2 text-blue-600 font-semibold bg-blue-50">
+                        Add "{editGalleryCategoryInput.trim()}" as new category
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleEditGalleryFileChange}
+              className={inputStyle}
+            />
+            <div className="flex flex-wrap gap-2">
+              {editGalleryFiles.length === 0 &&
+                (typeof editGallery.image_url === "string"
+                  ? JSON.parse(editGallery.image_url)
+                  : editGallery.image_url || []
+                ).map((url, idx, arr) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={url}
+                      alt="preview"
+                      className="w-16 h-16 object-cover rounded shadow"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Delete image"
+                      className="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full p-1 shadow hover:bg-red-100 z-10 group-hover:opacity-100 opacity-80 transition"
+                      onClick={async () => {
+                        if (!window.confirm("Delete this image from gallery?"))
+                          return;
+                        // Remove image from array and update DB
+                        const newUrls = arr.filter((u, i) => i !== idx);
+                        const { error } = await supabase
+                          .from("gallery")
+                          .update({ image_url: newUrls })
+                          .eq("id", editGallery.id);
+                        if (error) {
+                          alert(
+                            "Failed to delete image: " +
+                              (error.message || error)
+                          );
+                        } else {
+                          // Update UI
+                          setEditGallery({
+                            ...editGallery,
+                            image_url: newUrls,
+                          });
+                          await fetchGalleries();
+                        }
+                      }}
+                    >
+                      <FaTimes className="text-xs text-red-600" />
+                    </button>
+                  </div>
+                ))}
+              {editGalleryFiles.map((file, idx) => (
+                <div key={idx} className="bg-gray-100 p-2 rounded text-xs">
+                  {file.name}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditGalleryModal(false);
+                  setEditGallery(null);
+                }}
+                className="bg-gray-300 px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Update
               </button>
             </div>
           </form>

@@ -283,10 +283,10 @@ const Assignments = () => {
     !submissionStatus[a.id]?.submitted && new Date(a.due_date) < new Date();
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
-      <main className="w-full p-6 sm:p-6">
+    <div className="flex flex-col lg:flex-row min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
+      <main className="w-full p-2 sm:p-4 md:p-6 min-w-0">
         {/* Page Header */}
-        <div className="mb-6">
+        <div className="mb-6 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-900">
             Assignments
           </h1>
@@ -297,7 +297,7 @@ const Assignments = () => {
         </div>
 
         {/* Top Controls */}
-        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 mb-6 min-w-0">
           <input
             type="date"
             value={date}
@@ -320,8 +320,8 @@ const Assignments = () => {
         </div>
 
         {/* Modern Table */}
-        <div className="overflow-x-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-xl mt-4 shadow-md">
-          <table className="min-w-full text-sm text-left">
+        <div className="overflow-x-auto bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-xl mt-4 shadow-md min-w-0">
+          <table className="min-w-full text-sm text-left md:text-base">
             <thead>
               <tr className="bg-cyan-900 text-white text-base">
                 <th className="px-3 py-2 font-bold">#</th>
@@ -467,8 +467,8 @@ const Assignments = () => {
         </div>
 
         {/* Analytics Section - Modern Cards and Charts */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-gradient-to-br from-blue-100 via-white to-blue-50 rounded-2xl shadow-lg p-6 flex flex-col items-center">
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 min-w-0">
+          <div className="bg-gradient-to-br from-blue-100 via-white to-blue-50 rounded-2xl shadow-lg p-3 sm:p-6 flex flex-col items-center min-w-0 overflow-x-auto">
             <div className="w-full mb-4">
               <div className="text-base font-semibold text-blue-900 mb-2">
                 Assignment Completion
@@ -494,7 +494,7 @@ const Assignments = () => {
               />
             </div>
           </div>
-          <div className="bg-gradient-to-br from-green-100 via-white to-blue-50 rounded-2xl shadow-lg p-6 flex flex-col items-center">
+          <div className="bg-gradient-to-br from-green-100 via-white to-blue-50 rounded-2xl shadow-lg p-3 sm:p-6 flex flex-col items-center min-w-0 overflow-x-auto">
             <div className="w-full mb-4">
               <div className="text-base font-semibold text-green-900 mb-2">
                 Assignments Due Per Week
@@ -509,7 +509,7 @@ const Assignments = () => {
         {/* View Modal */}
         {viewModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg relative">
+            <div className="bg-white p-3 sm:p-8 rounded-xl shadow-lg w-full max-w-lg relative min-w-0">
               <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl"
                 onClick={() => setViewModal(null)}
@@ -610,7 +610,7 @@ const Assignments = () => {
         {/* Submit Modal */}
         {submitModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg relative">
+            <div className="bg-white p-3 sm:p-8 rounded-xl shadow-lg w-full max-w-lg relative min-w-0">
               <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl"
                 onClick={() => setSubmitModal(null)}

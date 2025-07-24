@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { BiMoney } from "react-icons/bi";
 import { CgAttachment } from "react-icons/cg";
 import { CiMoneyBill } from "react-icons/ci";
@@ -18,7 +18,11 @@ import { SlCalender } from "react-icons/sl";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 
-const AdminSidebar = ({ open, setOpen }) => {
+const AdminSidebar = (props) => {
+  // Support both controlled (via props) and uncontrolled (local state) usage
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = props.open !== undefined ? props.open : localOpen;
+  const setOpen = props.setOpen !== undefined ? props.setOpen : setLocalOpen;
   const { signOut } = useUser();
   const navigate = useNavigate();
 
@@ -77,25 +81,38 @@ const AdminSidebar = ({ open, setOpen }) => {
 
   return (
     <>
-      {/* Overlay for mobile */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-40 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-      <aside
-        className={`bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 z-50 shadow-lg transition-transform duration-300
-          ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
-          ${open ? "" : "pointer-events-none md:pointer-events-auto"}
-          md:static md:block md:fixed md:top-0 md:left-0 md:z-50
-        `}
-        style={{
-          display: open ? "block" : undefined,
-        }}
-      >
+      {/* Desktop Sidebar */}
+      <aside className="bg-[#1E449D] text-white w-64 h-screen fixed top-0 left-0 flex-col shadow-lg hidden md:flex z-40">
         {sidebarContent}
       </aside>
+      {/* Mobile Hamburger */}
+      <button
+        className="fixed top-4 left-4 z-50 md:hidden bg-[#1E449D] text-white p-2 rounded-lg shadow-lg focus:outline-none"
+        onClick={() => setOpen(true)}
+        aria-label="Open navigation menu"
+      >
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+          <path
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+      {/* Mobile Drawer */}
+      {open && (
+        <>
+          <div className="bg-[#1E449D] text-white w-64 fixed top-0 left-0 h-full z-[999] flex-col shadow-lg animate-slideInLeft md:hidden">
+            {sidebarContent}
+          </div>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 z-[998] bg-black bg-opacity-40 md:hidden"
+            onClick={() => setOpen(false)}
+          />
+        </>
+      )}
     </>
   );
 };

@@ -68,13 +68,13 @@ const Feedback = () => {
   const [error, setError] = useState(null);
 
   return (
-    <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black">
+    <div className="p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black w-full min-w-0">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
         Feedback Overview
       </h1>
 
       {/* Controls */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 min-w-0">
         <button className="flex items-center gap-2 bg-[#007bff] text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
           <FaCalendarAlt /> 2025-01-01
         </button>
@@ -94,13 +94,13 @@ const Feedback = () => {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
+      <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200 min-w-0">
         {loading ? (
           <p className="p-4">Loading feedback...</p>
         ) : error ? (
           <p className="p-4 text-red-600">Error: {error.message}</p>
         ) : (
-          <table className="min-w-full table-auto divide-y divide-gray-200">
+          <table className="min-w-full table-auto divide-y divide-gray-200 text-sm md:text-base">
             <thead className="bg-[#1E6C7B] text-white sticky top-0">
               <tr>
                 <th className="py-3 px-5 text-sm font-semibold text-left">

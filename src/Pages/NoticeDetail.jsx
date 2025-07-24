@@ -26,32 +26,62 @@ const NoticeDetail = () => {
       <div className="p-10 text-center text-red-600">Notice not found.</div>
     );
 
+  // Parse files field if it's a JSON string
+  let filesArr = [];
+  try {
+    filesArr =
+      typeof notice.files === "string"
+        ? JSON.parse(notice.files)
+        : notice.files;
+    if (!Array.isArray(filesArr)) filesArr = [];
+  } catch {
+    filesArr = [];
+  }
+
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4">
-      <Link
-        to="/notices"
-        className="text-blue-700 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to Notices
-      </Link>
-      <div className="bg-white rounded-xl shadow p-8">
-        <div className="text-xs text-gray-400 mb-2">
-          {notice.created_at &&
-            new Date(notice.created_at).toLocaleDateString()}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-10 px-2 sm:px-4 flex justify-center items-start">
+      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-l-8 border-blue-500 p-0 overflow-hidden">
+        <div className="flex items-center gap-2 px-6 pt-6 pb-2">
+          <Link
+            to="/notices"
+            className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 text-base sm:text-lg transition-colors"
+          >
+            <span className="text-xl">←</span> <span>Back</span>
+          </Link>
+          <span className="ml-auto text-xs sm:text-sm text-gray-400 font-medium">
+            {notice.created_at &&
+              new Date(notice.created_at).toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+          </span>
         </div>
-        <h1 className="text-2xl font-bold text-blue-900 mb-2">
-          {notice.title}
-        </h1>
-        {notice.images && (
-          <img
-            src={notice.images}
-            alt={notice.title}
-            className="w-full max-h-96 object-contain rounded mb-4"
-          />
-        )}
-        {notice.description && (
-          <div className="text-gray-700 mb-4">{notice.description}</div>
-        )}
+        <div className="px-6 pb-6 pt-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-900 mb-4 tracking-tight leading-tight">
+            {notice.title}
+          </h1>
+          {filesArr.length > 0 && (
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filesArr.map((url, idx) => (
+                <div
+                  key={idx}
+                  className="w-full h-56 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center"
+                >
+                  <img
+                    src={url}
+                    alt={notice.title}
+                    className="object-contain w-full h-full transition-transform duration-200 hover:scale-105"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {notice.description && (
+            <div className="text-gray-700 text-lg leading-relaxed mb-2 whitespace-pre-line">
+              {notice.description}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -66,38 +66,44 @@ const TeacherAnalytics = () => {
     const fetchAnalytics = async () => {
       if (!user?.id) return;
       try {
-        // Fetch all classes taught by this teacher
+        // 1. Fetch all classes taught by this teacher
         const classesData = await getClassesByTeacher(user.id);
         const classIds = (classesData || []).map((c) => c.class_id);
-        // Fetch students whose class_id is in classIds
-        let studentsCount = 0;
+
+        // 2. Fetch all students in those classes
+        let studentsData = [];
         if (classIds.length > 0) {
-          const studentsData = await getAllStudents();
-          studentsCount = (studentsData || []).filter((s) =>
-            classIds.includes(s.class_id)
-          ).length;
+          const allStudents = [];
+          for (const classId of classIds) {
+            const joins = await getStudentsByClass(classId); // [{id, student: {...}}]
+            for (const join of joins) {
+              if (join.student && join.student.id) {
+                allStudents.push(join.student);
+              }
+            }
+          }
+          // Remove duplicates by student id
+          const unique = {};
+          allStudents.forEach((s) => {
+            unique[s.id] = s;
+          });
+          studentsData = Object.values(unique);
         }
-        // Fetch assignments and all classes for global stats
+
+        // 3. Fetch assignments and all classes for stats
         const assignmentsData = await getAllAssignments();
         const allClassesData = await getAllClasses();
-        setAnalytics({
-          totalStudents: studentsCount,
-          totalClasses: allClassesData?.length || 0,
-          totalAssignments: assignmentsData?.length || 0,
-          averageGrade: 0, // Set to 0 or mock unless you want to calculate real grades
-        });
-        // --- Score Distribution: Real Data ---
-        // 1. Get all assignments for this teacher
+
+        // 4. Fetch all assignments for this teacher, and all submissions/grades
         const teacherAssignments = await fetchAssignments({
           teacher_id: user.id,
         });
-        // 2. For each assignment, fetch all submissions and their grades
-        const courseGrades = {};
-        // For performance overview
         let allGrades = [];
+        const courseGrades = {};
         let topStudent = null;
         let topScore = -Infinity;
-        let studentScores = {}; // { studentName: [grades] }
+        let studentScores = {};
+
         for (const assignment of teacherAssignments) {
           const subject =
             assignment.subject?.name || assignment.subject || "Unknown";
@@ -105,11 +111,8 @@ const TeacherAnalytics = () => {
           for (const submission of submissions) {
             const gradeValue = submission.grade?.grade;
             if (gradeValue !== undefined && gradeValue !== null) {
-              if (!courseGrades[subject]) {
-                courseGrades[subject] = [];
-              }
+              if (!courseGrades[subject]) courseGrades[subject] = [];
               courseGrades[subject].push(Number(gradeValue));
-              // For performance overview
               allGrades.push(Number(gradeValue));
               const studentName = submission.student
                 ? `${submission.student.first_name || ""} ${
@@ -125,7 +128,22 @@ const TeacherAnalytics = () => {
             }
           }
         }
-        // 3. Aggregate: average grade per course
+
+        // 5. Calculate average grade from allGrades
+        const avgGrade =
+          allGrades.length > 0
+            ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length
+            : 0;
+
+        // 6. Set analytics
+        setAnalytics({
+          totalStudents: studentsData.length,
+          totalClasses: allClassesData?.length || 0,
+          totalAssignments: assignmentsData?.length || 0,
+          averageGrade: isNaN(avgGrade) ? 0 : avgGrade.toFixed(1),
+        });
+
+        // --- Score Distribution: Real Data ---
         const scoreDistArr = Object.entries(courseGrades).map(
           ([course, grades]) => ({
             course,
@@ -137,10 +155,6 @@ const TeacherAnalytics = () => {
         );
         setScoreDistribution(scoreDistArr);
         // --- Performance Overview: Real Data ---
-        const avgGrade =
-          allGrades.length > 0
-            ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length
-            : 0;
         const numAbove80 = allGrades.filter((g) => g >= 80).length;
         const numGradedSubmissions = allGrades.length;
         setPerformanceOverview([
@@ -152,20 +166,12 @@ const TeacherAnalytics = () => {
           { label: "Submissions Graded", value: `${numGradedSubmissions}` },
         ]);
         // --- Absence Alerts: Real Data ---
-        // 1. Fetch all students in the teacher's classes
-        let studentsData = [];
-        if (classIds.length > 0) {
-          studentsData = await getAllStudents();
-          studentsData = studentsData.filter((s) =>
-            classIds.includes(s.class_id)
-          );
-        }
-        // 2. Fetch all attendance records for these classes
+        // 1. Fetch all attendance records for these classes
         let attendanceRecords = [];
         if (classIds.length > 0) {
           attendanceRecords = await fetchAttendance({ teacher_id: user.id });
         }
-        // 3. Count absences per student
+        // 2. Count absences per student
         const absenceCount = {};
         attendanceRecords.forEach((record) => {
           if (record.status === "absent") {
@@ -173,29 +179,39 @@ const TeacherAnalytics = () => {
               (absenceCount[record.student_id] || 0) + 1;
           }
         });
-        // 4. Map to alert format and sort
+        // 3. Map to alert format and sort
         const alerts = Object.entries(absenceCount)
           .map(([studentId, absences]) => {
-            const student = studentsData.find((s) => s.id === studentId);
+            const student = studentsData.find(
+              (s) => String(s.id) === String(studentId)
+            );
+            if (!student) {
+              console.warn(
+                "No student found for attendance studentId:",
+                studentId,
+                "All student IDs:",
+                studentsData.map((s) => s.id)
+              );
+            }
             return {
               name: student
-                ? `${student.first_name} ${student.last_name}`
+                ? `${student.first_name || ""} ${
+                    student.last_name || ""
+                  }`.trim()
                 : "Unknown",
               absences,
             };
           })
           .sort((a, b) => b.absences - a.absences)
-          .slice(0, 5); // Show top 5
+          .slice(0, 10); // Show top 5
         setAbsenceAlerts(alerts);
         // --- Attendance Trends: Last 30 Days ---
-        // 1. Get date range for last 30 days
         const today = new Date();
         const last30Days = Array.from({ length: 30 }, (_, i) => {
           const d = new Date(today);
           d.setDate(today.getDate() - (29 - i));
           return d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
         });
-        // 2. Aggregate attendance by date
         const attendanceByDate = {};
         last30Days.forEach((date) => {
           attendanceByDate[date] = { date, present: 0, absent: 0, late: 0 };
@@ -211,7 +227,6 @@ const TeacherAnalytics = () => {
         });
         setAttendanceData(Object.values(attendanceByDate));
         // --- Assignment Completion Rate & Class Performance ---
-        // For each class, calculate completion rate and student count
         const classDataArr = [];
         for (const classObj of classesData) {
           const classId = classObj.class_id;

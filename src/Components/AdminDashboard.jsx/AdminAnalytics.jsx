@@ -101,19 +101,19 @@ const AdminAnalytics = () => {
     doc.save("analytics-report.pdf");
   };
   return (
-    <div className="min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 p-6">
+    <div className="w-full p-2 sm:p-4 md:p-6 min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2 mb-8 min-w-0">
         <span className="text-2xl font-extrabold text-gray-800 flex items-center">
           <span className="mr-2">📊</span> Analytics
         </span>
         <button
           onClick={exportToPDF}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-auto"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto"
         >
           Export PDF
         </button>
-        <div className="ml-2 flex gap-3">
+        <div className="ml-0 sm:ml-2 flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           <select className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold focus:outline-none">
             <option>Courses</option>
           </select>
@@ -130,11 +130,11 @@ const AdminAnalytics = () => {
       </div>
       {/* Analytics Grid */}
       <div
-        className="grid grid-cols-1 md:grid-cols-2 gap-8"
+        className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 min-w-0"
         id="analytics-table"
       >
         {/* Student Performance */}
-        <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
+        <div className="bg-[#e8ebfc] rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xl">📈</span>
             <span className="font-bold text-xl">Student Performance</span>
@@ -161,7 +161,7 @@ const AdminAnalytics = () => {
           </div>
         </div>
         {/* Grade Trends */}
-        <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
+        <div className="bg-[#e8ebfc] rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xl">🗂️</span>
             <span className="font-bold text-xl">Grade Trends</span>
@@ -185,9 +185,9 @@ const AdminAnalytics = () => {
           </div>
         </div>
         {/* Course-wise Reports */}
-        <div className="bg-[#e8ebfc] rounded-xl p-6 shadow flex flex-col">
+        <div className="bg-[#e8ebfc] rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl">��</span>
+            <span className="text-xl"></span>
             <span className="font-bold text-xl">Course-wise Reports</span>
           </div>
           <div className="w-full h-56">

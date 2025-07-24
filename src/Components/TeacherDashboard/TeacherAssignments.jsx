@@ -269,10 +269,10 @@ const TeacherAssignments = () => {
   }
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Summary Section: Filters and Create Button */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center">
+      <div className="mb-8 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 min-w-0">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
               Assignments
@@ -290,7 +290,7 @@ const TeacherAssignments = () => {
           </button>
         </div>
         {/* Positive Message and Filter */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mt-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 min-w-0">
           <div className="flex items-center gap-2">
             <label className="font-medium text-gray-700">
               Filter by Class:
@@ -319,9 +319,9 @@ const TeacherAssignments = () => {
       </div>
 
       {/* Assignments List Section */}
-      <div className="bg-blue-100 rounded-xl shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-blue-100 rounded-xl shadow overflow-hidden min-w-0">
+        <div className="overflow-x-auto min-w-0">
+          <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -474,9 +474,9 @@ const TeacherAssignments = () => {
         </div>
       </div>
       {/* Charts Section: Assignment Submission Progress */}
-      <div className="my-8">
+      <div className="my-8 min-w-0">
         {/* Assignment Submission Progress Ladder Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Assignment Submission Progress (Ladder Chart)
           </h2>

@@ -139,8 +139,8 @@ const StudentDashboard = () => {
   };
 
   return (
-    <div className="p-6 text-black 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
+    <div className="w-full p-2 sm:p-4 md:p-6 text-black border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 min-w-0">
         <h1 className="text-3xl font-bold">Student Management Dashboard</h1>
         <button
           onClick={exportToPDF}
@@ -151,7 +151,7 @@ const StudentDashboard = () => {
       </div>
 
       {/* Search Input */}
-      <div className="mb-4">
+      <div className="mb-4 min-w-0">
         <input
           type="text"
           placeholder="Search students by name..."
@@ -163,10 +163,10 @@ const StudentDashboard = () => {
 
       {/* Student Table */}
       <div
-        className="overflow-x-auto shadow rounded border mb-8"
+        className="overflow-x-auto shadow rounded border mb-8 min-w-0"
         id="students-table"
       >
-        <table className="min-w-full border-collapse text-left">
+        <table className="min-w-full border-collapse text-left text-sm md:text-base">
           <thead className="bg-[#1E6C7B] text-white">
             <tr>
               <th className="py-3 px-4">Name</th>
@@ -390,8 +390,8 @@ const StudentDashboard = () => {
       )}
 
       {/* Charts */}
-      <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="w-full h-72 bg-blue-50 rounded-lg p-4">
+      <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <div className="w-full h-72 bg-blue-50 rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Students by Year
           </h3>
@@ -405,7 +405,7 @@ const StudentDashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="w-full h-72 bg-pink-50 rounded-lg p-4">
+        <div className="w-full h-72 bg-pink-50 rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Gender Distribution
           </h3>

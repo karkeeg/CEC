@@ -91,12 +91,12 @@ const TeacherStudents = () => {
   }));
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black  min-h-screen">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black min-h-screen min-w-0">
       {/* Summary Section: Filters and Search */}
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         <h1 className="text-3xl font-bold mb-6">My Students</h1>
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-4 min-w-0">
           <input
             type="text"
             placeholder="Search students by name..."
@@ -119,14 +119,14 @@ const TeacherStudents = () => {
         </div>
       </div>
       {/* Student Table Section (moved to top) */}
-      <div className="mb-6">
+      <div className="mb-6 min-w-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-lg font-semibold">
             Total Students: {filteredStudents.length}
           </span>
         </div>
-        <div className="overflow-x-auto shadow rounded border mb-8">
-          <table className="min-w-full border-collapse text-left">
+        <div className="overflow-x-auto shadow rounded border mb-8 min-w-0">
+          <table className="min-w-full border-collapse text-left text-sm md:text-base">
             <thead className="bg-[#1E6C7B] text-white">
               <tr>
                 <th className="py-3 px-4">Name</th>
@@ -200,9 +200,9 @@ const TeacherStudents = () => {
         </div>
       </div>
       {/* Charts Section: Performance, Progress (moved below table) */}
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         {/* Student Performance Area Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Student Performance (Mountain Chart)
           </h2>
@@ -253,7 +253,7 @@ const TeacherStudents = () => {
           </ResponsiveContainer>
         </div>
         {/* Student Progress Ladder Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Student Progress (Ladder Chart)
           </h2>

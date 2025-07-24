@@ -254,9 +254,9 @@ const TeacherGrades = () => {
   };
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Summary Section: Assignment Selection and Stats */}
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>
         <p className="text-gray-600">Manage and grade student assignments</p>
         {/* Combined Filter and Submissions Table Section */}
@@ -300,7 +300,7 @@ const TeacherGrades = () => {
             'All Assignments' to see all submissions.
           </div>
           <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full border-collapse text-left text-sm md:text-base">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -398,7 +398,7 @@ const TeacherGrades = () => {
         </div>
 
         {/* Stats: Always show, for all or selected assignment */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 min-w-0">
           <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
@@ -447,7 +447,7 @@ const TeacherGrades = () => {
         {/* Feedback/Grade Modal */}
         {showGradeModal && modalSubmission && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md w-full max-w-md min-w-0">
               <h2 className="text-xl font-bold mb-4">Give Feedback & Grade</h2>
               <div className="mb-2">
                 <strong>Student:</strong> {modalSubmission.student?.first_name}{" "}
@@ -556,7 +556,7 @@ const TeacherGrades = () => {
       </div>
 
       {/* Charts Section: Grade Trend, Completion */}
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         {/* Grade Trend Area Chart */}
         <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">

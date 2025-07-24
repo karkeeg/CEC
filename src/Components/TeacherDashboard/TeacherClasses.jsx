@@ -135,7 +135,7 @@ const TeacherClasses = () => {
   }
 
   return (
-    <div className="w-full p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">
+    <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-w-0">
       {/* Add Class Button */}
       {/* <div className="mb-4 flex justify-end">
         <button
@@ -155,7 +155,7 @@ const TeacherClasses = () => {
           departments.
         </p>
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 min-w-0">
           <div className="bg-blue-100 p-6 rounded-xl shadow">
             <div className="flex items-center justify-between">
               <div>
@@ -230,7 +230,7 @@ const TeacherClasses = () => {
         </div>
       </div>{" "}
       {/* Classes Grid Section - moved to top */}
-      <div className="mb-10">
+      <div className="mb-10 min-w-0">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold text-gray-800">My Classes</h1>
           <button
@@ -245,7 +245,7 @@ const TeacherClasses = () => {
           view details, manage enrollments, and monitor class status at a
           glance.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
           {classes.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <div className="text-gray-500 text-lg">No classes found</div>
@@ -396,9 +396,9 @@ const TeacherClasses = () => {
         </div>
       </div>
       {/* Charts Section: Class Size Trend, Fill Status */}
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         {/* Class Size Trend Area Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Class Size Trend (Mountain Chart)
           </h2>
@@ -428,7 +428,7 @@ const TeacherClasses = () => {
           </ResponsiveContainer>
         </div>
         {/* Class Fill Status Ladder Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Class Fill Status (Ladder Chart)
           </h2>
@@ -452,7 +452,7 @@ const TeacherClasses = () => {
           </ResponsiveContainer>
         </div>
         {/* Weekly Class Schedule Bar Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Weekly Class Schedule (Demo)
           </h2>
@@ -473,7 +473,7 @@ const TeacherClasses = () => {
           </ResponsiveContainer>
         </div>
         {/* Class Time Distribution Line Chart */}
-        <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
+        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Class Time Distribution (Demo)
           </h2>
