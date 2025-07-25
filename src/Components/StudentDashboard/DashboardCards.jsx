@@ -6,17 +6,9 @@ import supabase from "../../supabaseConfig/supabaseClient";
 import {
   getAssignmentsForStudent,
   getRecentNotices,
+  getAllClasses,
+  getAttendanceByStudent,
 } from "../../supabaseConfig/supabaseApi";
-
-const classSchedule = [
-  { subject: "English", time: "6:30 - 8:00" },
-  { subject: "Mathematics", time: "8:00 - 9:30" },
-  { subject: "Social", time: "9:30 - 10:00" },
-  { subject: "Break Time", time: "10:00 - 10:30" },
-  { subject: "Physics", time: "10:30 - 12:00" },
-  { subject: "Chemistry", time: "12:00 - 01:30" },
-  { subject: "C programming", time: "1:30 - 3:00" },
-];
 
 const assignments = [
   { subject: "C programming", date: "02-07-2025", time: "12:00pm" },
@@ -32,6 +24,14 @@ const DashboardCards = () => {
   const [notices, setNotices] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [loadingNotices, setLoadingNotices] = useState(true);
+  const [classSchedule, setClassSchedule] = useState([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [attendanceSummary, setAttendanceSummary] = useState({
+    present: 0,
+    absent: 0,
+    total: 0,
+  });
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -54,6 +54,60 @@ const DashboardCards = () => {
     };
     fetchNotices();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchSchedule = async () => {
+      setLoadingSchedule(true);
+      // Get enrolled class IDs
+      const { data: enrolled, error } = await supabase
+        .from("student_classes")
+        .select("class_id")
+        .eq("student_id", user.id);
+      if (error || !enrolled) {
+        setClassSchedule([]);
+        setLoadingSchedule(false);
+        return;
+      }
+      const classIds = enrolled.map((sc) => sc.class_id);
+      // Get all classes and filter
+      const allClasses = await getAllClasses();
+      const filtered = (allClasses || []).filter((cls) =>
+        classIds.includes(cls.class_id || cls.id)
+      );
+      // Sort by schedule time if available
+      filtered.sort((a, b) => {
+        if (!a.schedule || !b.schedule) return 0;
+        return a.schedule.localeCompare(b.schedule);
+      });
+      setClassSchedule(filtered);
+      setLoadingSchedule(false);
+    };
+    fetchSchedule();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchAttendance = async () => {
+      setLoadingAttendance(true);
+      // Fetch all attendance records for this student
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("status")
+        .eq("student_id", user.id);
+      if (error || !data) {
+        setAttendanceSummary({ present: 0, absent: 0, total: 0 });
+        setLoadingAttendance(false);
+        return;
+      }
+      const present = data.filter((a) => a.status === "present").length;
+      const absent = data.filter((a) => a.status === "absent").length;
+      const total = data.length;
+      setAttendanceSummary({ present, absent, total });
+      setLoadingAttendance(false);
+    };
+    fetchAttendance();
+  }, [user]);
 
   const formatDate = (isoDate) => {
     const date = new Date(isoDate);
@@ -80,15 +134,34 @@ const DashboardCards = () => {
           <MdExpandLess />
         </div>
         <div className="flex flex-wrap gap-3">
-          {classSchedule.map((cls, idx) => (
-            <div
-              key={idx}
-              className="bg-white px-4 py-2 rounded-lg border border-blue-300 text-center shadow text-sm"
-            >
-              <div className="font-bold">{cls.subject}</div>
-              <div className="text-xs text-gray-500">{cls.time}</div>
-            </div>
-          ))}
+          {loadingSchedule ? (
+            <div className="text-gray-500 text-base">Loading schedule...</div>
+          ) : classSchedule.length === 0 ? (
+            <div className="text-gray-500 text-base">No classes found.</div>
+          ) : (
+            classSchedule.map((cls, idx) => (
+              <div
+                key={idx}
+                className="bg-white px-4 py-2 rounded-lg border border-blue-300 text-center shadow text-sm"
+              >
+                <div className="font-bold">
+                  {cls.subject?.name ?? "Unknown"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {cls.schedule
+                    ? `${new Date(cls.schedule).toLocaleDateString([], {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })} | ${new Date(cls.schedule).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : "No date/time"}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -167,19 +240,51 @@ const DashboardCards = () => {
           <FaChartBar /> Attendance Summary
         </h2>
         <div className="w-full flex flex-col gap-4">
-          {/* Placeholder for future chart or stats */}
-          <div className="w-full h-6 bg-white/70 rounded-full shadow-inner border border-green-100 flex items-center overflow-hidden">
-            {/* Example: attendance bar (static for now) */}
-            <div
-              className="bg-green-400 h-full rounded-l-full"
-              style={{ width: "75%" }}
-            />
-            <div className="bg-red-200 h-full" style={{ width: "25%" }} />
-          </div>
-          <div className="flex justify-between w-full text-sm font-medium mt-1">
-            <span className="text-green-700">Present: 75%</span>
-            <span className="text-red-500">Absent: 25%</span>
-          </div>
+          {loadingAttendance ? (
+            <div className="text-gray-500 text-base">Loading attendance...</div>
+          ) : attendanceSummary.total === 0 ? (
+            <div className="text-gray-500 text-base">
+              No attendance records found.
+            </div>
+          ) : (
+            <>
+              <div className="w-full h-6 bg-white/70 rounded-full shadow-inner border border-green-100 flex items-center overflow-hidden">
+                <div
+                  className="bg-green-400 h-full rounded-l-full"
+                  style={{
+                    width: `${
+                      (attendanceSummary.present / attendanceSummary.total) *
+                      100
+                    }%`,
+                  }}
+                />
+                <div
+                  className="bg-red-200 h-full"
+                  style={{
+                    width: `${
+                      (attendanceSummary.absent / attendanceSummary.total) * 100
+                    }%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between w-full text-sm font-medium mt-1">
+                <span className="text-green-700">
+                  Present:{" "}
+                  {Math.round(
+                    (attendanceSummary.present / attendanceSummary.total) * 100
+                  )}
+                  %
+                </span>
+                <span className="text-red-500">
+                  Absent:{" "}
+                  {Math.round(
+                    (attendanceSummary.absent / attendanceSummary.total) * 100
+                  )}
+                  %
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

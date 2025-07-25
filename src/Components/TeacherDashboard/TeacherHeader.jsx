@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { FaBell, FaUser, FaSignOutAlt, FaCog } from "react-icons/fa";
 import { useUser } from "../../contexts/UserContext";
 import { FaCircleUser } from "react-icons/fa6";
+import { useNavigate } from "react-router-dom";
 
 const TeacherHeader = () => {
-  const { user, profile, signOut } = useUser();
+  const { user, profile, signOut, profileUrl } = useUser();
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const getUserDisplayName = () => {
@@ -33,7 +35,15 @@ const TeacherHeader = () => {
             className="flex items-center gap-2 hover:bg-blue-700 rounded-full p-1 transition"
           >
             <div className="flex items-center gap-2 md:gap-3">
-              <FaCircleUser className="text-3xl md:text-4xl text-gray-950" />
+              {profileUrl ? (
+                <img
+                  src={profileUrl}
+                  alt="Profile"
+                  className="h-10 w-10 rounded-full object-cover border border-white"
+                />
+              ) : (
+                <FaCircleUser className="text-3xl md:text-4xl text-gray-950" />
+              )}
             </div>
           </button>
           {showDropdown && (
@@ -42,6 +52,16 @@ const TeacherHeader = () => {
                 <p className="font-medium">{getUserDisplayName()}</p>
                 <p className="text-gray-500">Teacher</p>
               </div>
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  navigate("/teacher/profile");
+                }}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <FaUser />
+                Profile
+              </button>
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

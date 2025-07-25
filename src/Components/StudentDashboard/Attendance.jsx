@@ -9,6 +9,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
 } from "recharts";
 import { useUser } from "../../contexts/UserContext";
 import {
@@ -30,6 +35,12 @@ const Attendance = () => {
   const [teacherMap, setTeacherMap] = useState({});
   const [classesList, setClassesList] = useState([]);
   const [classMap, setClassMap] = useState({});
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [weeklyStats, setWeeklyStats] = useState([]);
+  const [monthlyStats, setMonthlyStats] = useState([]);
+  const [attendancePie, setAttendancePie] = useState([]);
+  const [subjectBar, setSubjectBar] = useState([]);
+  const pieColors = ["#22c55e", "#ef4444", "#facc15", "#3b82f6", "#a3a3a3"];
 
   useEffect(() => {
     const fetchAttendance = async () => {
@@ -80,6 +91,74 @@ const Attendance = () => {
     };
     fetchLookups();
   }, []);
+
+  useEffect(() => {
+    if (!attendance.length) return;
+    setLoadingStats(true);
+    // Weekly stats
+    const weekMap = {};
+    attendance.forEach((rec) => {
+      const date = new Date(rec.date);
+      const weekNum = Math.ceil(date.getDate() / 7);
+      const weekKey = `Week ${weekNum}`;
+      if (!weekMap[weekKey])
+        weekMap[weekKey] = {
+          week: weekKey,
+          present: 0,
+          absent: 0,
+          late: 0,
+          holiday: 0,
+        };
+      if (rec.status === "present") weekMap[weekKey].present++;
+      else if (rec.status === "absent") weekMap[weekKey].absent++;
+      else if (rec.status === "late") weekMap[weekKey].late++;
+      else if (rec.status === "holiday") weekMap[weekKey].holiday++;
+    });
+    setWeeklyStats(Object.values(weekMap));
+    // Monthly stats
+    const monthMap = {};
+    attendance.forEach((rec) => {
+      const date = new Date(rec.date);
+      const month = date.toLocaleString("default", { month: "short" });
+      if (!monthMap[month])
+        monthMap[month] = { month, present: 0, absent: 0, late: 0, holiday: 0 };
+      if (rec.status === "present") monthMap[month].present++;
+      else if (rec.status === "absent") monthMap[month].absent++;
+      else if (rec.status === "late") monthMap[month].late++;
+      else if (rec.status === "holiday") monthMap[month].holiday++;
+    });
+    setMonthlyStats(Object.values(monthMap));
+    // Pie chart
+    const present = attendance.filter((a) => a.status === "present").length;
+    const absent = attendance.filter((a) => a.status === "absent").length;
+    const late = attendance.filter((a) => a.status === "late").length;
+    const holiday = attendance.filter((a) => a.status === "holiday").length;
+    setAttendancePie([
+      { name: "Present", value: present },
+      { name: "Absent", value: absent },
+      { name: "Late", value: late },
+      { name: "Holiday", value: holiday },
+    ]);
+    // Bar chart by subject
+    const subjMap = {};
+    attendance.forEach((rec) => {
+      const subj = subjectMap[rec.subject_id] || rec.subject_id || "Unknown";
+      if (!subjMap[subj])
+        subjMap[subj] = {
+          subject: subj,
+          present: 0,
+          absent: 0,
+          late: 0,
+          holiday: 0,
+        };
+      if (rec.status === "present") subjMap[subj].present++;
+      else if (rec.status === "absent") subjMap[subj].absent++;
+      else if (rec.status === "late") subjMap[subj].late++;
+      else if (rec.status === "holiday") subjMap[subj].holiday++;
+    });
+    setSubjectBar(Object.values(subjMap));
+    setLoadingStats(false);
+  }, [attendance, subjectMap]);
 
   // Helper: build a map of date string (YYYY-MM-DD) => attendance record
   const attendanceMap = React.useMemo(() => {
@@ -308,40 +387,137 @@ const Attendance = () => {
             </button>
           </div>
 
-          {/* Real Attendance Chart */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart
-                data={attendanceStats}
-                margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="present"
-                  stroke="#22c55e"
-                  strokeWidth={3}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="absent"
-                  stroke="#ef4444"
-                  strokeWidth={3}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="flex justify-center gap-8 text-xs mt-2">
-            <div className="flex items-center gap-1 text-green-400">
-              ⬤ Present
+          {/* Attendance Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Weekly Attendance Line Chart */}
+            <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">
+                Weekly Attendance
+              </h3>
+              {loadingStats ? (
+                <div className="text-gray-500 text-base">Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart
+                    data={weeklyStats}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="present"
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="absent"
+                      stroke="#ef4444"
+                      strokeWidth={3}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="late"
+                      stroke="#facc15"
+                      strokeWidth={3}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="holiday"
+                      stroke="#3b82f6"
+                      strokeWidth={3}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-pink-300">
-              ⬤ Absent
+            {/* Attendance Breakdown Pie Chart */}
+            <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">
+                Attendance Breakdown
+              </h3>
+              {loadingStats ? (
+                <div className="text-gray-500 text-base">Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={attendancePie}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label
+                    >
+                      {attendancePie.map((entry, idx) => (
+                        <Cell
+                          key={`cell-${idx}`}
+                          fill={pieColors[idx % pieColors.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Legend />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            {/* Monthly Attendance Bar Chart */}
+            <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">
+                Monthly Attendance
+              </h3>
+              {loadingStats ? (
+                <div className="text-gray-500 text-base">Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={monthlyStats}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="present" fill="#22c55e" name="Present" />
+                    <Bar dataKey="absent" fill="#ef4444" name="Absent" />
+                    <Bar dataKey="late" fill="#facc15" name="Late" />
+                    <Bar dataKey="holiday" fill="#3b82f6" name="Holiday" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            {/* Attendance by Subject Bar Chart */}
+            <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">
+                Attendance by Subject
+              </h3>
+              {loadingStats ? (
+                <div className="text-gray-500 text-base">Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={subjectBar}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="subject" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="present" fill="#22c55e" name="Present" />
+                    <Bar dataKey="absent" fill="#ef4444" name="Absent" />
+                    <Bar dataKey="late" fill="#facc15" name="Late" />
+                    <Bar dataKey="holiday" fill="#3b82f6" name="Holiday" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>

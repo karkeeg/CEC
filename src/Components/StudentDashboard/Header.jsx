@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FaBell, FaUser, FaSignOutAlt, FaCog, FaBars } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 import avatar from "../../assets/logo.png";
 import { BiUser } from "react-icons/bi";
@@ -7,6 +8,7 @@ import { FaCircleUser } from "react-icons/fa6";
 
 const Header = ({ onHamburgerClick }) => {
   const { user, profile, signOut } = useUser();
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const getUserDisplayName = () => {
@@ -15,6 +17,12 @@ const Header = ({ onHamburgerClick }) => {
     }
     return user?.email?.split("@")[0] || "Student";
   };
+
+  function getLastUrl(val) {
+    if (Array.isArray(val)) return val.length > 0 ? val[val.length - 1] : "";
+    return val || "";
+  }
+  const profileImg = profile ? getLastUrl(profile.profile_pic) : "";
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,7 +52,15 @@ const Header = ({ onHamburgerClick }) => {
             className="flex items-center gap-2 hover:bg-blue-700 rounded-full p-1 transition"
           >
             <div className="flex items-center gap-3">
-              <FaCircleUser className="text-4xl text-gray-950" />
+              {profileImg ? (
+                <img
+                  src={profileImg}
+                  alt="Profile"
+                  className="h-10 w-10 rounded-full object-cover border border-white"
+                />
+              ) : (
+                <FaCircleUser className="text-4xl text-gray-950" />
+              )}
             </div>
           </button>
 
@@ -73,10 +89,15 @@ const Header = ({ onHamburgerClick }) => {
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition"
                   role="menuitem"
+                  onClick={() => {
+                    setShowDropdown(false);
+                    navigate("/student/profile");
+                  }}
                 >
                   <FaUser className="text-gray-500 text-lg" />
                   <span>Profile</span>
                 </button>
+                {/* Optionally keep Settings button here */}
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition"
                   role="menuitem"

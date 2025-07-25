@@ -33,6 +33,9 @@ import Notices from "./Pages/Notices";
 import NoticeDetail from "./Pages/NoticeDetail";
 import DownloadPage from "./Pages/DownloadPage";
 import AdministrationPage from "./Pages/AdministrationPage";
+import Profile from "./Components/StudentDashboard/Profile";
+import ForgotPassword from "./Pages/ForgotPassword";
+import ChangePassword from "./Pages/ChangePassword";
 
 // Teacher Dashboard Components
 import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
@@ -66,6 +69,8 @@ const MyRoutes = () => {
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/change-password" element={<ChangePassword />} />
 
         <Route path="/st" element={<StudentList />} />
 
@@ -85,6 +90,7 @@ const MyRoutes = () => {
           <Route path="feedback" element={<Feedback />} />
           <Route path="analytics" element={<StudentAnalytics />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
 
         {/* Admin Routes - Protected */}
@@ -125,6 +131,7 @@ const MyRoutes = () => {
           <Route path="grades" element={<TeacherGrades />} />
           <Route path="analytics" element={<TeacherAnalytics />} />
           <Route path="settings" element={<TeacherSettings />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>

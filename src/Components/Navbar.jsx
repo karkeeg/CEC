@@ -178,11 +178,7 @@ const Navbar = () => {
 
   const getUserDisplayName = () => {
     if (profile) {
-      if (profile.first_name && profile.last_name) {
-        return `${profile.first_name} ${profile.last_name}`;
-      } else if (profile.first_name) {
-        return profile.first_name;
-      }
+      return "Profile"; // Placeholder, actual name would be in user object
     }
     return user?.email?.split("@")[0] || "User";
   };
@@ -210,6 +206,12 @@ const Navbar = () => {
     await signOut();
     window.location.href = "/";
   };
+
+  function getLastUrl(val) {
+    if (Array.isArray(val)) return val.length > 0 ? val[val.length - 1] : "";
+    return val || "";
+  }
+  const profileImg = profile ? getLastUrl(profile.profile_pic) : "";
 
   return (
     <nav className="bg-[#1b3e94] text-white font-semibold w-full shadow top-0 z-50">
@@ -437,11 +439,19 @@ const Navbar = () => {
                     className="flex flex-col items-center gap-1 hover:bg-[#3cb4d4] rounded-full p-1 transition"
                     title="Profile"
                   >
-                    <img
-                      src={logo}
-                      alt="Profile"
-                      className="h-8 w-8 rounded-full object-cover border border-white"
-                    />
+                    {profileImg ? (
+                      <img
+                        src={profileImg}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full object-cover border border-white"
+                      />
+                    ) : (
+                      <img
+                        src={logo}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full object-cover border border-white"
+                      />
+                    )}
                     <span className="text-xs mt-1">Profile</span>
                   </button>
 
@@ -450,11 +460,19 @@ const Navbar = () => {
                       {/* User Info */}
                       <div className="px-4 py-3 border-b border-gray-100">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={logo}
-                            alt="Profile"
-                            className="h-12 w-12 rounded-full object-cover"
-                          />
+                          {profileImg ? (
+                            <img
+                              src={profileImg}
+                              alt="Profile"
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={logo}
+                              alt="Profile"
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                          )}
                           <div>
                             <p className="font-semibold text-gray-800">
                               {getUserDisplayName()}

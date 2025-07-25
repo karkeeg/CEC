@@ -129,17 +129,9 @@ export const fetchStudents = async () => {
 
 // ------------------- TEACHERS -------------------
 export const fetchTeachers = async () => {
-  const { data, error } = await supabase.from("teachers").select("*");
-  if (error) throw error;
-  return data;
-};
-
-export const fetchTeacherDepartments = async () => {
   const { data, error } = await supabase
-    .from("teacher_departments")
-    .select(
-      `id, teacher:teacher_id(id, first_name, middle_name, last_name, email), department:department_id(id, name)`
-    );
+    .from("teachers")
+    .select("*, department:teacher_department(id, name)");
   if (error) throw error;
   return data;
 };
@@ -321,7 +313,15 @@ export const getAllClasses = fetchClasses;
 export const getAllDepartments = fetchDepartments;
 export const getAllStudents = fetchStudents;
 export const getAllTeachers = fetchTeachers;
-export const getAllTeacherDepartments = fetchTeacherDepartments;
+export const getAllTeacherDepartments = async () => {
+  const { data, error } = await supabase
+    .from("teacher_departments")
+    .select(
+      `id, teacher:teacher_id(id, first_name, middle_name, last_name, email), department:department_id(id, name)`
+    );
+  if (error) throw error;
+  return data;
+};
 export const getAssignmentsByTeacher = (teacherId) =>
   fetchAssignments({ teacher_id: teacherId });
 export const getAssignmentSubmissions = fetchAssignmentSubmissions;
@@ -695,4 +695,58 @@ export const getFeedbackForStudent = async (studentId) => {
     .order("submitted_at", { ascending: false });
   if (subError) throw subError;
   return submissions;
+};
+
+// Fetch average grade for a subject across all students
+export const getClassAverageBySubject = async (subjectName) => {
+  // Get all assignments for this subject
+  const { data: assignments, error: aError } = await supabase
+    .from("assignments")
+    .select("id")
+    .eq("subject_id", subjectName);
+  if (aError || !assignments || assignments.length === 0) return 0;
+  const assignmentIds = assignments.map((a) => a.id);
+  if (!assignmentIds.length) return 0;
+  // Get all submissions for these assignments
+  const { data: submissions, error: sError } = await supabase
+    .from("submissions")
+    .select("id")
+    .in("assignment_id", assignmentIds);
+  if (sError || !submissions || submissions.length === 0) return 0;
+  const submissionIds = submissions.map((s) => s.id);
+  if (!submissionIds.length) return 0;
+  // Get all grades for these submissions
+  const { data: grades, error: gError } = await supabase
+    .from("grades")
+    .select("grade")
+    .in("submission_id", submissionIds);
+  if (gError || !grades || grades.length === 0) return 0;
+  const gradeVals = grades
+    .map((g) => g.grade)
+    .filter((g) => typeof g === "number");
+  if (!gradeVals.length) return 0;
+  return gradeVals.reduce((a, b) => a + b, 0) / gradeVals.length;
+};
+
+// Fetch assignment submission rate for a subject across all students
+export const getAssignmentSubmissionRateBySubject = async (subjectId) => {
+  // Get all assignments for this subject
+  const { data: assignments, error: aError } = await supabase
+    .from("assignments")
+    .select("id")
+    .eq("subject_id", subjectId);
+  if (aError || !assignments || assignments.length === 0)
+    return { submitted: 0, total: 0 };
+  const assignmentIds = assignments.map((a) => a.id);
+  if (!assignmentIds.length) return { submitted: 0, total: 0 };
+  // For each assignment, check if there is at least one submission
+  let submitted = 0;
+  for (const id of assignmentIds) {
+    const { data: subs, error: sError } = await supabase
+      .from("submissions")
+      .select("id")
+      .eq("assignment_id", id);
+    if (!sError && subs && subs.length > 0) submitted++;
+  }
+  return { submitted, total: assignmentIds.length };
 };

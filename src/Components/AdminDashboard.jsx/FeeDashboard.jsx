@@ -629,123 +629,123 @@ const FeeDashboard = () => {
           title={editIndex !== null ? "Edit Fee" : "Add Fee"}
           onClose={() => setShowModal(false)}
         >
-          {formError && (
-            <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
-              {formError}
-            </div>
-          )}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!validateForm()) return;
-              handleSubmit(e);
-            }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            <div>
+            {formError && (
+              <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
+                {formError}
+              </div>
+            )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!validateForm()) return;
+                handleSubmit(e);
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              <div>
               <label className="block text-sm font-medium mb-1">Student</label>
-              <Select
-                options={students.map((stu) => ({
-                  value: stu.id,
-                  label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                    stu.last_name
-                  }`.trim(),
-                }))}
-                value={
-                  students
-                    .map((stu) => ({
-                      value: stu.id,
-                      label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                        stu.last_name
-                      }`.trim(),
+                <Select
+                  options={students.map((stu) => ({
+                    value: stu.id,
+                    label: `${stu.first_name} ${stu.middle_name ?? ""} ${
+                      stu.last_name
+                    }`.trim(),
+                  }))}
+                  value={
+                    students
+                      .map((stu) => ({
+                        value: stu.id,
+                        label: `${stu.first_name} ${stu.middle_name ?? ""} ${
+                          stu.last_name
+                        }`.trim(),
+                      }))
+                      .find((opt) => opt.value === form.student_id) || null
+                  }
+                  onChange={(opt) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      student_id: opt ? opt.value : "",
                     }))
-                    .find((opt) => opt.value === form.student_id) || null
-                }
-                onChange={(opt) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    student_id: opt ? opt.value : "",
-                  }))
-                }
-                isClearable
-                isSearchable
-                placeholder="Search and select student..."
-                classNamePrefix="react-select"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Total Amount
-              </label>
-              <input
-                name="amount"
-                type="number"
-                value={form.amount}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-                required
-              />
-            </div>
-            <div>
+                  }
+                  isClearable
+                  isSearchable
+                  placeholder="Search and select student..."
+                  classNamePrefix="react-select"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Total Amount
+                </label>
+                <input
+                  name="amount"
+                  type="number"
+                  value={form.amount}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
               <label className="block text-sm font-medium mb-1">Due Date</label>
-              <input
-                name="due_date"
-                type="date"
-                value={form.due_date}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Paid Amount
-              </label>
-              <input
-                name="paid_amount"
-                type="number"
+                <input
+                  name="due_date"
+                  type="date"
+                  value={form.due_date}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Paid Amount
+                </label>
+                <input
+                  name="paid_amount"
+                  type="number"
                 value={form.paid_amount || ""}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Paid Date
-              </label>
-              <input
-                name="paid_date"
-                type="date"
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Paid Date
+                </label>
+                <input
+                  name="paid_date"
+                  type="date"
                 value={form.paid_date || ""}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              />
-            </div>
-            <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-              <button
-                type="button"
-                className="bg-gray-300 px-4 py-2 rounded"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                {editIndex !== null ? "Save" : "Add"}
-              </button>
-            </div>
-          </form>
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  className="bg-gray-300 px-4 py-2 rounded"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                  {editIndex !== null ? "Save" : "Add"}
+                </button>
+              </div>
+            </form>
         </Modal>
       )}
 
