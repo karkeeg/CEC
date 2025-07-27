@@ -90,6 +90,13 @@ const TeacherAnalytics = () => {
           studentsData = Object.values(unique);
         }
 
+        // Also fetch all students to ensure we have complete data for attendance mapping
+        const allStudentsData = await getAllStudents();
+        const allStudentsMap = {};
+        allStudentsData.forEach((s) => {
+          allStudentsMap[s.id] = s;
+        });
+
         // 3. Fetch assignments and all classes for stats
         const assignmentsData = await getAllAssignments();
         const allClassesData = await getAllClasses();
@@ -169,41 +176,62 @@ const TeacherAnalytics = () => {
         // 1. Fetch all attendance records for these classes
         let attendanceRecords = [];
         if (classIds.length > 0) {
-          attendanceRecords = await fetchAttendance({ teacher_id: user.id });
+          // Fetch attendance records for all classes taught by this teacher
+          for (const classId of classIds) {
+            const classAttendance = await fetchAttendance({
+              class_id: classId,
+            });
+            attendanceRecords = [...attendanceRecords, ...classAttendance];
+          }
         }
-        // 2. Count absences per student
+
+        // 2. Count absences per student (include all students with absences)
         const absenceCount = {};
+        const studentIdSet = new Set(studentsData.map((s) => String(s.id)));
+
         attendanceRecords.forEach((record) => {
           if (record.status === "absent") {
             absenceCount[record.student_id] =
               (absenceCount[record.student_id] || 0) + 1;
           }
         });
+
         // 3. Map to alert format and sort
         const alerts = Object.entries(absenceCount)
           .map(([studentId, absences]) => {
-            const student = studentsData.find(
+            // First try to find in enrolled students
+            let student = studentsData.find(
               (s) => String(s.id) === String(studentId)
             );
+
+            // If not found in enrolled students, try in all students
             if (!student) {
-              console.warn(
-                "No student found for attendance studentId:",
-                studentId,
-                "All student IDs:",
-                studentsData.map((s) => s.id)
-              );
+              student = allStudentsMap[studentId];
             }
+
             return {
               name: student
                 ? `${student.first_name || ""} ${
                     student.last_name || ""
                   }`.trim()
-                : "Unknown",
+                : `Student ${studentId}`,
               absences,
             };
           })
           .sort((a, b) => b.absences - a.absences)
-          .slice(0, 10); // Show top 5
+          .slice(0, 7); // Show top 7
+
+        // Debug logging
+        console.log("Debug - Attendance Records:", attendanceRecords.length);
+        console.log("Debug - Students Data:", studentsData.length);
+        console.log("Debug - All Students Data:", allStudentsData.length);
+        console.log("Debug - Absence Count:", Object.keys(absenceCount).length);
+        console.log("Debug - Alerts:", alerts.length);
+        console.log("Debug - Class IDs:", classIds);
+        console.log(
+          "Debug - Sample Student IDs from attendance:",
+          Object.keys(absenceCount).slice(0, 3)
+        );
         setAbsenceAlerts(alerts);
         // --- Attendance Trends: Last 30 Days ---
         const today = new Date();

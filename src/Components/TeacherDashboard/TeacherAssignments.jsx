@@ -58,13 +58,9 @@ const TeacherAssignments = () => {
         // Fetch all subjects (no department filter)
         const subjectData = await getSubjects();
         setSubjects(subjectData || []);
-        // Fetch assignments
+        // Fetch assignments for teacher's classes
         const assignmentData = await getAssignmentsByTeacher(user.id);
-        // Only show assignments assigned by the logged-in teacher
-        const filtered = (assignmentData || []).filter(
-          (a) => a.teacher_id === user.id
-        );
-        setAssignments(filtered);
+        setAssignments(assignmentData || []);
         // Fetch classes directly from classes table
         const classes = await getClassesByTeacher(user.id);
         setClasses(classes || []);
@@ -124,13 +120,7 @@ const TeacherAssignments = () => {
       if (error) throw error;
       // Refresh assignments
       const assignmentData = await getAssignmentsByTeacher(user.id);
-      let filtered = assignmentData || [];
-      if (role === "teacher") {
-        filtered = filtered.filter(
-          (a) => a.teacher_id === user.id || a.teacher_id === user.username
-        );
-      }
-      setAssignments(filtered);
+      setAssignments(assignmentData || []);
       setShowCreateModal(false);
       setNewAssignment({
         title: "",
@@ -175,6 +165,24 @@ const TeacherAssignments = () => {
         : [],
     });
   };
+
+  // Helper function to get current subject name
+  const getCurrentSubjectName = (assignment) => {
+    if (assignment.subject && assignment.subject.name) {
+      return assignment.subject.name;
+    }
+    // Fallback: find subject name from subjects array
+    const subject = subjects.find((s) => s.id === assignment.subject_id);
+    return subject ? subject.name : "Unknown Subject";
+  };
+
+  // Helper function to get current class name
+  const getCurrentClassName = (assignment) => {
+    const classItem = classes.find(
+      (c) => c.id === assignment.class_id || c.class_id === assignment.class_id
+    );
+    return classItem ? classItem.name : "Unknown Class";
+  };
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
@@ -207,20 +215,20 @@ const TeacherAssignments = () => {
   const handleEditFormSubmit = async (e) => {
     e.preventDefault();
     if (!editAssignment) return;
-    const error = await updateAssignment(editAssignment.id, {
+
+    // Use existing values if not changed
+    const updateData = {
       ...editForm,
+      subject_id: editForm.subject_id || editAssignment.subject_id,
+      class_id: editForm.class_id || editAssignment.class_id,
       files: editForm.files,
-    });
+    };
+
+    const error = await updateAssignment(editAssignment.id, updateData);
     if (!error) {
       // Refresh assignments
       const assignmentData = await getAssignmentsByTeacher(user.id);
-      let filtered = assignmentData || [];
-      if (role === "teacher") {
-        filtered = filtered.filter(
-          (a) => a.teacher_id === user.id || a.teacher_id === user.username
-        );
-      }
-      setAssignments(filtered);
+      setAssignments(assignmentData || []);
       setEditAssignment(null);
       setEditForm(null);
       alert("Assignment updated!");
@@ -232,13 +240,7 @@ const TeacherAssignments = () => {
   const handleAssignmentCreated = async () => {
     setShowCreateModal(false);
     const assignmentData = await getAssignmentsByTeacher(user.id);
-    let filtered = assignmentData || [];
-    if (role === "teacher") {
-      filtered = filtered.filter(
-        (a) => a.teacher_id === user.id || a.teacher_id === user.username
-      );
-    }
-    setAssignments(filtered);
+    setAssignments(assignmentData || []);
   };
 
   const getStatusColor = (dueDate) => {
@@ -278,7 +280,8 @@ const TeacherAssignments = () => {
               Assignments
             </h1>
             <p className="text-gray-600">
-              Create and manage assignments for your classes
+              Create and manage assignments for your classes. Only assignments
+              from your assigned classes are shown.
             </p>
           </div>
           <button
@@ -324,25 +327,26 @@ const TeacherAssignments = () => {
           <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Assignment
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subject
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Class
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Due Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Points
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Files
                 </th>
               </tr>
@@ -351,7 +355,7 @@ const TeacherAssignments = () => {
               {filteredAssignments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="px-6 py-4 text-center text-gray-500"
                   >
                     No assignments found
@@ -377,11 +381,16 @@ const TeacherAssignments = () => {
                             {assignment.title}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {assignment.description?.substring(0, 50)}...
+                            {assignment.description?.substring(0, 40)}...
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          {getCurrentSubjectName(assignment)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                           {(() => {
                             const cls = classes.find(
@@ -393,23 +402,21 @@ const TeacherAssignments = () => {
                           })()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
                           <FaCalendarAlt className="mr-2 text-gray-400" />
                           {dueDate.toLocaleDateString()}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {assignment.total_points} pts
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}
                         >
                           {statusText}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button
                             className="text-blue-600 hover:text-blue-900"
@@ -513,179 +520,256 @@ const TeacherAssignments = () => {
         </Modal>
       )}
       {viewAssignment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
-            <h2 className="text-xl font-bold mb-2">Assignment Details</h2>
-            <p>
-              <strong>Title:</strong> {viewAssignment.title}
-            </p>
-            <p>
-              <strong>Description:</strong> {viewAssignment.description}
-            </p>
-            <p>
-              <strong>Due Date:</strong>{" "}
-              {new Date(viewAssignment.due_date).toLocaleString()}
-            </p>
-            <p>
-              <strong>Year:</strong> {viewAssignment.year}
-            </p>
-            <p>
-              <strong>Class:</strong> {viewAssignment.class?.name}
-            </p>
-            <button
-              className="mt-4 bg-gray-300 px-4 py-2 rounded"
-              onClick={() => setViewAssignment(null)}
-            >
-              Close
-            </button>
+        <Modal
+          title="Assignment Details"
+          onClose={() => setViewAssignment(null)}
+        >
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {/* Title */}
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <strong className="text-gray-700 text-xs">Title:</strong>
+              <p className="mt-1 text-gray-900 font-medium text-sm">
+                {viewAssignment.title}
+              </p>
+            </div>
+
+            {/* Description */}
+            <div>
+              <strong className="text-gray-700 text-sm">Description:</strong>
+              <p className="mt-1 text-gray-900 text-sm leading-relaxed">
+                {viewAssignment.description}
+              </p>
+            </div>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="bg-gray-50 p-2 rounded-lg">
+                <strong className="text-gray-700 text-xs">Subject:</strong>
+                <p className="mt-1 text-gray-900 font-medium text-sm">
+                  {getCurrentSubjectName(viewAssignment)}
+                </p>
+              </div>
+              <div className="bg-gray-50 p-2 rounded-lg">
+                <strong className="text-gray-700 text-xs">Class:</strong>
+                <p className="mt-1 text-gray-900 font-medium text-sm">
+                  {getCurrentClassName(viewAssignment)}
+                </p>
+              </div>
+              <div className="bg-gray-50 p-2 rounded-lg">
+                <strong className="text-gray-700 text-xs">Year:</strong>
+                <p className="mt-1 text-gray-900 font-medium text-sm">
+                  {viewAssignment.year}
+                </p>
+              </div>
+              <div className="bg-gray-50 p-2 rounded-lg">
+                <strong className="text-gray-700 text-xs">Due Date:</strong>
+                <p className="mt-1 text-gray-900 font-medium text-sm">
+                  {new Date(viewAssignment.due_date).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Files */}
+            {viewAssignment.files &&
+              Array.isArray(viewAssignment.files) &&
+              viewAssignment.files.length > 0 && (
+                <div className="bg-green-50 p-2 rounded-lg">
+                  <strong className="text-gray-700 text-xs">Files:</strong>
+                  <ul className="mt-1 space-y-1">
+                    {viewAssignment.files.map((file, idx) => (
+                      <li key={idx}>
+                        <a
+                          href={file}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-blue-600 underline hover:text-blue-800 text-sm"
+                        >
+                          📎 File {idx + 1}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
           </div>
-        </div>
+        </Modal>
       )}
       {editAssignment && editForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-3 w-full max-w-2xl shadow-xl border border-gray-200">
-            <h2 className="text-lg font-semibold mb-1 text-gray-800">
-              Edit Assignment: {editAssignment.title}
-            </h2>
-            <form
-              onSubmit={handleEditFormSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 space-y-0"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  name="title"
-                  value={editForm.title}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                  required
-                />
+        <Modal
+          title={`Edit Assignment: ${editAssignment.title}`}
+          onClose={() => setEditAssignment(null)}
+        >
+          <form
+            onSubmit={handleEditFormSubmit}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-2 space-y-0 max-h-[70vh] overflow-y-auto"
+          >
+            {/* Title - Full Width */}
+            <div className="lg:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Title
+              </label>
+              <input
+                name="title"
+                value={editForm.title}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-2 py-1.5 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+                required
+              />
+            </div>
+
+            {/* Subject and Class - Side by Side */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subject
+              </label>
+              <div className="mb-1">
+                <span className="text-xs text-gray-500">
+                  Current:{" "}
+                  <span className="font-medium text-blue-600">
+                    {editAssignment
+                      ? getCurrentSubjectName(editAssignment)
+                      : "Loading..."}
+                  </span>
+                </span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject
-                </label>
-                <select
-                  name="subject_id"
-                  value={editForm.subject_id}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                  required
-                >
-                  <option value="">Select Subject</option>
-                  {subjects.map((subj) => (
-                    <option key={subj.id} value={subj.id}>
-                      {subj.name}
-                    </option>
-                  ))}
-                </select>
+              <select
+                name="subject_id"
+                value={editForm.subject_id}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+              >
+                <option value="">Keep Current Subject</option>
+                {subjects.map((subj) => (
+                  <option key={subj.id} value={subj.id}>
+                    {subj.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Class
+              </label>
+              <div className="mb-1">
+                <span className="text-xs text-gray-500">
+                  Current:{" "}
+                  <span className="font-medium text-blue-600">
+                    {editAssignment
+                      ? getCurrentClassName(editAssignment)
+                      : "Loading..."}
+                  </span>
+                </span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Class
-                </label>
-                <select
-                  name="class_id"
-                  value={editForm.class_id}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                  required
-                >
-                  <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option
-                      key={cls.id || cls.class_id}
-                      value={cls.id || cls.class_id}
-                    >
-                      {cls.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Year
-                </label>
-                <input
-                  name="year"
-                  value={editForm.year}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Due Date
-                </label>
-                <input
-                  name="due_date"
-                  type="date"
-                  value={editForm.due_date?.slice(0, 10) || ""}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={editForm.description}
-                  onChange={handleEditFormChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm min-h-[60px]"
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Files
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleEditFilesChange}
-                  className="w-full border border-gray-300 px-2 py-1 rounded focus:ring-2 focus:ring-blue-200 text-sm"
-                />
-                {Array.isArray(editForm.files) && editForm.files.length > 0 && (
-                  <ul className="mt-1 space-y-1">
+              <select
+                name="class_id"
+                value={editForm.class_id}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+              >
+                <option value="">Keep Current Class</option>
+                {classes.map((cls) => (
+                  <option
+                    key={cls.id || cls.class_id}
+                    value={cls.id || cls.class_id}
+                  >
+                    {cls.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Year and Due Date - Side by Side */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Year
+              </label>
+              <input
+                name="year"
+                value={editForm.year}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Due Date
+              </label>
+              <input
+                name="due_date"
+                type="date"
+                value={editForm.due_date?.slice(0, 10) || ""}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+                required
+              />
+            </div>
+            {/* Description - Full Width */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={editForm.description}
+                onChange={handleEditFormChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm min-h-[80px] resize-none"
+                required
+              />
+            </div>
+
+            {/* Files - Full Width */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Files
+              </label>
+              <input
+                type="file"
+                multiple
+                onChange={handleEditFilesChange}
+                className="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-200 text-sm"
+              />
+              {Array.isArray(editForm.files) && editForm.files.length > 0 && (
+                <div className="mt-2 p-2 bg-gray-50 rounded-md">
+                  <p className="text-xs text-gray-600 mb-1">Current files:</p>
+                  <ul className="space-y-1">
                     {editForm.files.map((file, idx) => (
                       <li key={idx}>
                         <a
                           href={file}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm"
+                          className="text-blue-600 underline text-sm hover:text-blue-800"
                         >
-                          File {idx + 1}
+                          📎 File {idx + 1}
                         </a>
                       </li>
                     ))}
                   </ul>
-                )}
-              </div>
-              <div className="md:col-span-2 flex gap-2 justify-end mt-2">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-1.5 rounded shadow-sm hover:bg-blue-700 text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="bg-gray-200 px-4 py-1.5 rounded shadow-sm hover:bg-gray-300 text-sm"
-                  onClick={() => setEditAssignment(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                </div>
+              )}
+            </div>
+
+            {/* Buttons - Full Width */}
+            <div className="lg:col-span-2 flex gap-3 justify-end mt-4 pt-3 border-t border-gray-200">
+              <button
+                type="button"
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md shadow-sm hover:bg-gray-300 text-sm font-medium transition-colors"
+                onClick={() => setEditAssignment(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-700 text-sm font-medium transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

@@ -223,66 +223,66 @@ const FeeDashboard = () => {
       };
     }
 
-    const dataSummary = [
-      { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
-      {
+  const dataSummary = [
+    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
+    {
         name: "Partial",
-        value: fees.filter((f) => f.status === "partial").length,
-      },
+      value: fees.filter((f) => f.status === "partial").length,
+    },
       {
         name: "Unpaid",
         value: fees.filter((f) => f.status === "unpaid").length,
       },
-      {
-        name: "Overdue",
-        value: fees.filter((f) => f.status === "overdue").length,
-      },
-    ];
+    {
+      name: "Overdue",
+      value: fees.filter((f) => f.status === "overdue").length,
+    },
+  ];
 
-    const totalDue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-    const totalPaid = fees.reduce(
-      (sum, f) => sum + Number(f.paid_amount || 0),
-      0
-    );
+  const totalDue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+  const totalPaid = fees.reduce(
+    (sum, f) => sum + Number(f.paid_amount || 0),
+    0
+  );
 
-    const barData = [
-      { name: "Total Due", value: totalDue },
-      { name: "Total Paid", value: totalPaid },
-    ];
+  const barData = [
+    { name: "Total Due", value: totalDue },
+    { name: "Total Paid", value: totalPaid },
+  ];
 
-    const yearGroups = [1, 2, 3, 4].map((year) => {
-      const yearFees = fees.filter((fee) => {
+  const yearGroups = [1, 2, 3, 4].map((year) => {
+    const yearFees = fees.filter((fee) => {
         const student = studentMap.get(fee.student_id);
-        return student && String(student.year) === String(year);
-      });
-      return {
-        year: String(year),
-        totalDue: yearFees.reduce((sum, f) => sum + Number(f.amount), 0),
-        totalPaid: yearFees.reduce(
-          (sum, f) => sum + Number(f.paid_amount || 0),
-          0
-        ),
-      };
+      return student && String(student.year) === String(year);
     });
+    return {
+      year: String(year),
+      totalDue: yearFees.reduce((sum, f) => sum + Number(f.amount), 0),
+      totalPaid: yearFees.reduce(
+        (sum, f) => sum + Number(f.paid_amount || 0),
+        0
+      ),
+    };
+  });
 
     // Overdue Fees Table with database status (after auto-fix)
-    const overdueFees = fees
-      .filter((f) => f.status === "overdue")
-      .map((fee) => {
+  const overdueFees = fees
+    .filter((f) => f.status === "overdue")
+    .map((fee) => {
         const student = studentMap.get(fee.student_id);
-        return {
-          name: getStudentName(fee.student_id),
-          year: student ? student.year : "-",
-          due: fee.amount - (fee.paid_amount || 0),
-          due_date: fee.due_date,
-        };
+      return {
+        name: getStudentName(fee.student_id),
+        year: student ? student.year : "-",
+        due: fee.amount - (fee.paid_amount || 0),
+        due_date: fee.due_date,
+      };
       })
       .sort((a, b) => b.due - a.due); // Sort by highest overdue amount first
 
     const displayedOverdueFees = overdueFees.slice(0, overdueDisplayCount);
 
     // Top Debtors Table with database status (after auto-fix)
-    const topDebtors = fees
+  const topDebtors = fees
       .filter((f) => {
         return (
           f.status === "unpaid" ||
@@ -290,16 +290,16 @@ const FeeDashboard = () => {
           f.status === "partial"
         );
       })
-      .map((fee) => {
+    .map((fee) => {
         const student = studentMap.get(fee.student_id);
-        return {
-          name: getStudentName(fee.student_id),
-          year: student ? student.year : "-",
-          due: fee.amount - (fee.paid_amount || 0),
-        };
-      })
-      .sort((a, b) => b.due - a.due)
-      .slice(0, 5);
+      return {
+        name: getStudentName(fee.student_id),
+        year: student ? student.year : "-",
+        due: fee.amount - (fee.paid_amount || 0),
+      };
+    })
+    .sort((a, b) => b.due - a.due)
+    .slice(0, 5);
 
     const summary = {
       totalDue,
@@ -398,11 +398,11 @@ const FeeDashboard = () => {
 
   const handleSubmit = useCallback(
     async (e) => {
-      e.preventDefault();
-      if (!form.student_id || !form.amount || !form.due_date) {
-        alert("Student, amount, and due date are required.");
-        return;
-      }
+    e.preventDefault();
+    if (!form.student_id || !form.amount || !form.due_date) {
+      alert("Student, amount, and due date are required.");
+      return;
+    }
 
       // Auto-calculate status based on payment data
       const calculatedStatus = calculateStatus(
@@ -411,72 +411,72 @@ const FeeDashboard = () => {
         form.due_date
       );
 
-      // Convert empty paid_amount and paid_date to null
-      const feeData = {
-        ...form,
-        paid_amount:
-          form.paid_amount === "" || form.paid_amount == null
-            ? null
-            : Number(form.paid_amount),
-        paid_date:
+    // Convert empty paid_amount and paid_date to null
+    const feeData = {
+      ...form,
+      paid_amount:
+        form.paid_amount === "" || form.paid_amount == null
+          ? null
+          : Number(form.paid_amount),
+      paid_date:
           form.paid_date === "" || form.paid_date == null
             ? null
             : form.paid_date,
         status: calculatedStatus, // Use calculated status instead of form status
-      };
+    };
 
-      let isPayment = false;
-      if (editIndex !== null) {
-        // Edit: update in database
-        const feeId = fees[editIndex].id;
-        const { error } = await updateFee(feeId, feeData);
-        if (error) {
-          alert("Failed to update fee: " + error.message);
-          return;
-        }
-        // If paid_amount is set and changed, log payment
-        const prevPaid = fees[editIndex].paid_amount || 0;
-        if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
-          isPayment = true;
-        }
-      } else {
-        // Add: insert into database
-        const { error } = await createFee(feeData);
-        if (error) {
-          alert("Failed to add fee: " + error.message);
-          return;
-        }
-        if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
-          isPayment = true;
-        }
+    let isPayment = false;
+    if (editIndex !== null) {
+      // Edit: update in database
+      const feeId = fees[editIndex].id;
+      const { error } = await updateFee(feeId, feeData);
+      if (error) {
+        alert("Failed to update fee: " + error.message);
+        return;
       }
+      // If paid_amount is set and changed, log payment
+      const prevPaid = fees[editIndex].paid_amount || 0;
+      if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
+        isPayment = true;
+      }
+    } else {
+      // Add: insert into database
+      const { error } = await createFee(feeData);
+      if (error) {
+        alert("Failed to add fee: " + error.message);
+        return;
+      }
+      if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
+        isPayment = true;
+      }
+    }
 
-      if (isPayment) {
+    if (isPayment) {
         const student = studentMap.get(form.student_id);
-        await logActivity(
-          `Fee payment of Rs ${form.paid_amount} received from ${
-            student
-              ? student.first_name + " " + student.last_name
-              : form.student_id
-          }.`,
-          "fee",
-          typeof currentUser !== "undefined" ? currentUser : {}
-        );
-      }
+      await logActivity(
+        `Fee payment of Rs ${form.paid_amount} received from ${
+          student
+            ? student.first_name + " " + student.last_name
+            : form.student_id
+        }.`,
+        "fee",
+        typeof currentUser !== "undefined" ? currentUser : {}
+      );
+    }
 
-      // Re-fetch fees from DB
-      const feesData = await getAllFees();
-      setFees(feesData || []);
-      setShowModal(false);
-      setForm({
-        student_id: "",
-        amount: "",
-        due_date: "",
-        paid_date: "",
-        paid_amount: "",
-        status: "unpaid",
-        notes: "",
-      });
+    // Re-fetch fees from DB
+    const feesData = await getAllFees();
+    setFees(feesData || []);
+    setShowModal(false);
+    setForm({
+      student_id: "",
+      amount: "",
+      due_date: "",
+      paid_date: "",
+      paid_amount: "",
+      status: "unpaid",
+      notes: "",
+    });
       setEditIndex(null);
     },
     [form, editIndex, fees, calculateStatus, studentMap]
@@ -733,13 +733,13 @@ const FeeDashboard = () => {
                      <th className="px-4 py-2 text-left">Paid Amount</th>
                      <th className="px-4 py-2 text-left">Status</th>
                      <th className="px-4 py-2 text-left">Actions</th>
-                   </tr>
-                 </thead>
-                 <tbody>
+            </tr>
+          </thead>
+          <tbody>
                    {memoizedData.displayedMainFees.map((fee, idx) => {
                      const student = studentMap.get(fee.student_id);
-                     return (
-                       <tr
+              return (
+                <tr
                          key={fee.id || idx}
                          className="border-b hover:bg-gray-50"
                        >
@@ -747,7 +747,7 @@ const FeeDashboard = () => {
                            {student
                              ? `${student.first_name} ${student.last_name}`
                              : fee.student_id}
-                         </td>
+                  </td>
                          <td className="px-4 py-2">
                            {student ? student.year : "-"}
                          </td>
@@ -757,47 +757,47 @@ const FeeDashboard = () => {
                            {fee.paid_amount ? `Rs. ${fee.paid_amount}` : "-"}
                          </td>
                          <td className="px-4 py-2">
-                           <span
+                    <span
                              className={`px-2 py-1 rounded text-xs font-semibold ${
                                fee.status === "paid"
-                                 ? "bg-green-100 text-green-800"
+                          ? "bg-green-100 text-green-800"
                                  : fee.status === "partial"
-                                 ? "bg-yellow-100 text-yellow-800"
+                          ? "bg-yellow-100 text-yellow-800"
                                  : fee.status === "overdue"
-                                 ? "bg-red-100 text-red-800"
-                                 : "bg-gray-100 text-gray-800"
-                             }`}
-                           >
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
                              {fee.status.toUpperCase()}
-                           </span>
-                         </td>
+                    </span>
+                  </td>
                          <td className="px-4 py-2">
                            <div className="flex gap-2">
-                             <button
-                               onClick={() => handleOpenModal(idx)}
+                    <button
+                      onClick={() => handleOpenModal(idx)}
                                className="text-blue-600 hover:text-blue-800"
-                             >
-                               <FaEdit />
-                             </button>
-                             <button
-                               onClick={() => handleDelete(idx)}
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(idx)}
                                className="text-red-600 hover:text-red-800"
-                             >
-                               <FaTrash />
-                             </button>
+                    >
+                      <FaTrash />
+                    </button>
                            </div>
-                         </td>
-                       </tr>
-                     );
-                   })}
-                 </tbody>
-               </table>
-             </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
              {memoizedData.filteredFees.length > 5 && (
                <div className="text-center mt-4 text-sm text-gray-600">
                  Showing {memoizedData.displayedMainFees.length} of {memoizedData.filteredFees.length} records
-               </div>
-             )}
+              </div>
+            )}
            </div>
          )}
        </div>

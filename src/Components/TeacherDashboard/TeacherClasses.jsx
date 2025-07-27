@@ -7,6 +7,8 @@ import {
   getStudentsByClass,
   removeStudentFromClass,
   updateClass,
+  fetchSubjects,
+  fetchDepartments,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
@@ -48,13 +50,20 @@ const TeacherClasses = () => {
   const [detailsModalLoading, setDetailsModalLoading] = useState(false);
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [editCapacity, setEditCapacity] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     const fetchClasses = async () => {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const classes = await getClassesByTeacher(user.id);
+        const [classes, subjectsData, departmentsData] = await Promise.all([
+          getClassesByTeacher(user.id),
+          fetchSubjects(),
+          fetchDepartments(),
+        ]);
+
         // For each class, fetch the enrolled count from student_classes
         const classesWithCounts = await Promise.all(
           (classes || []).map(async (cls) => {
@@ -65,6 +74,9 @@ const TeacherClasses = () => {
           })
         );
         setClasses(classesWithCounts);
+        setSubjects(subjectsData || []);
+        setDepartments(departmentsData || []);
+
         // Update trend/fill with real data
         const trend = (classesWithCounts || []).map((cls) => ({
           name: cls.name,
@@ -94,6 +106,16 @@ const TeacherClasses = () => {
     if (percentage >= 75)
       return { text: "Almost Full", color: "bg-yellow-100 text-yellow-800" };
     return { text: "Available", color: "bg-green-100 text-green-800" };
+  };
+
+  const getSubjectName = (subjectId) => {
+    const subject = subjects.find((s) => s.id === subjectId);
+    return subject ? subject.name : subjectId;
+  };
+
+  const getDepartmentName = (departmentId) => {
+    const department = departments.find((d) => d.id === departmentId);
+    return department ? department.name : departmentId;
   };
 
   // Demo data for weekly class schedule (number of classes per weekday)
@@ -512,6 +534,13 @@ const TeacherClasses = () => {
           <ManageEnrollmentForm
             user={user}
             classId={enrollmentModalClassId}
+            classYear={
+              classes.find(
+                (c) =>
+                  c.class_id === enrollmentModalClassId ||
+                  c.id === enrollmentModalClassId
+              )?.year
+            }
             classCapacity={
               classes.find(
                 (c) =>
@@ -605,7 +634,8 @@ const TeacherClasses = () => {
               )}
             </div>
             <div>
-              <strong>Subject:</strong> {detailsModalClass.subject_id}
+              <strong>Subject:</strong>{" "}
+              {getSubjectName(detailsModalClass.subject_id)}
             </div>
             <div>
               <strong>Schedule:</strong> {detailsModalClass.schedule}
@@ -614,7 +644,8 @@ const TeacherClasses = () => {
               <strong>Description:</strong> {detailsModalClass.description}
             </div>
             <div>
-              <strong>Department:</strong> {detailsModalClass.department}
+              <strong>Department:</strong>{" "}
+              {getDepartmentName(detailsModalClass.department_id)}
             </div>
           </div>
           <h3 className="text-lg font-semibold mb-2 mt-4">Enrolled Students</h3>

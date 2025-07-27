@@ -134,7 +134,7 @@ export const fetchStudents = async () => {
       .select("*")
       .range(from, from + pageSize - 1);
     
-    if (error) throw error;
+  if (error) throw error;
     
     if (!data || data.length === 0) break;
     
@@ -199,16 +199,16 @@ export const fetchAttendance = async (filters = {}) => {
   
   while (true) {
     let query = supabase.from("attendance").select("*").range(from, from + pageSize - 1);
-    if (filters.fromDate) query = query.gte("date", filters.fromDate);
-    if (filters.toDate) query = query.lte("date", filters.toDate);
-    if (filters.student_id) query = query.eq("student_id", filters.student_id);
-    if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
-    if (filters.class_id) query = query.eq("class_id", filters.class_id);
-    if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
-    query = query.order && query.order("date", { ascending: false });
+  if (filters.fromDate) query = query.gte("date", filters.fromDate);
+  if (filters.toDate) query = query.lte("date", filters.toDate);
+  if (filters.student_id) query = query.eq("student_id", filters.student_id);
+  if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
+  if (filters.class_id) query = query.eq("class_id", filters.class_id);
+  if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
+  query = query.order && query.order("date", { ascending: false });
     
-    const { data, error } = await query;
-    if (error) throw error;
+  const { data, error } = await query;
+  if (error) throw error;
     
     if (!data || data.length === 0) break;
     
@@ -363,8 +363,27 @@ export const getAllTeacherDepartments = async () => {
   if (error) throw error;
   return data;
 };
-export const getAssignmentsByTeacher = (teacherId) =>
-  fetchAssignments({ teacher_id: teacherId });
+export const getAssignmentsByTeacher = async (teacherId) => {
+  // First get the teacher's classes
+  const teacherClasses = await getClassesByTeacher(teacherId);
+  const classIds = teacherClasses.map(cls => cls.id || cls.class_id);
+  
+  if (classIds.length === 0) {
+    return [];
+  }
+  
+  // Then get assignments for those classes
+  const { data, error } = await supabase
+    .from("assignments")
+    .select(
+      "id, title, due_date, teacher_id, description, subject:subject_id(name), year, class_id, created_at, files"
+    )
+    .in("class_id", classIds)
+    .order("due_date", { ascending: true });
+    
+  if (error) throw error;
+  return data || [];
+};
 export const getAssignmentSubmissions = fetchAssignmentSubmissions;
 export const getSubjects = async () => {
   const { data, error } = await supabase.from("subjects").select("id, name");
@@ -489,7 +508,7 @@ export const getAllFees = async () => {
       .select("*")
       .range(from, from + pageSize - 1);
     
-    if (error) throw error;
+  if (error) throw error;
     
     if (!data || data.length === 0) break;
     

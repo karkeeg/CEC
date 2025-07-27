@@ -7,6 +7,7 @@ import {
 const ManageEnrollmentForm = ({
   user,
   classId,
+  classYear,
   classCapacity,
   currentEnrolled = 0,
   onClose,
@@ -31,10 +32,18 @@ const ManageEnrollmentForm = ({
   }, []);
 
   const filteredStudents = students.filter(
-    (s) =>
+    (s) => {
+      // First filter by year if classYear is provided
+      if (classYear && s.year !== classYear) {
+        return false;
+      }
+      // Then filter by search term
+      return (
       s.first_name.toLowerCase().includes(search.toLowerCase()) ||
       s.last_name.toLowerCase().includes(search.toLowerCase()) ||
       s.email?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
   );
 
   const maxReached =
@@ -106,6 +115,11 @@ const ManageEnrollmentForm = ({
       <form onSubmit={handleSubmit} className="flex-1 space-y-6 min-w-[320px]">
         <label className="block font-semibold text-xl text-gray-800">
           Search & Select Students
+          {classYear && (
+            <span className="block text-sm font-normal text-blue-600 mt-1">
+              Showing only Year {classYear} students
+            </span>
+          )}
         </label>
         <input
           type="text"
@@ -130,6 +144,11 @@ const ManageEnrollmentForm = ({
           <span>
             Selected: <b>{selectedStudents.length}</b>
           </span>
+          {classYear && (
+            <span>
+              Available Year {classYear}: <b>{filteredStudents.length}</b>
+            </span>
+          )}
         </div>
         <div className="flex gap-4 mt-6">
           <button
@@ -160,8 +179,9 @@ const ManageEnrollmentForm = ({
       </form>
       {/* Student dropdown area, visually offset to the right and flows out of the box */}
       <div className="relative flex-1 max-w-md w-full mt-4 md:mt-0 md:ml-2">
-        {showDropdown && filteredStudents.length > 0 && (
+        {showDropdown && (
           <div className=" z-40 left- md:left-[10%] top-0 bg-gray-50 border border-blue-200 w-full md:w-80 max-h-64 overflow-y-auto rounded-xl shadow-2xl transition">
+            {filteredStudents.length > 0 ? (
             <ul className="p-0 m-0">
               {filteredStudents.map((s) => (
                 <li
@@ -184,12 +204,22 @@ const ManageEnrollmentForm = ({
                     />
                     <span className="text-sm font-medium text-gray-800">
                       {s.first_name} {s.last_name}{" "}
-                      <span className="text-gray-500 text-xs">({s.email})</span>
+                        <span className="text-gray-500 text-xs">
+                          ({s.email}) - Year {s.year}
+                        </span>
                     </span>
                   </label>
                 </li>
               ))}
             </ul>
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                {classYear 
+                  ? `No Year ${classYear} students found matching your search.`
+                  : "No students found matching your search."
+                }
+              </div>
+            )}
           </div>
         )}
       </div>
