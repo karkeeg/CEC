@@ -432,7 +432,7 @@ const AnalyticsDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
                 <h3 className="font-bold text-red-700 mb-2">
-                  Low Attendance (&lt;75%)
+                  Low Attendance (&lt;75%) - Top 7
                 </h3>
                 {lowAttendance.length === 0 ? (
                   <div className="text-gray-400">
@@ -440,18 +440,23 @@ const AnalyticsDashboard = () => {
                   </div>
                 ) : (
                   <ul className="text-sm text-red-800 space-y-1">
-                    {lowAttendance.map((s, i) => (
+                    {lowAttendance.slice(0, 7).map((s, i) => (
                       <li key={i}>
                         {s.first_name} {s.last_name} (Year: {s.year}) (
                         {s.attendanceRate}%)
                       </li>
                     ))}
+                    {lowAttendance.length > 7 && (
+                      <li className="text-gray-500 italic">
+                        ... and {lowAttendance.length - 7} more students
+                      </li>
+                    )}
                   </ul>
                 )}
               </div>
               <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
                 <h3 className="font-bold text-yellow-700 mb-2">
-                  Low Grades (&lt;60%)
+                  Low Grades (&lt;60%) - Top 7
                 </h3>
                 {lowGrades.length === 0 ? (
                   <div className="text-gray-400">
@@ -459,27 +464,39 @@ const AnalyticsDashboard = () => {
                   </div>
                 ) : (
                   <ul className="text-sm text-yellow-800 space-y-1">
-                    {lowGrades.map((s, i) => (
+                    {lowGrades.slice(0, 7).map((s, i) => (
                       <li key={i}>
                         {s.first_name} {s.last_name} (Year: {s.year}) (
                         {s.avgGrade}%)
                       </li>
                     ))}
+                    {lowGrades.length > 7 && (
+                      <li className="text-gray-500 italic">
+                        ... and {lowGrades.length - 7} more students
+                      </li>
+                    )}
                   </ul>
                 )}
               </div>
               <div className="bg-orange-50 border-l-4 border-orange-500 rounded-lg p-4">
-                <h3 className="font-bold text-orange-700 mb-2">Overdue Fees</h3>
+                <h3 className="font-bold text-orange-700 mb-2">
+                  Overdue Fees - Top 7
+                </h3>
                 {overdueFees.length === 0 ? (
                   <div className="text-gray-400">No overdue fees.</div>
                 ) : (
                   <ul className="text-sm text-orange-800 space-y-1">
-                    {overdueFees.map((f, i) => (
+                    {overdueFees.slice(0, 7).map((f, i) => (
                       <li key={i}>
                         {f.studentName} (Year: {f.year}) - Rs.
                         {Number(f.amount) - (f.paid_amount || 0)}
                       </li>
                     ))}
+                    {overdueFees.length > 7 && (
+                      <li className="text-gray-500 italic">
+                        ... and {overdueFees.length - 7} more overdue fees
+                      </li>
+                    )}
                   </ul>
                 )}
               </div>

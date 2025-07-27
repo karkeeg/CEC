@@ -144,14 +144,41 @@ const MainDashboard = () => {
     setTeacherCount(teachers?.length || 0);
 
     const fees = await getAllFees();
+
+    // Calculate total paid fees (including partial payments)
     const paid =
-      fees
-        ?.filter((f) => f.status === "unpaid")
-        .reduce((acc, f) => acc + f.paid_amount, 0) || 0;
+      fees?.reduce((acc, f) => {
+        if (f.status === "paid") {
+          return acc + (f.paid_amount || f.amount || 0);
+        } else if (f.status === "partial") {
+          return acc + (f.paid_amount || 0);
+        }
+        return acc;
+      }, 0) || 0;
+
+    // Calculate total unpaid fees (unpaid + overdue + remaining from partial)
     const unpaid =
-      fees
-        ?.filter((f) => f.status === "unpaid")
-        .reduce((acc, f) => acc + f.amount, 0) || 0;
+      fees?.reduce((acc, f) => {
+        if (f.status === "unpaid" || f.status === "overdue") {
+          return acc + (f.amount || 0);
+        } else if (f.status === "partial") {
+          const remaining = (f.amount || 0) - (f.paid_amount || 0);
+          return acc + Math.max(0, remaining);
+        }
+        return acc;
+      }, 0) || 0;
+
+    console.log("Fee Summary:", {
+      totalFees: fees?.length || 0,
+      paid,
+      unpaid,
+      feeStatuses:
+        fees?.reduce((acc, f) => {
+          acc[f.status] = (acc[f.status] || 0) + 1;
+          return acc;
+        }, {}) || {},
+    });
+
     setPaidFee(paid);
     setUnpaidFee(unpaid);
 

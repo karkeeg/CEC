@@ -25,7 +25,8 @@ export const fetchNotices = async () => {
   const { data, error } = await supabase
     .from("notices")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(10000);
   if (error) throw error;
   return data;
 };
@@ -78,7 +79,8 @@ export const fetchDepartments = async () => {
     .select(
       "id, name, faculty:faculty_id(id, name), description, courses, image_url"
     )
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .limit(10000);
   if (error) throw error;
   return data;
 };
@@ -122,16 +124,36 @@ export const updateDepartment = async (id, updates) => {
 
 // ------------------- STUDENTS -------------------
 export const fetchStudents = async () => {
-  const { data, error } = await supabase.from("students").select("*");
-  if (error) throw error;
-  return data;
+  let allStudents = [];
+  let from = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .range(from, from + pageSize - 1);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) break;
+    
+    allStudents = [...allStudents, ...data];
+    from += pageSize;
+    
+    // If we got less than pageSize, we've reached the end
+    if (data.length < pageSize) break;
+  }
+  
+  return allStudents;
 };
 
 // ------------------- TEACHERS -------------------
 export const fetchTeachers = async () => {
   const { data, error } = await supabase
     .from("teachers")
-    .select("*, department:teacher_department(id, name)");
+    .select("*, department:teacher_department(id, name)")
+    .limit(10000);
   if (error) throw error;
   return data;
 };
@@ -142,7 +164,8 @@ export const fetchAssignments = async (filters = {}) => {
     .from("assignments")
     .select(
       "id, title, due_date, teacher_id, description, subject:subject_id(name), year, class_id, created_at, files"
-    );
+    )
+    .limit(10000);
   if (filters.due_date) query = query.gte("due_date", filters.due_date);
   if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
   if (filters.class_id) query = query.eq("class_id", filters.class_id);
@@ -158,7 +181,8 @@ export const fetchAssignmentSubmissions = async (assignmentId) => {
     .from("submissions")
     .select(
       `id, assignment_id, class_id, student_id, submitted_at, files, notes, student:student_id (first_name, middle_name, last_name, email), grade:grades(id, grade, feedback, rated_at, rated_by)`
-    ); // join student and grades
+    )
+    .limit(10000); // join student and grades
   if (assignmentId) {
     query = query.eq("assignment_id", assignmentId);
   }
@@ -169,17 +193,33 @@ export const fetchAssignmentSubmissions = async (assignmentId) => {
 
 // ------------------- ATTENDANCE -------------------
 export const fetchAttendance = async (filters = {}) => {
-  let query = supabase.from("attendance").select("*");
-  if (filters.fromDate) query = query.gte("date", filters.fromDate);
-  if (filters.toDate) query = query.lte("date", filters.toDate);
-  if (filters.student_id) query = query.eq("student_id", filters.student_id);
-  if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
-  if (filters.class_id) query = query.eq("class_id", filters.class_id);
-  if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
-  query = query.order && query.order("date", { ascending: false });
-  const { data, error } = await query;
-  if (error) throw error;
-  return data;
+  let allAttendance = [];
+  let from = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    let query = supabase.from("attendance").select("*").range(from, from + pageSize - 1);
+    if (filters.fromDate) query = query.gte("date", filters.fromDate);
+    if (filters.toDate) query = query.lte("date", filters.toDate);
+    if (filters.student_id) query = query.eq("student_id", filters.student_id);
+    if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
+    if (filters.class_id) query = query.eq("class_id", filters.class_id);
+    if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
+    query = query.order && query.order("date", { ascending: false });
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    if (!data || data.length === 0) break;
+    
+    allAttendance = [...allAttendance, ...data];
+    from += pageSize;
+    
+    // If we got less than pageSize, we've reached the end
+    if (data.length < pageSize) break;
+  }
+  
+  return allAttendance;
 };
 
 // Fetch attendance for a specific student
@@ -248,7 +288,8 @@ export const fetchClasses = async () => {
     .from("classes")
     .select(
       `class_id, name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
-    );
+    )
+    .limit(10000);
   if (error) throw error;
   return data;
 };
@@ -438,9 +479,28 @@ export const getAllAssignments = fetchAssignments;
 export const getAllSubjects = getSubjects;
 export const getAllAttendance = fetchAttendance;
 export const getAllFees = async () => {
-  const { data, error } = await supabase.from("fees").select("*");
-  if (error) throw error;
-  return data;
+  let allFees = [];
+  let from = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    const { data, error } = await supabase
+      .from("fees")
+      .select("*")
+      .range(from, from + pageSize - 1);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) break;
+    
+    allFees = [...allFees, ...data];
+    from += pageSize;
+    
+    // If we got less than pageSize, we've reached the end
+    if (data.length < pageSize) break;
+  }
+  
+  return allFees;
 };
 
 export const createFee = async (fee) => {

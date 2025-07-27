@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   PieChart,
   Pie,
@@ -10,6 +16,7 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
 import {
   FaGraduationCap,
@@ -42,6 +49,34 @@ const FEE_STATUS = {
 };
 
 const FeeDashboard = () => {
+  // Auto-calculate status based on payment data - moved to top
+  const calculateStatus = useCallback((amount, paidAmount, dueDate) => {
+    const totalAmount = Number(amount) || 0;
+    const paid = Number(paidAmount) || 0; // This handles null, undefined, 0, etc.
+    const due = new Date(dueDate);
+    const today = new Date();
+
+    // If fully paid or overpaid
+    if (paid >= totalAmount && totalAmount > 0) {
+      return "paid";
+    }
+    // If partially paid
+    else if (paid > 0 && paid < totalAmount) {
+      return "partial";
+    }
+    // If not paid at all (paid is 0, null, undefined, etc.)
+    else if (paid === 0 || paidAmount === null || paidAmount === undefined) {
+      // Only mark as overdue if amount > 0 and due date has passed
+      if (totalAmount > 0 && due < today) {
+        return "overdue";
+      } else {
+        return "unpaid";
+      }
+    }
+    // Default fallback
+    return "unpaid";
+  }, []);
+
   const [form, setForm] = useState({
     student_id: "",
     amount: "",
@@ -65,6 +100,30 @@ const FeeDashboard = () => {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [overdueDisplayCount, setOverdueDisplayCount] = useState(7);
+  const [mainTableDisplayCount, setMainTableDisplayCount] = useState(5);
+
+  // Memoized student lookup map for better performance
+  const studentMap = useMemo(() => {
+    const map = new Map();
+    students.forEach((student) => {
+      map.set(student.id, student);
+    });
+    return map;
+  }, [students]);
+
+  // Memoized getStudentName function
+  const getStudentName = useCallback(
+    (id) => {
+      const student = studentMap.get(id);
+      return student
+        ? `${student.first_name} ${student.middle_name ?? ""} ${
+            student.last_name
+          }`.trim()
+        : id;
+    },
+    [studentMap]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,38 +131,343 @@ const FeeDashboard = () => {
       setLoadingFees(true);
       setError("");
       try {
-        const studentsData = await getAllStudents();
+        const [studentsData, feesData] = await Promise.all([
+          getAllStudents(),
+          getAllFees(),
+        ]);
+
         setStudents(studentsData || []);
+        setFees(feesData || []);
+
+        // Auto-fix status mismatches in database (only if needed)
+        if (feesData && feesData.length > 0) {
+          await fixStatusMismatches(feesData);
+        }
       } catch (e) {
-        setError("Failed to fetch students. Please try again later.");
+        setError("Failed to fetch data. Please try again later.");
       } finally {
         setLoadingStudents(false);
-      }
-      try {
-        const feesData = await getAllFees();
-        setFees(feesData || []);
-      } catch (e) {
-        setError("Failed to fetch fees. Please try again later.");
-      } finally {
         setLoadingFees(false);
       }
     };
     fetchData();
   }, []);
-  console.log(students, fees);
 
-  const getStudentName = (id) => {
-    const s = students.find((stu) => stu.id === id);
-    return s
-      ? `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`.trim()
-      : id;
-  };
+  // Function to fix status mismatches in database
+  const fixStatusMismatches = useCallback(
+    async (feesData) => {
+      const mismatches = [];
 
-  const handleOpenModal = (idx = null) => {
-    setEditIndex(idx);
-    if (idx !== null) {
-      setForm(fees[idx]);
-    } else {
+      for (const fee of feesData) {
+        const calculatedStatus = calculateStatus(
+          fee.amount,
+          fee.paid_amount,
+          fee.due_date
+        );
+        if (calculatedStatus !== fee.status) {
+          mismatches.push({
+            feeId: fee.id,
+            oldStatus: fee.status,
+            newStatus: calculatedStatus,
+            studentName: getStudentName(fee.student_id),
+          });
+        }
+      }
+
+      if (mismatches.length > 0) {
+        console.log(
+          `Found ${mismatches.length} status mismatches:`,
+          mismatches
+        );
+
+        // Update database with correct statuses
+        const updatePromises = mismatches.map(async (mismatch) => {
+          try {
+            await updateFee(mismatch.feeId, { status: mismatch.newStatus });
+            console.log(
+              `Fixed status for ${mismatch.studentName}: ${mismatch.oldStatus} → ${mismatch.newStatus}`
+            );
+          } catch (error) {
+            console.error(
+              `Failed to update status for fee ${mismatch.feeId}:`,
+              error
+            );
+          }
+        });
+
+        await Promise.all(updatePromises);
+
+        // Refresh fees data after updates
+        const updatedFees = await getAllFees();
+        setFees(updatedFees || []);
+      }
+    },
+    [calculateStatus, getStudentName]
+  );
+
+  // Memoized data calculations
+  const memoizedData = useMemo(() => {
+    if (!fees.length || !students.length) {
+      return {
+        dataSummary: [],
+        totalDue: 0,
+        totalPaid: 0,
+        barData: [],
+        yearGroups: [],
+        overdueFees: [],
+        displayedOverdueFees: [],
+        topDebtors: [],
+        summary: { totalDue: 0, totalPaid: 0, overdue: 0, unpaid: 0 },
+        statusData: [],
+        filteredFees: [],
+      };
+    }
+
+    const dataSummary = [
+      { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
+      {
+        name: "Partial",
+        value: fees.filter((f) => f.status === "partial").length,
+      },
+      {
+        name: "Unpaid",
+        value: fees.filter((f) => f.status === "unpaid").length,
+      },
+      {
+        name: "Overdue",
+        value: fees.filter((f) => f.status === "overdue").length,
+      },
+    ];
+
+    const totalDue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+    const totalPaid = fees.reduce(
+      (sum, f) => sum + Number(f.paid_amount || 0),
+      0
+    );
+
+    const barData = [
+      { name: "Total Due", value: totalDue },
+      { name: "Total Paid", value: totalPaid },
+    ];
+
+    const yearGroups = [1, 2, 3, 4].map((year) => {
+      const yearFees = fees.filter((fee) => {
+        const student = studentMap.get(fee.student_id);
+        return student && String(student.year) === String(year);
+      });
+      return {
+        year: String(year),
+        totalDue: yearFees.reduce((sum, f) => sum + Number(f.amount), 0),
+        totalPaid: yearFees.reduce(
+          (sum, f) => sum + Number(f.paid_amount || 0),
+          0
+        ),
+      };
+    });
+
+    // Overdue Fees Table with database status (after auto-fix)
+    const overdueFees = fees
+      .filter((f) => f.status === "overdue")
+      .map((fee) => {
+        const student = studentMap.get(fee.student_id);
+        return {
+          name: getStudentName(fee.student_id),
+          year: student ? student.year : "-",
+          due: fee.amount - (fee.paid_amount || 0),
+          due_date: fee.due_date,
+        };
+      })
+      .sort((a, b) => b.due - a.due); // Sort by highest overdue amount first
+
+    const displayedOverdueFees = overdueFees.slice(0, overdueDisplayCount);
+
+    // Top Debtors Table with database status (after auto-fix)
+    const topDebtors = fees
+      .filter((f) => {
+        return (
+          f.status === "unpaid" ||
+          f.status === "overdue" ||
+          f.status === "partial"
+        );
+      })
+      .map((fee) => {
+        const student = studentMap.get(fee.student_id);
+        return {
+          name: getStudentName(fee.student_id),
+          year: student ? student.year : "-",
+          due: fee.amount - (fee.paid_amount || 0),
+        };
+      })
+      .sort((a, b) => b.due - a.due)
+      .slice(0, 5);
+
+    const summary = {
+      totalDue,
+      totalPaid,
+      overdue: fees.filter((f) => f.status === "overdue").length,
+      unpaid: fees.filter((f) => f.status === "unpaid").length,
+    };
+
+    const statusData = [
+      { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
+      {
+        name: "Partial",
+        value: fees.filter((f) => f.status === "partial").length,
+      },
+      {
+        name: "Unpaid",
+        value: fees.filter((f) => f.status === "unpaid").length,
+      },
+      {
+        name: "Overdue",
+        value: fees.filter((f) => f.status === "overdue").length,
+      },
+    ];
+
+    // Filtered fees calculation
+    const filteredFees = fees.filter((fee) => {
+      const student = studentMap.get(fee.student_id);
+      if (!student) return false;
+
+      const nameMatch = `${student.first_name} ${student.middle_name ?? ""} ${
+        student.last_name
+      }`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const yearMatch = filterYear
+        ? String(student.year) === String(filterYear)
+        : true;
+      const dueRemaining = fee.amount - (fee.paid_amount || 0);
+      const maxDueMatch = maxDue ? dueRemaining <= Number(maxDue) : true;
+      const statusMatch = statusFilter ? fee.status === statusFilter : true;
+      return nameMatch && yearMatch && maxDueMatch && statusMatch;
+    });
+
+    return {
+      dataSummary,
+      totalDue,
+      totalPaid,
+      barData,
+      yearGroups,
+      overdueFees,
+      displayedOverdueFees,
+      topDebtors,
+      summary,
+      statusData,
+      filteredFees,
+      displayedMainFees: filteredFees.slice(0, mainTableDisplayCount)
+    };
+  }, [
+    fees,
+    students,
+    studentMap,
+    getStudentName,
+    searchTerm,
+    filterYear,
+    maxDue,
+    statusFilter,
+    overdueDisplayCount,
+    mainTableDisplayCount,
+  ]);
+
+  const handleOpenModal = useCallback(
+    (idx = null) => {
+      setEditIndex(idx);
+      if (idx !== null) {
+        setForm(fees[idx]);
+      } else {
+        setForm({
+          student_id: "",
+          amount: "",
+          due_date: "",
+          paid_date: "",
+          paid_amount: "",
+          status: "unpaid",
+          notes: "",
+        });
+      }
+      setShowModal(true);
+    },
+    [fees]
+  );
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!form.student_id || !form.amount || !form.due_date) {
+        alert("Student, amount, and due date are required.");
+        return;
+      }
+
+      // Auto-calculate status based on payment data
+      const calculatedStatus = calculateStatus(
+        form.amount,
+        form.paid_amount,
+        form.due_date
+      );
+
+      // Convert empty paid_amount and paid_date to null
+      const feeData = {
+        ...form,
+        paid_amount:
+          form.paid_amount === "" || form.paid_amount == null
+            ? null
+            : Number(form.paid_amount),
+        paid_date:
+          form.paid_date === "" || form.paid_date == null
+            ? null
+            : form.paid_date,
+        status: calculatedStatus, // Use calculated status instead of form status
+      };
+
+      let isPayment = false;
+      if (editIndex !== null) {
+        // Edit: update in database
+        const feeId = fees[editIndex].id;
+        const { error } = await updateFee(feeId, feeData);
+        if (error) {
+          alert("Failed to update fee: " + error.message);
+          return;
+        }
+        // If paid_amount is set and changed, log payment
+        const prevPaid = fees[editIndex].paid_amount || 0;
+        if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
+          isPayment = true;
+        }
+      } else {
+        // Add: insert into database
+        const { error } = await createFee(feeData);
+        if (error) {
+          alert("Failed to add fee: " + error.message);
+          return;
+        }
+        if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
+          isPayment = true;
+        }
+      }
+
+      if (isPayment) {
+        const student = studentMap.get(form.student_id);
+        await logActivity(
+          `Fee payment of Rs ${form.paid_amount} received from ${
+            student
+              ? student.first_name + " " + student.last_name
+              : form.student_id
+          }.`,
+          "fee",
+          typeof currentUser !== "undefined" ? currentUser : {}
+        );
+      }
+
+      // Re-fetch fees from DB
+      const feesData = await getAllFees();
+      setFees(feesData || []);
+      setShowModal(false);
       setForm({
         student_id: "",
         amount: "",
@@ -113,257 +477,82 @@ const FeeDashboard = () => {
         status: "unpaid",
         notes: "",
       });
-    }
-    setShowModal(true);
-  };
-
-  const dataSummary = [
-    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
-    {
-      name: "Partially",
-      value: fees.filter((f) => f.status === "partial").length,
+      setEditIndex(null);
     },
-    { name: "Unpaid", value: fees.filter((f) => f.status === "unpaid").length },
-    {
-      name: "Overdue",
-      value: fees.filter((f) => f.status === "overdue").length,
-    },
-  ];
-
-  const totalDue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-  const totalPaid = fees.reduce(
-    (sum, f) => sum + Number(f.paid_amount || 0),
-    0
+    [form, editIndex, fees, calculateStatus, studentMap]
   );
-  const barData = [
-    { name: "Total Due", value: totalDue },
-    { name: "Total Paid", value: totalPaid },
-  ];
 
-  const yearGroups = [1, 2, 3, 4].map((year) => {
-    const yearFees = fees.filter((fee) => {
-      const student = students.find((s) => s.id === fee.student_id);
-      return student && String(student.year) === String(year);
-    });
-    return {
-      year: String(year),
-      totalDue: yearFees.reduce((sum, f) => sum + Number(f.amount), 0),
-      totalPaid: yearFees.reduce(
-        (sum, f) => sum + Number(f.paid_amount || 0),
-        0
-      ),
+  const exportToPDF = useCallback(() => {
+    const element = document.getElementById("fee-dashboard");
+    const opt = {
+      margin: 1,
+      filename: "fee-report.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
     };
-  });
+    html2pdf().set(opt).from(element).save();
+  }, []);
 
-  // Overdue Fees Table
-  const overdueFees = fees
-    .filter((f) => f.status === "overdue")
-    .map((fee) => {
-      const student = students.find((s) => s.id === fee.student_id);
-      return {
-        name: getStudentName(fee.student_id),
-        year: student ? student.year : "-",
-        due: fee.amount - (fee.paid_amount || 0),
-        due_date: fee.due_date,
-      };
-    });
-
-  // Top Debtors Table
-  const topDebtors = fees
-    .map((fee) => {
-      const student = students.find((s) => s.id === fee.student_id);
-      return {
-        name: getStudentName(fee.student_id),
-        year: student ? student.year : "-",
-        due: fee.amount - (fee.paid_amount || 0),
-      };
-    })
-    .sort((a, b) => b.due - a.due)
-    .slice(0, 5);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.student_id || !form.amount || !form.due_date) {
-      alert("Student, amount, and due date are required.");
-      return;
+  const validateForm = useCallback(() => {
+    const errors = [];
+    if (!form.student_id) errors.push("Student is required");
+    if (!form.amount || form.amount <= 0)
+      errors.push("Valid amount is required");
+    if (!form.due_date) errors.push("Due date is required");
+    if (form.paid_amount && form.paid_amount > form.amount) {
+      errors.push("Paid amount cannot exceed total amount");
     }
-    // Convert empty paid_amount and paid_date to null
-    const feeData = {
-      ...form,
-      paid_amount:
-        form.paid_amount === "" || form.paid_amount == null
-          ? null
-          : Number(form.paid_amount),
-      paid_date:
-        form.paid_date === "" || form.paid_date == null ? null : form.paid_date,
-    };
-    let isPayment = false;
-    if (editIndex !== null) {
-      // Edit: update in database
-      const feeId = fees[editIndex].id;
-      const { error } = await updateFee(feeId, feeData);
-      if (error) {
-        alert("Failed to update fee: " + error.message);
-        return;
+    if (form.paid_amount && !form.paid_date) {
+      errors.push("Payment date is required when paid amount is provided");
+    }
+    setFormError(errors.join(", "));
+    return errors.length === 0;
+  }, [form]);
+
+  const handleDelete = useCallback(
+    async (idx) => {
+      if (window.confirm("Are you sure you want to delete this fee?")) {
+        const feeId = fees[idx].id;
+        const { error } = await updateFee(feeId, { status: "deleted" });
+        if (error) {
+          alert("Failed to delete fee: " + error.message);
+          return;
+        }
+        const updatedFees = fees.filter((_, i) => i !== idx);
+        setFees(updatedFees);
       }
-      // If paid_amount is set and changed, log payment
-      const prevPaid = fees[editIndex].paid_amount || 0;
-      if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
-        isPayment = true;
-      }
-    } else {
-      // Add: insert into database
-      const { error } = await createFee(feeData);
-      if (error) {
-        alert("Failed to add fee: " + error.message);
-        return;
-      }
-      if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
-        isPayment = true;
-      }
-    }
-    if (isPayment) {
-      const student = students.find((s) => s.id === form.student_id);
-      await logActivity(
-        `Fee payment of Rs ${form.paid_amount} received from ${
-          student
-            ? student.first_name + " " + student.last_name
-            : form.student_id
-        }.`,
-        "fee",
-        typeof currentUser !== "undefined" ? currentUser : {}
-      );
-    }
-    // Re-fetch fees from DB
-    const feesData = await getAllFees();
-    setFees(feesData || []);
-    setShowModal(false);
-    setEditIndex(null);
-    setForm({
-      student_id: "",
-      amount: "",
-      due_date: "",
-      paid_date: "",
-      paid_amount: "",
-      status: "unpaid",
-      notes: "",
-    });
-  };
+    },
+    [fees]
+  );
 
-  const exportToPDF = () => {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    doc.setFontSize(18);
-    doc.text("Fee Report", 40, 40);
-    autoTable(doc, {
-      startY: 60,
-      head: [["Student Name", "Due Amount", "Status"]],
-      body: fees.map((fee) => [
-        getStudentName(fee.student_id),
-        fee.amount,
-        fee.status.toUpperCase(),
-      ]),
-      theme: "grid",
-      headStyles: {
-        fillColor: [30, 108, 123],
-        textColor: 255,
-        fontStyle: "bold",
-      },
-      styles: { fontSize: 10, cellPadding: 4 },
-      margin: { left: 40, right: 40 },
-    });
-    doc.save("fee-report.pdf");
-  };
-
-  // 2. Inline form validation and duplicate prevention
-  const validateForm = () => {
-    setFormError("");
-    if (!form.student_id || !form.amount || !form.due_date) {
-      setFormError("Student, amount, and due date are required.");
-      return false;
-    }
-    if (Number(form.amount) <= 0) {
-      setFormError("Amount must be greater than zero.");
-      return false;
-    }
-    if (form.paid_amount && Number(form.paid_amount) < 0) {
-      setFormError("Paid amount cannot be negative.");
-      return false;
-    }
-    if (form.paid_amount && Number(form.paid_amount) > Number(form.amount)) {
-      setFormError("Paid amount cannot exceed total amount.");
-      return false;
-    }
-    if (
-      form.paid_date &&
-      form.due_date &&
-      new Date(form.paid_date) < new Date(form.due_date)
-    ) {
-      setFormError("Paid date cannot be before due date.");
-      return false;
-    }
-    // Duplicate prevention (same student, same due_date)
-    const duplicate = fees.some(
-      (f, idx) =>
-        f.student_id === form.student_id &&
-        f.due_date === form.due_date &&
-        (editIndex === null || idx !== editIndex)
-    );
-    if (duplicate) {
-      setFormError("Duplicate fee entry for this student and due date.");
-      return false;
-    }
-    return true;
-  };
-
-  // 3. Delete action with confirmation
-  const handleDelete = async (idx) => {
-    if (!window.confirm("Are you sure you want to delete this fee record?"))
-      return;
-    const feeId = fees[idx].id;
-    try {
-      const { error: delError } = await updateFee(feeId, { deleted: true }); // Soft delete if possible
-      if (delError) throw delError;
-      setFees(fees.filter((_, i) => i !== idx));
-    } catch (e) {
-      setError("Failed to delete fee. Please try again.");
-    }
-  };
-
-  // 4. CSV export
-  const exportToCSV = () => {
-    const header = [
+  const exportToCSV = useCallback(() => {
+    const headers = [
       "Student Name",
       "Year",
-      "Total Amount",
-      "Paid Amount",
+      "Amount",
       "Due Date",
+      "Paid Amount",
       "Paid Date",
       "Status",
       "Notes",
     ];
-    const rows = fees.map((fee) => {
-      const student = students.find((s) => s.id === fee.student_id);
+    const csvData = memoizedData.filteredFees.map((fee) => {
+      const student = studentMap.get(fee.student_id);
       return [
-        student
-          ? `${student.first_name} ${student.middle_name ?? ""} ${
-              student.last_name
-            }`.trim()
-          : "-",
+        student ? `${student.first_name} ${student.last_name}` : fee.student_id,
         student ? student.year : "-",
         fee.amount,
-        fee.paid_amount,
         fee.due_date,
-        fee.paid_date,
-        fee.status.toUpperCase(),
-        fee.notes,
+        fee.paid_amount || 0,
+        fee.paid_date || "",
+        fee.status,
+        fee.notes || "",
       ];
     });
-    const csvContent = [header, ...rows].map((e) => e.join(",")).join("\n");
+    const csvContent = [headers, ...csvData]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -371,50 +560,42 @@ const FeeDashboard = () => {
     a.download = "fee-report.csv";
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [memoizedData.filteredFees, studentMap]);
 
-  // 5. Status filter
-  const filteredFees = fees.filter((fee) => {
-    const student = students.find((s) => s.id === fee.student_id);
-    if (!student) return false;
-    const nameMatch = `${student.first_name} ${student.middle_name ?? ""} ${
-      student.last_name
-    }`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const yearMatch = filterYear
-      ? String(student.year) === String(filterYear)
-      : true;
-    const dueRemaining = fee.amount - (fee.paid_amount || 0);
-    const maxDueMatch = maxDue ? dueRemaining <= Number(maxDue) : true;
-    const statusMatch = statusFilter ? fee.status === statusFilter : true;
-    return nameMatch && yearMatch && maxDueMatch && statusMatch;
-  });
-
-  // 6. Summary cards
-  const summary = {
-    totalDue: fees.reduce((sum, f) => sum + Number(f.amount), 0),
-    totalPaid: fees.reduce((sum, f) => sum + Number(f.paid_amount || 0), 0),
-    overdue: fees.filter((f) => f.status === FEE_STATUS.OVERDUE).length,
-    unpaid: fees.filter((f) => f.status === FEE_STATUS.UNPAID).length,
-  };
-
-  const statusData = [
-    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
-    {
-      name: "Partial",
-      value: fees.filter((f) => f.status === "partial").length,
-    },
-    { name: "Unpaid", value: fees.filter((f) => f.status === "unpaid").length },
-    {
-      name: "Overdue",
-      value: fees.filter((f) => f.status === "overdue").length,
-    },
-  ];
   const pieColors = ["#34d399", "#fbbf24", "#60a5fa", "#ef4444"];
 
+  if (loadingStudents || loadingFees) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-lg">Loading fee dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="text-lg">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen 6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6">
+    <div
+      id="fee-dashboard"
+      className="min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6"
+    >
       {/* Heading and Top Actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-3xl font-bold text-blue-900">
@@ -441,245 +622,362 @@ const FeeDashboard = () => {
           </button>
         </div>
       </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
           <div className="text-2xl font-bold text-blue-700">
-            {summary.totalDue}
+            {memoizedData.summary.totalDue}
           </div>
           <div className="text-gray-600">Total Due</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
           <div className="text-2xl font-bold text-green-700">
-            {summary.totalPaid}
+            {memoizedData.summary.totalPaid}
           </div>
           <div className="text-gray-600">Total Paid</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
           <div className="text-2xl font-bold text-red-700">
-            {summary.overdue}
+            {memoizedData.summary.overdue}
           </div>
           <div className="text-gray-600"># Overdue</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
           <div className="text-2xl font-bold text-yellow-700">
-            {summary.unpaid}
+            {memoizedData.summary.unpaid}
           </div>
           <div className="text-gray-600"># Unpaid</div>
         </div>
       </div>
       {/* Filters */}
-      <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Search by Name
-          </label>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-lg font-bold mb-4 text-gray-800">Filters</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
+            placeholder="Search by student name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border px-4 py-2 rounded w-full min-w-[180px]"
-            placeholder="Student Name"
+            className="border rounded px-3 py-2"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Filter by Year
-          </label>
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
-            className="border px-4 py-2 rounded w-full min-w-[120px]"
+            className="border rounded px-3 py-2"
           >
             <option value="">All Years</option>
-            {[1, 2, 3, 4].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Max Due Remaining
-          </label>
           <input
             type="number"
+            placeholder="Max due amount..."
             value={maxDue}
             onChange={(e) => setMaxDue(e.target.value)}
-            className="border px-4 py-2 rounded w-full min-w-[120px]"
-            placeholder="Amount"
+            className="border rounded px-3 py-2"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Status</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border px-4 py-2 rounded w-full min-w-[120px]"
+            className="border rounded px-3 py-2"
           >
-            <option value="">All Statuses</option>
-            <option value={FEE_STATUS.PAID}>Paid</option>
-            <option value={FEE_STATUS.PARTIAL}>Partial</option>
-            <option value={FEE_STATUS.UNPAID}>Unpaid</option>
-            <option value={FEE_STATUS.OVERDUE}>Overdue</option>
+            <option value="">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="overdue">Overdue</option>
           </select>
         </div>
       </div>
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-center font-semibold">
-          {error}
+
+             {/* Main Fees Table */}
+       <div className="bg-white rounded-lg shadow p-6">
+         <div className="flex justify-between items-center mb-4">
+           <h3 className="text-lg font-bold text-gray-800">
+             All Fees ({memoizedData.filteredFees.length} records)
+           </h3>
+           <div className="flex gap-2">
+             {memoizedData.filteredFees.length > 5 && (
+               <>
+                 <button
+                   onClick={() => setMainTableDisplayCount(prev => Math.max(5, prev - 5))}
+                   className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                 >
+                   Show Less (-5)
+                 </button>
+                 <button
+                   onClick={() => setMainTableDisplayCount(prev => prev + 5)}
+                   className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                 >
+                   Show More (+5)
+                 </button>
+               </>
+             )}
+           </div>
+         </div>
+         {memoizedData.filteredFees.length === 0 ? (
+           <div className="text-gray-400 text-center py-4">No fees found.</div>
+         ) : (
+           <div className="overflow-x-auto">
+             <div className="max-h-96 overflow-y-auto">
+               <table className="min-w-full bg-white">
+                 <thead className="sticky top-0 bg-gray-50">
+                   <tr>
+                     <th className="px-4 py-2 text-left">Student</th>
+                     <th className="px-4 py-2 text-left">Year</th>
+                     <th className="px-4 py-2 text-left">Amount</th>
+                     <th className="px-4 py-2 text-left">Due Date</th>
+                     <th className="px-4 py-2 text-left">Paid Amount</th>
+                     <th className="px-4 py-2 text-left">Status</th>
+                     <th className="px-4 py-2 text-left">Actions</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {memoizedData.displayedMainFees.map((fee, idx) => {
+                     const student = studentMap.get(fee.student_id);
+                     return (
+                       <tr
+                         key={fee.id || idx}
+                         className="border-b hover:bg-gray-50"
+                       >
+                         <td className="px-4 py-2">
+                           {student
+                             ? `${student.first_name} ${student.last_name}`
+                             : fee.student_id}
+                         </td>
+                         <td className="px-4 py-2">
+                           {student ? student.year : "-"}
+                         </td>
+                         <td className="px-4 py-2">Rs. {fee.amount}</td>
+                         <td className="px-4 py-2">{fee.due_date}</td>
+                         <td className="px-4 py-2">
+                           {fee.paid_amount ? `Rs. ${fee.paid_amount}` : "-"}
+                         </td>
+                         <td className="px-4 py-2">
+                           <span
+                             className={`px-2 py-1 rounded text-xs font-semibold ${
+                               fee.status === "paid"
+                                 ? "bg-green-100 text-green-800"
+                                 : fee.status === "partial"
+                                 ? "bg-yellow-100 text-yellow-800"
+                                 : fee.status === "overdue"
+                                 ? "bg-red-100 text-red-800"
+                                 : "bg-gray-100 text-gray-800"
+                             }`}
+                           >
+                             {fee.status.toUpperCase()}
+                           </span>
+                         </td>
+                         <td className="px-4 py-2">
+                           <div className="flex gap-2">
+                             <button
+                               onClick={() => handleOpenModal(idx)}
+                               className="text-blue-600 hover:text-blue-800"
+                             >
+                               <FaEdit />
+                             </button>
+                             <button
+                               onClick={() => handleDelete(idx)}
+                               className="text-red-600 hover:text-red-800"
+                             >
+                               <FaTrash />
+                             </button>
+                           </div>
+                         </td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+             {memoizedData.filteredFees.length > 5 && (
+               <div className="text-center mt-4 text-sm text-gray-600">
+                 Showing {memoizedData.displayedMainFees.length} of {memoizedData.filteredFees.length} records
+               </div>
+             )}
+           </div>
+         )}
+       </div>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Fee Status Distribution */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-lg font-bold mb-4 text-gray-800">
+            Fee Status Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={memoizedData.statusData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label
+              >
+                {memoizedData.statusData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={pieColors[index % pieColors.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
-      )}
-      {/* Table */}
-      <div
-        className="bg-[#EEF0FD] text-black p-4 rounded overflow-auto mb-8"
-        style={{ maxHeight: "60vh" }}
-      >
-        <table className="w-full text-left">
-          <thead className="bg-[#2C7489] text-white">
-            <tr>
-              <th className="p-2">Student Name</th>
-              <th className="p-2">Year</th>
-              <th className="p-2">Total Amount</th>
-              <th className="p-2">Paid Amount</th>
-              <th className="p-2">Due Date</th>
-              <th className="p-2">Paid Date</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Notes</th>
-              <th className="p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFees.map((fee, idx) => {
-              const student = students.find((s) => s.id === fee.student_id);
-              const status = fee.status;
-              return (
-                <tr
-                  key={fee.id}
-                  className={
-                    idx === filteredFees.length - 1
-                      ? "bg-indigo-200"
-                      : "bg-cyan-100"
-                  }
-                >
-                  <td className="p-2">
-                    {student ? (
-                      <a
-                        href={student.profileUrl || "#"}
-                        className="text-blue-700 underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {`${student.first_name} ${student.middle_name ?? ""} ${
-                          student.last_name
-                        }`.trim()}
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="p-2">{student ? student.year : "-"}</td>
-                  <td className="p-2">{fee.amount}</td>
-                  <td className="p-2">{fee.paid_amount}</td>
-                  <td className="p-2">{fee.due_date}</td>
-                  <td className="p-2">{fee.paid_date}</td>
-                  <td className="p-2">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        status === "paid"
-                          ? "bg-green-100 text-green-800"
-                          : status === "partial"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : status === "overdue"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="p-2">{fee.notes}</td>
-                  <td className="p-2">
-                    <button
-                      onClick={() => handleOpenModal(idx)}
-                      className="bg-green-500 text-white px-2 py-1 rounded mr-2"
-                      title="Edit"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(idx)}
-                      className="bg-red-500 text-white px-2 py-1 rounded"
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+
+        {/* Fee Collection vs Due */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-lg font-bold mb-4 text-gray-800">
+            Fee Collection vs Due
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={memoizedData.barData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-      {/* Add/Edit Fee Modal */}
-      {showModal && (
-        <Modal
-          title={editIndex !== null ? "Edit Fee" : "Add Fee"}
-          onClose={() => setShowModal(false)}
-        >
-            {formError && (
-              <div className="bg-red-100 text-red-700 p-2 rounded mb-2 text-center font-semibold">
-                {formError}
-              </div>
-            )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!validateForm()) return;
-                handleSubmit(e);
-              }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              <div>
-              <label className="block text-sm font-medium mb-1">Student</label>
-                <Select
-                  options={students.map((stu) => ({
-                    value: stu.id,
-                    label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                      stu.last_name
-                    }`.trim(),
-                  }))}
-                  value={
-                    students
-                      .map((stu) => ({
-                        value: stu.id,
-                        label: `${stu.first_name} ${stu.middle_name ?? ""} ${
-                          stu.last_name
-                        }`.trim(),
-                      }))
-                      .find((opt) => opt.value === form.student_id) || null
+
+      {/* Overdue Fees Section */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-yellow-600">Overdue Fees</h3>
+          <div className="flex gap-2">
+            {memoizedData.overdueFees.length > 7 && (
+              <>
+                <button
+                  onClick={() =>
+                    setOverdueDisplayCount((prev) => Math.max(7, prev - 5))
                   }
-                  onChange={(opt) =>
+                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
+                >
+                  Show Less (-5)
+                </button>
+                <button
+                  onClick={() => setOverdueDisplayCount((prev) => prev + 5)}
+                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
+                >
+                  Show More (+5)
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        {memoizedData.displayedOverdueFees.length === 0 ? (
+          <div className="text-gray-400 text-center py-4">No overdue fees.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left">Student</th>
+                  <th className="px-4 py-2 text-left">Year</th>
+                  <th className="px-4 py-2 text-left">Amount Due</th>
+                  <th className="px-4 py-2 text-left">Due Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {memoizedData.displayedOverdueFees.map((fee, idx) => (
+                  <tr key={idx} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2">{fee.name}</td>
+                    <td className="px-4 py-2">{fee.year}</td>
+                    <td className="px-4 py-2 font-semibold text-red-600">
+                      Rs. {fee.due}
+                    </td>
+                    <td className="px-4 py-2">{fee.due_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Top Debtors Table */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-lg font-bold mb-4 text-yellow-600">Top Debtors</h3>
+        {memoizedData.topDebtors.length === 0 ? (
+          <div className="text-gray-400 text-center py-4">
+            No debtors found.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left">Student</th>
+                  <th className="px-4 py-2 text-left">Year</th>
+                  <th className="px-4 py-2 text-left">Amount Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {memoizedData.topDebtors.map((row, idx) => (
+                  <tr key={idx} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2">{row.name}</td>
+                    <td className="px-4 py-2">{row.year}</td>
+                    <td className="px-4 py-2 font-semibold text-red-600">
+                      Rs. {row.due}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <Modal onClose={() => setShowModal(false)}>
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">
+              {editIndex !== null ? "Edit Fee" : "Add New Fee"}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Student
+                </label>
+                <Select
+                  value={
+                    form.student_id
+                      ? {
+                          value: form.student_id,
+                          label: getStudentName(form.student_id),
+                        }
+                      : null
+                  }
+                  onChange={(option) =>
                     setForm((prev) => ({
                       ...prev,
-                      student_id: opt ? opt.value : "",
+                      student_id: option?.value || "",
                     }))
                   }
-                  isClearable
+                  options={students.map((s) => ({
+                    value: s.id,
+                    label: `${s.first_name} ${s.last_name} (Year ${s.year})`,
+                  }))}
+                  placeholder="Select student..."
                   isSearchable
-                  placeholder="Search and select student..."
-                  classNamePrefix="react-select"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Total Amount
-                </label>
+                <label className="block text-sm font-medium mb-1">Amount</label>
                 <input
-                  name="amount"
                   type="number"
+                  name="amount"
                   value={form.amount}
                   onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
@@ -687,10 +985,12 @@ const FeeDashboard = () => {
                 />
               </div>
               <div>
-              <label className="block text-sm font-medium mb-1">Due Date</label>
+                <label className="block text-sm font-medium mb-1">
+                  Due Date
+                </label>
                 <input
-                  name="due_date"
                   type="date"
+                  name="due_date"
                   value={form.due_date}
                   onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
@@ -702,9 +1002,9 @@ const FeeDashboard = () => {
                   Paid Amount
                 </label>
                 <input
-                  name="paid_amount"
                   type="number"
-                value={form.paid_amount || ""}
+                  name="paid_amount"
+                  value={form.paid_amount}
                   onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
                 />
@@ -714,151 +1014,45 @@ const FeeDashboard = () => {
                   Paid Date
                 </label>
                 <input
-                  name="paid_date"
                   type="date"
-                value={form.paid_date || ""}
+                  name="paid_date"
+                  value={form.paid_date}
                   onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium mb-1">Notes</label>
                 <textarea
                   name="notes"
                   value={form.notes}
                   onChange={handleChange}
                   className="w-full border rounded px-3 py-2"
+                  rows="3"
                 />
               </div>
-              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+              {formError && (
+                <div className="text-red-600 text-sm">{formError}</div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  {editIndex !== null ? "Update" : "Add"} Fee
+                </button>
                 <button
                   type="button"
-                  className="bg-gray-300 px-4 py-2 rounded"
                   onClick={() => setShowModal(false)}
+                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
-                >
-                  {editIndex !== null ? "Save" : "Add"}
-                </button>
               </div>
             </form>
+          </div>
         </Modal>
       )}
-
-      {/* Analytics Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
-        {/* Pie Chart: Fee Collection Status */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-bold mb-4">Fee Collection Status</h3>
-          <PieChart width={220} height={220}>
-            <Pie
-              data={statusData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={70}
-              label
-            >
-              {statusData.map((entry, idx) => (
-                <Cell
-                  key={`cell-${idx}`}
-                  fill={pieColors[idx % pieColors.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </div>
-        {/* Bar Chart: Total Due vs. Total Collected */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-bold mb-4">
-            Total Due vs. Total Collected
-          </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={barData}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Bar Chart: Fees by Year */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-bold mb-4">Fees by Year</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={yearGroups}>
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalDue" fill="#f59e42" name="Total Due" />
-              <Bar dataKey="totalPaid" fill="#10b981" name="Total Paid" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      {/* Overdue Fees Table */}
-      <div className="bg-white rounded-lg shadow p-6 mt-10">
-        <h3 className="text-lg font-bold mb-4 text-red-600">Overdue Fees</h3>
-        {overdueFees.length === 0 ? (
-          <p className="text-gray-500">No overdue fees.</p>
-        ) : (
-          <table className="w-full text-left">
-            <thead className="bg-red-100">
-              <tr>
-                <th className="p-2">Student Name</th>
-                <th className="p-2">Year</th>
-                <th className="p-2">Due Remaining</th>
-                <th className="p-2">Due Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overdueFees.map((row, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="p-2">{row.name}</td>
-                  <td className="p-2">{row.year}</td>
-                  <td className="p-2">{row.due}</td>
-                  <td className="p-2">{row.due_date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      {/* Top Debtors Table */}
-      <div className="bg-white rounded-lg shadow p-6 mt-10">
-        <h3 className="text-lg font-bold mb-4 text-yellow-600">Top Debtors</h3>
-        {topDebtors.length === 0 ? (
-          <p className="text-gray-500">No debtors.</p>
-        ) : (
-          <table className="w-full text-left">
-            <thead className="bg-yellow-100">
-              <tr>
-                <th className="p-2">Student Name</th>
-                <th className="p-2">Year</th>
-                <th className="p-2">Due Remaining</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topDebtors.map((row, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="p-2">{row.name}</td>
-                  <td className="p-2">{row.year}</td>
-                  <td className="p-2">{row.due}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
   );
 };

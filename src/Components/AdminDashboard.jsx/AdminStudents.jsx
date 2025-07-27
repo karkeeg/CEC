@@ -26,6 +26,7 @@ const StudentDashboard = () => {
   const [students, setStudents] = useState([]);
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
+  const [yearFilter, setYearFilter] = useState("all");
   const [yearChartData, setYearChartData] = useState([]);
   const [genderChartData, setGenderChartData] = useState([]);
   const [viewStudent, setViewStudent] = useState(null);
@@ -40,6 +41,9 @@ const StudentDashboard = () => {
   const fetchStudents = async () => {
     const data = await getAllStudents();
     if (data) {
+      console.log(`Fetched ${data.length} students from database`);
+      console.log("First few students:", data.slice(0, 3));
+      console.log("Last few students:", data.slice(-3));
       setStudents(data);
       prepareCharts(data);
     }
@@ -107,11 +111,47 @@ const StudentDashboard = () => {
     }
   };
 
-  const filteredStudents = students.filter((s) =>
-    `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`
+  const filteredStudents = students.filter((s) => {
+    // Create full name string and clean it
+    const fullName = `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+      .trim()
+      .replace(/\s+/g, " "); // Replace multiple spaces with single space
+
+    // Clean search term
+    const cleanSearchTerm = searchTerm
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+
+    // Check if search term is empty or matches
+    let nameMatch = false;
+
+    if (cleanSearchTerm === "") {
+      nameMatch = true; // Show all when search is empty
+    } else {
+      // Check for exact phrase match
+      nameMatch = fullName.includes(cleanSearchTerm);
+
+      // If no exact match, check for individual word matches
+      if (!nameMatch) {
+        const searchWords = cleanSearchTerm
+          .split(" ")
+          .filter((word) => word.length > 0);
+        const nameWords = fullName.split(" ").filter((word) => word.length > 0);
+
+        // Check if all search words are found in name words
+        nameMatch = searchWords.every((searchWord) =>
+          nameWords.some((nameWord) => nameWord.includes(searchWord))
+        );
+      }
+    }
+
+    const yearMatch =
+      yearFilter === "all" || String(s.year) === String(yearFilter);
+
+    return nameMatch && yearMatch;
+  });
 
   const exportToPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -150,15 +190,109 @@ const StudentDashboard = () => {
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="mb-4 min-w-0">
-        <input
-          type="text"
-          placeholder="Search students by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border px-4 py-2 rounded w-full max-w-md"
-        />
+      {/* Search and Filter Section */}
+      <div className="mb-6 min-w-0">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Search Input */}
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search students by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border px-4 py-2 rounded w-full max-w-md"
+            />
+          </div>
+
+          {/* Year Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Year:</label>
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="border px-3 py-2 rounded text-sm"
+            >
+              <option value="all">All Years</option>
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </div>
+
+          {/* Reset Filters Button */}
+          {(searchTerm || yearFilter !== "all") && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setYearFilter("all");
+                setVisibleCount(5);
+              }}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+
+        {/* Total Count Display */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-700">Total Students:</span>
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
+                {students.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-700">
+                Filtered Results:
+              </span>
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
+                {filteredStudents.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-700">Showing:</span>
+              <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded font-semibold">
+                {Math.min(visibleCount, filteredStudents.length)} of{" "}
+                {filteredStudents.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Year Distribution Summary */}
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <div className="text-sm font-medium text-gray-700 mb-2">
+              Year Distribution:
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {[1, 2, 3, 4].map((year) => {
+                const yearCount = students.filter(
+                  (s) => String(s.year) === String(year)
+                ).length;
+                const filteredYearCount = filteredStudents.filter(
+                  (s) => String(s.year) === String(year)
+                ).length;
+                return (
+                  <div key={year} className="flex items-center gap-1">
+                    <span className="text-xs text-gray-600">Year {year}:</span>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold ${
+                        yearFilter === "all" || yearFilter === String(year)
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {filteredYearCount}
+                      {yearFilter === "all" && `/${yearCount}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Student Table */}
@@ -218,16 +352,58 @@ const StudentDashboard = () => {
             )}
           </tbody>
         </table>
-        {visibleCount < filteredStudents.length && (
-          <div className="text-center mt-4 mb-4">
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              onClick={() => setVisibleCount((prev) => prev + 5)}
-            >
-              Show More
-            </button>
+        {/* Pagination Controls */}
+        <div className="text-center mt-4 mb-4">
+          <div className="flex justify-center gap-3">
+            {/* Show Less Button */}
+            {visibleCount > 5 && (
+              <button
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                onClick={() => setVisibleCount((prev) => Math.max(5, prev - 5))}
+              >
+                Show Less
+              </button>
+            )}
+
+            {/* Show More Button */}
+            {visibleCount < filteredStudents.length && (
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                onClick={() => setVisibleCount((prev) => prev + 5)}
+              >
+                Show More
+              </button>
+            )}
+
+            {/* Show All Button */}
+            {visibleCount < filteredStudents.length && (
+              <button
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                onClick={() => setVisibleCount(filteredStudents.length)}
+              >
+                Show All
+              </button>
+            )}
+
+            {/* Collapse All Button */}
+            {visibleCount > 5 && visibleCount === filteredStudents.length && (
+              <button
+                className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors"
+                onClick={() => setVisibleCount(5)}
+              >
+                Collapse All
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Pagination Info */}
+          {filteredStudents.length > 5 && (
+            <div className="mt-2 text-sm text-gray-600">
+              Showing {Math.min(visibleCount, filteredStudents.length)} of{" "}
+              {filteredStudents.length} students
+            </div>
+          )}
+        </div>
       </div>
 
       {/* View Student Modal */}
@@ -391,14 +567,26 @@ const StudentDashboard = () => {
 
       {/* Charts */}
       <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-        <div className="w-full h-72 bg-blue-50 rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+        <div className="w-full h-72 bg-blue-50 rounded-lg p-3 sm:p-4 min-w-0">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Students by Year
           </h3>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={yearChartData}>
               <XAxis dataKey="year" />
-              <YAxis />
+              <YAxis
+                domain={[
+                  0,
+                  Math.max(...yearChartData.map((item) => item.count), 500),
+                ]}
+                tickCount={
+                  Math.ceil(
+                    Math.max(...yearChartData.map((item) => item.count), 500) /
+                      500
+                  ) + 1
+                }
+                interval={0}
+              />
               <Tooltip />
               <Bar dataKey="count" fill="#3182CE" />
             </BarChart>
