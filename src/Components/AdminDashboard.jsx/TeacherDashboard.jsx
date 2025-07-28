@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import Loader from "../Loader";
 
 const TeacherDashboard = () => {
   const [teachers, setTeachers] = useState([]);
@@ -100,6 +101,14 @@ const TeacherDashboard = () => {
     "#FC8181", // Light Red
     "#68D391", // Light Green
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading teacher dashboard data..." />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100">

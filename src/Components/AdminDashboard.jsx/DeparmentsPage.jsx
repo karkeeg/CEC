@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import supabase from "../../supabaseConfig/supabaseClient";
 import DepartmentForm from "../Forms/DepartmentForm";
+import Loader from "../Loader";
 
 const COLORS = [
   "#0088FE",
@@ -85,6 +86,14 @@ const DepartmentsPage = () => {
     });
     doc.save("departments-report.pdf");
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading departments data..." />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-2 sm:p-4 md:p-8 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">

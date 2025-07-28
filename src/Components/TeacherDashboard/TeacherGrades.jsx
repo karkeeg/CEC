@@ -29,6 +29,7 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import Loader from "../Loader";
 
 const TeacherGrades = () => {
   const { user } = useUser();
@@ -221,16 +222,8 @@ const TeacherGrades = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="h-10 bg-gray-200 rounded mb-6"></div>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading grades data..." />
       </div>
     );
   }
@@ -559,13 +552,19 @@ const TeacherGrades = () => {
       <div className="mb-8 min-w-0">
         {/* Grade Trend Area Chart */}
         <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Grade Trend (Mountain Chart)
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Assignment Grade Trends
+            </h2>
+            <p className="text-sm text-gray-600">
+              Shows the average grade percentage for each assignment across all
+              students
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart
               data={gradeTrend}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              margin={{ top: 10, right: 30, left: 50, bottom: 30 }}
             >
               <defs>
                 <linearGradient id="colorGrade" x1="0" y1="0" x2="0" y2="1">
@@ -573,13 +572,34 @@ const TeacherGrades = () => {
                   <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
+              <XAxis
+                dataKey="name"
+                hide={false}
+                label={{
+                  value: "Assignment Title",
+                  position: "bottom",
+                  offset: -20,
+                }}
+                tick={false}
+              />
+              <YAxis
+                label={{
+                  value: "Average Grade (%)",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { textAnchor: "middle" },
+                }}
+                domain={[0, 100]}
+              />
+              <Tooltip
+                formatter={(value) => [`${value}%`, "Average Grade"]}
+                labelFormatter={(label) => `Assignment: ${label}`}
+              />
               <Legend />
               <Area
                 type="monotone"
                 dataKey="avgGrade"
+                name="Average Grade"
                 stroke="#6366F1"
                 fillOpacity={1}
                 fill="url(#colorGrade)"
@@ -589,24 +609,51 @@ const TeacherGrades = () => {
         </div>
         {/* Grade Completion Ladder Chart */}
         <div className="bg-blue-100 p-6 rounded-xl shadow mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Grade Completion (Ladder Chart)
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Assignment Completion Rates
+            </h2>
+            <p className="text-sm text-gray-600">
+              Shows the percentage of students who have completed each
+              assignment
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
             <ComposedChart
               data={gradeCompletion}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              margin={{ top: 10, right: 30, left: 50, bottom: 10 }}
             >
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
+              <XAxis
+                dataKey="name"
+                hide={false}
+                label={{
+                  value: "Assignment Title",
+                  position: "bottom",
+                  offset: -20,
+                }}
+                tick={false}
+              />
+              <YAxis
+                label={{
+                  value: "Completion Rate (%)",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { textAnchor: "middle" },
+                }}
+                domain={[0, 100]}
+              />
+              <Tooltip
+                formatter={(value) => [`${value}%`, "Completion Rate"]}
+                labelFormatter={(label) => `Assignment: ${label}`}
+              />
               <Legend />
               <Line
                 type="stepAfter"
                 dataKey="completion"
+                name="Completion Rate"
                 stroke="#3B82F6"
                 strokeWidth={3}
-                dot={false}
+                // dot={false}
               />
             </ComposedChart>
           </ResponsiveContainer>

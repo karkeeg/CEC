@@ -20,6 +20,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import Loader from "../Loader";
 
 const AdminAttandancePage = () => {
   const [fromDate, setFromDate] = useState(() => {
@@ -39,6 +40,7 @@ const AdminAttandancePage = () => {
   const [attendance, setAttendance] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchClasses().then(setClasses);
@@ -46,7 +48,10 @@ const AdminAttandancePage = () => {
   }, []);
 
   useEffect(() => {
-    getAttendanceByDateRange(fromDate, toDate).then(setAttendance);
+    setLoading(true);
+    getAttendanceByDateRange(fromDate, toDate)
+      .then(setAttendance)
+      .finally(() => setLoading(false));
   }, [fromDate, toDate]);
 
   const exportToPDF = () => {
@@ -118,6 +123,14 @@ const AdminAttandancePage = () => {
     { name: "Late", value: late },
   ];
   const pieColors = ["#22c55e", "#ef4444", "#facc15"];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading attendance data..." />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">
@@ -260,30 +273,6 @@ const AdminAttandancePage = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Additional Analytics: Line chart for daily total records */}
-        <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center mb-6 min-w-0 overflow-x-auto">
-          <h3 className="text-md font-semibold mb-2 text-blue-800">
-            Daily Total Attendance Records
-          </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart
-              data={attendanceBarData}
-              margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-            >
-              <XAxis dataKey="date" fontSize={12} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#6366f1"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
         </div>
 
         {/* Additional Analytics: Stacked Bar chart for present/absent/late per day */}

@@ -24,7 +24,6 @@ import Feedback from "./Components/StudentDashboard/Feedback";
 import AuthGuard from "../src/Components/AuthGuard";
 import Articles from "./Pages/Articles";
 import ArticleDetail from "./Pages/ArticleDetail";
-import AdminAnalytics from "./Components/AdminDashboard.jsx/AdminAnalytics";
 import Settings from "./Components/Settings";
 import StudentAnalytics from "./Components/StudentDashboard/StudentAnalytics";
 import DepartmentDetail from "./Pages/DepartmentDetail";

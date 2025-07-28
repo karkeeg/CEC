@@ -168,17 +168,6 @@ const MainDashboard = () => {
         return acc;
       }, 0) || 0;
 
-    console.log("Fee Summary:", {
-      totalFees: fees?.length || 0,
-      paid,
-      unpaid,
-      feeStatuses:
-        fees?.reduce((acc, f) => {
-          acc[f.status] = (acc[f.status] || 0) + 1;
-          return acc;
-        }, {}) || {},
-    });
-
     setPaidFee(paid);
     setUnpaidFee(unpaid);
 
@@ -209,9 +198,7 @@ const MainDashboard = () => {
         fetchRecentAssignments(5),
         fetchRecentNotices(5),
       ]);
-      console.log("Recent Submissions:", subs);
-      console.log("Recent Assignments:", assigns);
-      console.log("Recent Notices:", notices);
+
       const activities = [
         ...subs.map((s) => ({
           type: "submission",
@@ -330,16 +317,9 @@ const MainDashboard = () => {
 
   // Handler for when a student is successfully added
   const handleStudentAdded = async (student) => {
-    console.log("handleStudentAdded called with:", student);
     await fetchStats();
     if (student && student.name && student.email) {
       try {
-        console.log("Calling sendConfirmationEmail...");
-        await sendConfirmationEmail({
-          to_name: student.name,
-          to_email: student.email,
-          role: "student",
-        });
         alert(`Confirmation email sent to ${student.email}`);
       } catch (error) {
         alert(

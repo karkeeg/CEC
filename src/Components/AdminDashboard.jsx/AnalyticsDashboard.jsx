@@ -13,6 +13,7 @@ import {
   fetchRecentAssignments,
   fetchRecentNotices,
 } from "../../supabaseConfig/supabaseApi";
+import supabase from "../../supabaseConfig/supabaseClient";
 import {
   AreaChart,
   Area,
@@ -30,6 +31,7 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import Loader from "../Loader";
 
 const COLORS = [
   "#0088FE",
@@ -108,6 +110,47 @@ const AnalyticsDashboard = () => {
           })
         );
         setAssignments(assignmentsWithSubs);
+
+        // DEBUG: Let's also directly query the grades table to see what's there
+        console.log("DEBUG: Direct grades query test");
+        const { data: directGrades, error: gradesError } = await supabase
+          .from("grades")
+          .select("*")
+          .limit(10);
+        console.log("DEBUG: Direct grades query result:", {
+          directGrades,
+          gradesError,
+        });
+
+        // Alternative approach: Get all grades and map them to submissions
+        const { data: gradesFromDB, error: allGradesError } = await supabase
+          .from("grades")
+          .select("*");
+        console.log("DEBUG: All grades:", gradesFromDB);
+
+        // Create a map of submission_id to grade
+        const gradeMap = {};
+        if (gradesFromDB) {
+          gradesFromDB.forEach((grade) => {
+            gradeMap[grade.submission_id] = grade;
+          });
+        }
+        console.log("DEBUG: Grade map:", gradeMap);
+
+        // Now let's manually attach grades to submissions
+        const assignmentsWithGrades = assignmentsWithSubs.map((assignment) => ({
+          ...assignment,
+          submissions: assignment.submissions.map((submission) => ({
+            ...submission,
+            grade: gradeMap[submission.id] || null,
+          })),
+        }));
+
+        console.log(
+          "DEBUG: Assignments with manually attached grades:",
+          assignmentsWithGrades
+        );
+        setAssignments(assignmentsWithGrades);
         // Stat cards
         const present = attendanceData.filter(
           (a) => a.status === "present"
@@ -128,8 +171,19 @@ const AnalyticsDashboard = () => {
         let allGrades = [];
         for (const assignment of assignmentsWithSubs) {
           for (const sub of assignment.submissions) {
-            if (sub.grade && typeof sub.grade.grade === "number") {
-              allGrades.push(sub.grade.grade);
+            // Handle both nested grade object and direct grade number
+            let gradeValue = null;
+            if (
+              sub.grade &&
+              typeof sub.grade === "object" &&
+              typeof sub.grade.grade === "number"
+            ) {
+              gradeValue = sub.grade.grade;
+            } else if (sub.grade && typeof sub.grade === "number") {
+              gradeValue = sub.grade;
+            }
+            if (gradeValue !== null) {
+              allGrades.push(gradeValue);
             }
           }
         }
@@ -153,11 +207,22 @@ const AnalyticsDashboard = () => {
         const monthMap = {};
         for (const assignment of assignmentsWithSubs) {
           for (const sub of assignment.submissions) {
-            if (sub.grade && typeof sub.grade.grade === "number") {
+            // Handle both nested grade object and direct grade number
+            let gradeValue = null;
+            if (
+              sub.grade &&
+              typeof sub.grade === "object" &&
+              typeof sub.grade.grade === "number"
+            ) {
+              gradeValue = sub.grade.grade;
+            } else if (sub.grade && typeof sub.grade === "number") {
+              gradeValue = sub.grade;
+            }
+            if (gradeValue !== null) {
               const date = new Date(assignment.due_date);
               const month = date.toLocaleString("default", { month: "short" });
               if (!monthMap[month]) monthMap[month] = [];
-              monthMap[month].push(sub.grade.grade);
+              monthMap[month].push(gradeValue);
             }
           }
         }
@@ -242,14 +307,21 @@ const AnalyticsDashboard = () => {
         const studentGradeMap = {};
         for (const assignment of assignmentsWithSubs) {
           for (const sub of assignment.submissions) {
+            // Handle both nested grade object and direct grade number
+            let gradeValue = null;
             if (
-              sub.student_id &&
               sub.grade &&
+              typeof sub.grade === "object" &&
               typeof sub.grade.grade === "number"
             ) {
+              gradeValue = sub.grade.grade;
+            } else if (sub.grade && typeof sub.grade === "number") {
+              gradeValue = sub.grade;
+            }
+            if (sub.student_id && gradeValue !== null) {
               if (!studentGradeMap[sub.student_id])
                 studentGradeMap[sub.student_id] = [];
-              studentGradeMap[sub.student_id].push(sub.grade.grade);
+              studentGradeMap[sub.student_id].push(gradeValue);
             }
           }
         }
@@ -331,20 +403,64 @@ const AnalyticsDashboard = () => {
     setLowAttendance(lowAtt);
     // Low Grades (<60%)
     const studentGradeMap = {};
+    console.log("DEBUG: All assignments with submissions:", assignments);
+
     for (const assignment of assignments) {
       const submissions = assignment.submissions || [];
+      console.log(
+        `DEBUG: Assignment ${assignment.id} has ${submissions.length} submissions:`,
+        submissions
+      );
+
       for (const sub of submissions) {
+        console.log(`DEBUG: Submission ${sub.id} grade data:`, {
+          student_id: sub.student_id,
+          grade: sub.grade,
+          gradeType: typeof sub.grade,
+          hasGrade: !!sub.grade,
+          gradeKeys: sub.grade ? Object.keys(sub.grade) : null,
+        });
+
+        // Handle both nested grade object and direct grade number
+        let gradeValue = null;
         if (
-          sub.student_id &&
           sub.grade &&
+          typeof sub.grade === "object" &&
+          sub.grade.grade !== undefined &&
           typeof sub.grade.grade === "number"
         ) {
+          gradeValue = sub.grade.grade;
+          console.log(`DEBUG: Found nested grade: ${gradeValue}`);
+        } else if (sub.grade && typeof sub.grade === "number") {
+          gradeValue = sub.grade;
+          console.log(`DEBUG: Found direct grade: ${gradeValue}`);
+        } else if (
+          sub.grade &&
+          typeof sub.grade === "object" &&
+          sub.grade.length > 0
+        ) {
+          // Handle case where grade might be an array
+          const firstGrade = sub.grade[0];
+          if (firstGrade && typeof firstGrade.grade === "number") {
+            gradeValue = firstGrade.grade;
+            console.log(`DEBUG: Found array grade: ${gradeValue}`);
+          }
+        } else {
+          console.log(`DEBUG: No valid grade found for submission ${sub.id}`);
+        }
+
+        if (sub.student_id && gradeValue !== null) {
           if (!studentGradeMap[sub.student_id])
             studentGradeMap[sub.student_id] = [];
-          studentGradeMap[sub.student_id].push(sub.grade.grade);
+          studentGradeMap[sub.student_id].push(gradeValue);
+          console.log(
+            `DEBUG: Added grade ${gradeValue} for student ${sub.student_id}`
+          );
         }
       }
     }
+
+    console.log("DEBUG: Final studentGradeMap:", studentGradeMap);
     const lowGr = students
       .map((s) => {
         const grades = studentGradeMap[s.id] || [];
@@ -356,6 +472,15 @@ const AnalyticsDashboard = () => {
       })
       .filter((s) => s.avgGrade < 60);
     setLowGrades(lowGr);
+    console.log("Low grades calculation:", {
+      totalStudents: students.length,
+      studentsWithGrades: Object.keys(studentGradeMap).length,
+      lowGradesCount: lowGr.length,
+      lowGrades: lowGr.map((s) => ({
+        name: `${s.first_name} ${s.last_name}`,
+        avgGrade: s.avgGrade,
+      })),
+    });
     // Overdue Fees (use only DB status)
     const overdue = fees
       .filter((f) => f.status === "overdue")
@@ -378,7 +503,9 @@ const AnalyticsDashboard = () => {
         Admin Analytics Dashboard
       </h1>
       {loading ? (
-        <div className="text-center py-10 text-lg">Loading analytics...</div>
+        <div className="flex items-center justify-center min-h-[300px]">
+          <Loader message="Loading analytics dashboard data..." />
+        </div>
       ) : error ? (
         <div className="text-center py-10 text-red-500">{error}</div>
       ) : (
@@ -456,7 +583,7 @@ const AnalyticsDashboard = () => {
               </div>
               <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
                 <h3 className="font-bold text-yellow-700 mb-2">
-                  Low Grades (&lt;60%) - Top 7
+                  Average Low Grades (&lt;60%) - Top 7
                 </h3>
                 {lowGrades.length === 0 ? (
                   <div className="text-gray-400">

@@ -35,6 +35,7 @@ import {
 import ManageEnrollmentForm from "../Forms/ManageEnrollmentForm";
 import ClassForm from "../Forms/ClassForm";
 import Modal from "../Modal";
+import Loader from "../Loader";
 
 const TeacherClasses = () => {
   const { user } = useUser();
@@ -143,15 +144,8 @@ const TeacherClasses = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading classes data..." />
       </div>
     );
   }
@@ -435,8 +429,23 @@ const TeacherClasses = () => {
                   <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="name" />
-              <YAxis />
+              <XAxis
+                dataKey="name"
+                label={{
+                  value: "Classes ->",
+                  position: "bottom",
+                  offset: -20,
+                }}
+                tick={false}
+              />
+              <YAxis
+                label={{
+                  value: "Class size (no of Students)",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { textAnchor: "middle" },
+                }}
+              />
               <Tooltip />
               <Legend />
               <Area
@@ -459,8 +468,23 @@ const TeacherClasses = () => {
               data={classFillStatus}
               margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
             >
-              <XAxis dataKey="name" />
-              <YAxis />
+              <XAxis
+                dataKey="name"
+                label={{
+                  value: "Classes ->",
+                  position: "bottom",
+                  offset: -20,
+                }}
+                tick={false}
+              />
+              <YAxis
+                label={{
+                  value: "Class Capacity",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { textAnchor: "middle" },
+                }}
+              />
               <Tooltip />
               <Legend />
               <Line
@@ -469,57 +493,6 @@ const TeacherClasses = () => {
                 stroke="#3B82F6"
                 strokeWidth={3}
                 dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Weekly Class Schedule Bar Chart */}
-        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Weekly Class Schedule (Demo)
-          </h2>
-          <p className="text-gray-500 mb-2">
-            Shows the number of classes scheduled for each weekday.
-          </p>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart
-              data={weeklyClassData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis dataKey="day" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="classes" fill="#6366F1" name="Classes" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Class Time Distribution Line Chart */}
-        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Class Time Distribution (Demo)
-          </h2>
-          <p className="text-gray-500 mb-2">
-            Shows how many classes are scheduled at each time slot during the
-            day.
-          </p>
-          <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart
-              data={classTimeData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis dataKey="time" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="count"
-                stroke="#10B981"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="Classes"
               />
             </ComposedChart>
           </ResponsiveContainer>

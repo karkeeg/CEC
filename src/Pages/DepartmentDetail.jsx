@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchDepartmentById } from "../supabaseConfig/supabaseApi";
+import Loader from "../Components/Loader";
 
 const DepartmentDetail = () => {
   const { id } = useParams();
@@ -33,7 +34,11 @@ const DepartmentDetail = () => {
   }, [id]);
 
   if (loading)
-    return <div className="p-10 text-center text-xl">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading department..." />
+      </div>
+    );
   if (error)
     return <div className="p-10 text-center text-red-600">{error}</div>;
   if (!department) return null;

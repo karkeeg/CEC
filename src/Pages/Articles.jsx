@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchArticles } from "../supabaseConfig/supabaseApi";
+import Loader from "../Components/Loader";
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -24,7 +25,11 @@ const Articles = () => {
   }, []);
 
   if (loading)
-    return <div className="p-10 text-center text-xl">Loading articles...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading articles..." />
+      </div>
+    );
   if (error)
     return <div className="p-10 text-center text-red-600">{error}</div>;
 

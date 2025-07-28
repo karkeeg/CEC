@@ -127,24 +127,24 @@ export const fetchStudents = async () => {
   let allStudents = [];
   let from = 0;
   const pageSize = 1000;
-  
+
   while (true) {
     const { data, error } = await supabase
       .from("students")
       .select("*")
       .range(from, from + pageSize - 1);
-    
-  if (error) throw error;
-    
+
+    if (error) throw error;
+
     if (!data || data.length === 0) break;
-    
+
     allStudents = [...allStudents, ...data];
     from += pageSize;
-    
+
     // If we got less than pageSize, we've reached the end
     if (data.length < pageSize) break;
   }
-  
+
   return allStudents;
 };
 
@@ -196,29 +196,32 @@ export const fetchAttendance = async (filters = {}) => {
   let allAttendance = [];
   let from = 0;
   const pageSize = 1000;
-  
+
   while (true) {
-    let query = supabase.from("attendance").select("*").range(from, from + pageSize - 1);
-  if (filters.fromDate) query = query.gte("date", filters.fromDate);
-  if (filters.toDate) query = query.lte("date", filters.toDate);
-  if (filters.student_id) query = query.eq("student_id", filters.student_id);
-  if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
-  if (filters.class_id) query = query.eq("class_id", filters.class_id);
-  if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
-  query = query.order && query.order("date", { ascending: false });
-    
-  const { data, error } = await query;
-  if (error) throw error;
-    
+    let query = supabase
+      .from("attendance")
+      .select("*")
+      .range(from, from + pageSize - 1);
+    if (filters.fromDate) query = query.gte("date", filters.fromDate);
+    if (filters.toDate) query = query.lte("date", filters.toDate);
+    if (filters.student_id) query = query.eq("student_id", filters.student_id);
+    if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
+    if (filters.class_id) query = query.eq("class_id", filters.class_id);
+    if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
+    query = query.order && query.order("date", { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+
     if (!data || data.length === 0) break;
-    
+
     allAttendance = [...allAttendance, ...data];
     from += pageSize;
-    
+
     // If we got less than pageSize, we've reached the end
     if (data.length < pageSize) break;
   }
-  
+
   return allAttendance;
 };
 
@@ -366,12 +369,12 @@ export const getAllTeacherDepartments = async () => {
 export const getAssignmentsByTeacher = async (teacherId) => {
   // First get the teacher's classes
   const teacherClasses = await getClassesByTeacher(teacherId);
-  const classIds = teacherClasses.map(cls => cls.id || cls.class_id);
-  
+  const classIds = teacherClasses.map((cls) => cls.id || cls.class_id);
+
   if (classIds.length === 0) {
     return [];
   }
-  
+
   // Then get assignments for those classes
   const { data, error } = await supabase
     .from("assignments")
@@ -380,7 +383,7 @@ export const getAssignmentsByTeacher = async (teacherId) => {
     )
     .in("class_id", classIds)
     .order("due_date", { ascending: true });
-    
+
   if (error) throw error;
   return data || [];
 };
@@ -501,24 +504,24 @@ export const getAllFees = async () => {
   let allFees = [];
   let from = 0;
   const pageSize = 1000;
-  
+
   while (true) {
     const { data, error } = await supabase
       .from("fees")
       .select("*")
       .range(from, from + pageSize - 1);
-    
-  if (error) throw error;
-    
+
+    if (error) throw error;
+
     if (!data || data.length === 0) break;
-    
+
     allFees = [...allFees, ...data];
     from += pageSize;
-    
+
     // If we got less than pageSize, we've reached the end
     if (data.length < pageSize) break;
   }
-  
+
   return allFees;
 };
 
@@ -671,20 +674,92 @@ export const fetchNotifications = async () => {
 };
 
 export const createGrade = async (grade) => {
-  const { data, error } = await supabase
-    .from("grades")
-    .insert([grade])
-    .select();
-  return { data, error };
+  console.log("=== CREATE GRADE DEBUG ===");
+  console.log("Original grade data:", grade);
+
+  try {
+    // Clean the grade data - remove any undefined or null values that might cause issues
+    const cleanGrade = {
+      submission_id: grade.submission_id,
+      grade:
+        grade.grade !== null && grade.grade !== undefined
+          ? parseInt(grade.grade)
+          : null,
+      feedback: grade.feedback || null,
+      rating:
+        grade.rating !== null && grade.rating !== undefined
+          ? grade.rating.toString()
+          : null, // Convert to string to match DB
+      rated_by: grade.rated_by || null,
+      rated_at: grade.rated_at || new Date().toISOString(),
+    };
+
+    console.log("Cleaned grade data:", cleanGrade);
+
+    // Validate required fields
+    if (!cleanGrade.submission_id) {
+      throw new Error("submission_id is required");
+    }
+
+    if (!cleanGrade.rated_by) {
+      throw new Error("rated_by is required");
+    }
+
+    if (!cleanGrade.rated_at) {
+      throw new Error("rated_at is required");
+    }
+
+    console.log("About to insert into database:", cleanGrade);
+
+    const { data, error } = await supabase
+      .from("grades")
+      .insert([cleanGrade])
+      .select();
+
+    console.log("Database response:", { data, error });
+
+    if (error) {
+      console.error("Database error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+    }
+
+    return { data, error };
+  } catch (err) {
+    console.error("Exception in createGrade:", err);
+    return { data: null, error: err };
+  }
 };
 
 export const updateGrade = async (gradeId, updates) => {
-  const { data, error } = await supabase
-    .from("grades")
-    .update(updates)
-    .eq("id", gradeId)
-    .select();
-  return { data, error };
+  try {
+    // Clean the update data
+    const cleanUpdates = {
+      ...updates,
+      grade:
+        updates.grade !== null && updates.grade !== undefined
+          ? parseInt(updates.grade)
+          : null,
+      rating:
+        updates.rating !== null && updates.rating !== undefined
+          ? updates.rating.toString()
+          : null,
+    };
+
+    const { data, error } = await supabase
+      .from("grades")
+      .update(cleanUpdates)
+      .eq("id", gradeId)
+      .select();
+
+    return { data, error };
+  } catch (err) {
+    console.error("Exception in updateGrade:", err);
+    return { data: null, error: err };
+  }
 };
 
 export const getGradeBySubmissionId = async (submissionId) => {

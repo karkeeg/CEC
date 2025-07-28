@@ -50,6 +50,8 @@ const TeacherAttendance = () => {
   const [isEditing, setIsEditing] = useState(false);
   // New: State for all attendance records for all classes (for overall stats)
   const [allAttendanceRecords, setAllAttendanceRecords] = useState([]);
+  // New: State for available dates for the selected class
+  const [availableDates, setAvailableDates] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -74,17 +76,51 @@ const TeacherAttendance = () => {
       (c) => c.class_id === selectedClass || c.id === selectedClass
     );
     setSelectedClassDetails(cls || null);
-    // If class has a schedule date, set the date picker to it
-    if (cls && cls.schedule) {
-      // Try to extract date part if schedule is ISO string
-      const datePart = cls.schedule.split("T")[0];
-      setSelectedDate(datePart);
-    }
+
     // Fetch students
-    getStudentsByClass(selectedClass).then((studentData) => {
-      setStudents(studentData || []);
-      // Attendance will be set in the next effect
-    });
+    getStudentsByClass(selectedClass)
+      .then((studentData) => {
+        setStudents(studentData || []);
+
+        // After fetching students, find the most recent attendance date for this class
+        if (user?.id) {
+          import("../../supabaseConfig/supabaseApi").then((api) => {
+            api.fetchAttendance({ teacher_id: user.id }).then((allRecords) => {
+              if (allRecords && allRecords.length > 0) {
+                // Filter records for this specific class
+                const classRecords = allRecords.filter(
+                  (record) => record.class_id === selectedClass
+                );
+                if (classRecords.length > 0) {
+                  // Find all available dates for this class
+                  const dates = [
+                    ...new Set(classRecords.map((record) => record.date)),
+                  ];
+                  dates.sort((a, b) => new Date(b) - new Date(a)); // Sort descending (most recent first)
+                  setAvailableDates(dates);
+
+                  // Set to the most recent date
+                  const mostRecentDate = dates[0];
+                  setSelectedDate(mostRecentDate);
+                } else {
+                  // If no attendance records for this class, set to today's date
+                  const today = new Date().toISOString().split("T")[0];
+                  setSelectedDate(today);
+                  setAvailableDates([today]);
+                }
+              } else {
+                // If no attendance records at all, set to today's date
+                const today = new Date().toISOString().split("T")[0];
+                setSelectedDate(today);
+                setAvailableDates([today]);
+              }
+            });
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching students:", error);
+      });
   }, [selectedClass, classes]);
 
   // On class or date change, fetch attendance records
@@ -95,28 +131,47 @@ const TeacherAttendance = () => {
       setIsEditing(false);
       return;
     }
-    getAttendanceByClassAndDate(selectedClass, selectedDate).then((records) => {
-      if (records && records.length > 0) {
-        // Attendance exists, set state to actual status
-        const att = {};
-        records.forEach((rec) => {
-          att[rec.student_id] = rec.status;
-        });
-        setAttendance(att);
-        setAttendanceExists(true);
-        setIsEditing(false);
-      } else {
-        // No attendance yet, set all to 'absent'
-        const att = {};
-        students.forEach((item) => {
-          att[item.student.id] = "absent";
-        });
-        setAttendance(att);
-        setAttendanceExists(false);
-        setIsEditing(false);
-      }
-    });
-  }, [selectedClass, selectedDate, students]);
+
+    getAttendanceByClassAndDate(selectedClass, selectedDate)
+      .then((records) => {
+        if (records && records.length > 0) {
+          // Attendance exists, set state to actual status
+          const att = {};
+          records.forEach((rec) => {
+            att[rec.student_id] = rec.status;
+          });
+          setAttendance(att);
+          setAttendanceExists(true);
+          setIsEditing(false);
+        } else {
+          // No attendance yet, set all to 'absent' only if students are loaded
+          if (students.length > 0) {
+            const att = {};
+            students.forEach((item) => {
+              att[item.student.id] = "absent";
+            });
+            setAttendance(att);
+          }
+          setAttendanceExists(false);
+          setIsEditing(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching attendance:", error);
+      });
+  }, [selectedClass, selectedDate, students.length]);
+
+  // Update attendance state when students are loaded
+  useEffect(() => {
+    if (students.length > 0 && !attendanceExists) {
+      // If no attendance exists yet, initialize with 'absent' for all students
+      const att = {};
+      students.forEach((item) => {
+        att[item.student.id] = "absent";
+      });
+      setAttendance(att);
+    }
+  }, [students, attendanceExists]);
 
   // Fetch all attendance records for all classes for the teacher (for overall stats)
   useEffect(() => {
@@ -133,6 +188,26 @@ const TeacherAttendance = () => {
 
   const handleAttendanceChange = (studentId, status) => {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
+  };
+
+  const handleUpdateAttendance = async () => {
+    if (!selectedClass || !selectedDate) return;
+
+    // Fetch the latest attendance data
+    const records = await getAttendanceByClassAndDate(
+      selectedClass,
+      selectedDate
+    );
+
+    if (records && records.length > 0) {
+      const att = {};
+      records.forEach((rec) => {
+        att[rec.student_id] = rec.status;
+      });
+      setAttendance(att);
+      setAttendanceExists(true);
+      setIsEditing(true);
+    }
   };
 
   const handleSaveOrUpdateAttendance = async () => {
@@ -329,12 +404,32 @@ const TeacherAttendance = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Date
             </label>
-            <input
-              type="date"
+            <select
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              {availableDates.length > 0 ? (
+                availableDates.map((date) => (
+                  <option key={date} value={date}>
+                    {new Date(date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </option>
+                ))
+              ) : (
+                <option value="">Loading dates...</option>
+              )}
+            </select>
+            {availableDates.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {availableDates.length} date
+                {availableDates.length !== 1 ? "s" : ""} with attendance records
+              </p>
+            )}
           </div>
           <div className="flex items-center justify-end">
             {/* Button logic: Save, Update, Save Update */}
@@ -349,7 +444,7 @@ const TeacherAttendance = () => {
             )}
             {attendanceExists && !isEditing && (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={handleUpdateAttendance}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
                 disabled={saving}
               >
@@ -439,10 +534,10 @@ const TeacherAttendance = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
+                      Student Information
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      Attendance Status
                     </th>
                   </tr>
                 </thead>
@@ -469,6 +564,28 @@ const TeacherAttendance = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        {/* Current Status Display */}
+                        <div className="mb-2">
+                          <span className="text-xs font-medium text-gray-500">
+                            Current Status:
+                          </span>
+                          <span
+                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                              attendance[student.student.id] === "present"
+                                ? "bg-green-100 text-green-800"
+                                : attendance[student.student.id] === "absent"
+                                ? "bg-red-100 text-red-800"
+                                : attendance[student.student.id] === "late"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {attendance[student.student.id]
+                              ? attendance[student.student.id].toUpperCase()
+                              : "NOT SET"}
+                          </span>
+                        </div>
+                        {/* Attendance Buttons */}
                         <div className="flex space-x-2">
                           <button
                             onClick={() =>
@@ -479,7 +596,7 @@ const TeacherAttendance = () => {
                             }
                             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                               attendance[student.student.id] === "present"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-green-500 text-white border-2 border-green-600"
                                 : "bg-gray-100 text-gray-600 hover:bg-green-50"
                             }`}
                             disabled={attendanceExists && !isEditing}
@@ -495,7 +612,7 @@ const TeacherAttendance = () => {
                             }
                             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                               attendance[student.student.id] === "absent"
-                                ? "bg-red-100 text-red-800"
+                                ? "bg-red-500 text-white border-2 border-red-600"
                                 : "bg-gray-100 text-gray-600 hover:bg-red-50"
                             }`}
                             disabled={attendanceExists && !isEditing}
@@ -508,7 +625,7 @@ const TeacherAttendance = () => {
                             }
                             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                               attendance[student.student.id] === "late"
-                                ? "bg-yellow-100 text-yellow-800"
+                                ? "bg-yellow-500 text-white border-2 border-yellow-600"
                                 : "bg-gray-100 text-gray-600 hover:bg-yellow-50"
                             }`}
                             disabled={attendanceExists && !isEditing}

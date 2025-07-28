@@ -21,6 +21,7 @@ import html2pdf from "html2pdf.js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Modal from "../Modal";
+import Loader from "../Loader";
 
 const StudentDashboard = () => {
   const [students, setStudents] = useState([]);
@@ -33,20 +34,20 @@ const StudentDashboard = () => {
   const [editStudent, setEditStudent] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [editLoading, setEditLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
   const fetchStudents = async () => {
+    setLoading(true);
     const data = await getAllStudents();
     if (data) {
-      console.log(`Fetched ${data.length} students from database`);
-      console.log("First few students:", data.slice(0, 3));
-      console.log("Last few students:", data.slice(-3));
       setStudents(data);
       prepareCharts(data);
     }
+    setLoading(false);
   };
 
   const prepareCharts = (data) => {
@@ -177,6 +178,14 @@ const StudentDashboard = () => {
     });
     doc.save("students-report.pdf");
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading students data..." />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full p-2 sm:p-4 md:p-6 text-black border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">

@@ -6,6 +6,7 @@ import {
   fetchMoreDownloadFiles,
 } from "../supabaseConfig/supabaseApi";
 import { FaFileAlt, FaDownload } from "react-icons/fa";
+import Loader from "../Components/Loader";
 
 const DownloadPage = () => {
   const { id } = useParams(); // category id
@@ -50,8 +51,8 @@ const DownloadPage = () => {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto p-6 text-center text-lg">
-        Loading...
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading downloads..." />
       </div>
     );
   }

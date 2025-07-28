@@ -12,6 +12,7 @@ const GradeAssignmentsModal = ({
   onClose,
   assignmentId,
   showStats = true,
+  onGradeUpdate,
 }) => {
   const [assignments, setAssignments] = useState([]);
   const [selectedAssignment, setSelectedAssignment] = useState(
@@ -91,40 +92,87 @@ const GradeAssignmentsModal = ({
   const handleSaveGrade = async () => {
     if (!modalSubmission) return;
     setSaving(true);
+
+    console.log("=== MODAL DEBUG ===");
+    console.log("Modal submission:", modalSubmission);
+    console.log("User:", user);
+    console.log("Modal values:", { modalGrade, modalFeedback, modalRating });
+
     try {
+      let result;
+      const gradeData = {
+        grade: modalGrade ? parseInt(modalGrade) : null,
+        feedback: modalFeedback,
+        rating: modalRating ? parseFloat(modalRating) : null,
+        rated_by: user?.id || null,
+        rated_at: new Date().toISOString(),
+      };
+
+      console.log("Grade data prepared:", gradeData);
+
       if (grades[modalSubmission.id]?.gradeId) {
-        await updateGrade(grades[modalSubmission.id].gradeId, {
-          grade: modalGrade ? parseInt(modalGrade) : null,
-          feedback: modalFeedback,
-          rating: modalRating ? parseFloat(modalRating) : null,
-          rated_by: user?.id || null,
-          rated_at: new Date().toISOString(),
-        });
+        // Update existing grade
+        result = await updateGrade(
+          grades[modalSubmission.id].gradeId,
+          gradeData
+        );
       } else {
-        await createGrade({
+        // Create new grade
+        result = await createGrade({
           submission_id: modalSubmission.id,
-          grade: modalGrade ? parseInt(modalGrade) : null,
-          feedback: modalFeedback,
-          rating: modalRating ? parseFloat(modalRating) : null,
-          rated_by: user?.id || null,
-          rated_at: new Date().toISOString(),
+          ...gradeData,
         });
       }
-      // Refresh submissions
+
+      if (result.error) {
+        throw new Error(
+          `Database error: ${
+            result.error.message || result.error.details || "Unknown error"
+          }`
+        );
+      }
+
+      if (!result.data || result.data.length === 0) {
+        throw new Error("No data returned from database operation");
+      }
+
+      // Refresh submissions with updated grade data
       const refreshed = selectedAssignment
         ? await getAssignmentSubmissions(selectedAssignment)
         : (await getAssignmentSubmissions()).filter((s) =>
             assignments.map((a) => a.id).includes(s.assignment_id)
           );
+
       setSubmissions(refreshed || []);
+
+      // Update grades state with new grade data
+      const updatedGrades = { ...grades };
+      if (result.data && result.data[0]) {
+        updatedGrades[modalSubmission.id] = {
+          grade: result.data[0].grade || "",
+          feedback: result.data[0].feedback || "",
+          rating: result.data[0].rating || "",
+          gradeId: result.data[0].id || null,
+        };
+      }
+      setGrades(updatedGrades);
+
       setShowGradeModal(false);
       setModalSubmission(null);
       setModalFeedback("");
       setModalRating("");
       setModalGrade("");
-      alert("Grade saved!");
+
+      // Show success message
+      alert("Grade saved successfully!");
+
+      // Notify parent component about the grade update
+      if (onGradeUpdate) {
+        onGradeUpdate();
+      }
     } catch (error) {
-      alert("Failed to save grade");
+      console.error("Error saving grade:", error);
+      alert(`Failed to save grade: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -157,16 +205,17 @@ const GradeAssignmentsModal = ({
   const stats = getGradeStats();
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
-          <label className="font-medium text-gray-700">
+    <div className="w-full max-w-4xl mx-auto">
+      {/* Assignment Selector */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <label className="text-sm font-medium text-gray-700">
             Select Assignment:
           </label>
           <select
             value={selectedAssignment}
             onChange={(e) => setSelectedAssignment(e.target.value)}
-            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto text-sm h-8"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm"
           >
             <option value="">All Assignments</option>
             {assignments.map((assignment) => (
@@ -176,96 +225,151 @@ const GradeAssignmentsModal = ({
             ))}
           </select>
         </div>
-        {/* Search Student removed */}
       </div>
-      {/* Stat cards removed */}
-      <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-2 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Assignment
-              </th>
-              <th className="px-2 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Student
-              </th>
-              <th className="px-2 py-3 text-left font-medium text-gray-500 uppercase tracking-wider w-32">
-                Submitted At
-              </th>
-              <th className="px-2 py-3 text-left font-medium text-gray-500 uppercase tracking-wider w-56 truncate">
-                Notes
-              </th>
-              <th className="px-2 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredSubmissions.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="px-2 py-4 text-center text-gray-500">
-                  No submissions found
-                </td>
-              </tr>
-            ) : (
-              filteredSubmissions.map((submission, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-2 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {assignments.find(
-                        (a) => a.id === submission.assignment_id
-                      )?.title || "-"}
-                    </span>
-                  </td>
-                  <td className="px-2 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-semibold text-xs">
-                          {submission.student?.first_name?.charAt(0) || "S"}
-                        </span>
-                      </div>
-                      <div className="ml-2">
-                        <div className="font-medium text-gray-900">
+      {/* Grade Submissions List */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <h3 className="font-semibold text-gray-800">
+            Assignment Submissions
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            {filteredSubmissions.length} submission
+            {filteredSubmissions.length !== 1 ? "s" : ""} found
+          </p>
+        </div>
+
+        <div className="max-h-64 overflow-y-auto">
+          {filteredSubmissions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <p className="text-lg font-medium">No submissions found</p>
+              <p className="text-sm">
+                Students haven't submitted any assignments yet.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {filteredSubmissions.map((submission, index) => (
+                <div
+                  key={index}
+                  className="p-6 hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <div className="flex items-start justify-between">
+                    {/* Student Info */}
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-lg font-semibold text-gray-900 truncate">
                           {submission.student?.first_name}{" "}
                           {submission.student?.middle_name || ""}{" "}
                           {submission.student?.last_name}
-                        </div>
-                        <div className="text-gray-500">
+                        </h4>
+                        <p className="text-sm text-gray-500 truncate">
                           {submission.student?.email}
+                        </p>
+                        <div className="flex items-center space-x-3 mt-2">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {assignments.find(
+                              (a) => a.id === submission.assignment_id
+                            )?.title || "-"}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            Submitted{" "}
+                            {submission.submitted_at
+                              ? new Date(
+                                  submission.submitted_at
+                                ).toLocaleDateString()
+                              : "Not submitted"}
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-2 py-4 whitespace-nowrap text-gray-900 w-32">
-                    {submission.submitted_at
-                      ? new Date(submission.submitted_at).toLocaleDateString()
-                      : "Not submitted"}
-                  </td>
-                  <td
-                    className="px-2 py-4 whitespace-nowrap text-gray-900 w-56 max-w-xs truncate overflow-hidden"
-                    title={submission.notes}
-                  >
-                    {submission.notes || "-"}
-                  </td>
-                  <td className="px-2 py-4 whitespace-nowrap">
-                    <button
-                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium"
-                      onClick={() => {
-                        setShowGradeModal(true);
-                        setModalSubmission(submission);
-                        setModalFeedback(submission.grade?.feedback || "");
-                        setModalRating(submission.grade?.rating || "");
-                        setModalGrade(submission.grade?.grade || "");
-                      }}
-                    >
-                      Give Feedback & Grade
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+
+                    {/* Grade and Action */}
+                    <div className="flex items-center space-x-4 ml-4">
+                      {submission.grade?.grade && (
+                        <div className="text-right">
+                          <div
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                              submission.grade.grade >= 80
+                                ? "bg-green-100 text-green-800"
+                                : submission.grade.grade >= 60
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {submission.grade.grade}%
+                          </div>
+                          {submission.grade.rating && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Rating: {submission.grade.rating}⭐
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <button
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                          submission.grade?.grade
+                            ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
+                            : "bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md"
+                        }`}
+                        onClick={() => {
+                          setShowGradeModal(true);
+                          setModalSubmission(submission);
+                          setModalFeedback(submission.grade?.feedback || "");
+                          setModalRating(submission.grade?.rating || "");
+                          setModalGrade(submission.grade?.grade || "");
+                        }}
+                      >
+                        {submission.grade?.grade ? "Edit Grade" : "Grade Now"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Notes and Feedback */}
+                  {(submission.notes || submission.grade?.feedback) && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      {submission.notes && (
+                        <div className="mb-3">
+                          <h5 className="text-sm font-medium text-gray-700 mb-1">
+                            Student Notes:
+                          </h5>
+                          <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                            {submission.notes}
+                          </p>
+                        </div>
+                      )}
+                      {submission.grade?.feedback && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-700 mb-1">
+                            Your Feedback:
+                          </h5>
+                          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border-l-4 border-blue-200">
+                            {submission.grade.feedback}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       {/* Feedback/Grade Modal */}
       {showGradeModal && modalSubmission && (

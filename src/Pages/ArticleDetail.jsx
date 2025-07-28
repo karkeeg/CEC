@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import supabase from "../supabaseConfig/supabaseClient";
+import Loader from "../Components/Loader";
 
 const ArticleDetail = () => {
   const { id } = useParams();
@@ -34,7 +35,11 @@ const ArticleDetail = () => {
   }, [id]);
 
   if (loading)
-    return <div className="p-10 text-center text-xl">Loading article...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading article..." />
+      </div>
+    );
   if (error)
     return <div className="p-10 text-center text-red-600">{error}</div>;
   if (!article)

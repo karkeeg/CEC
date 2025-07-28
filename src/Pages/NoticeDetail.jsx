@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import supabase from "../supabaseConfig/supabaseClient";
+import Loader from "../Components/Loader";
 
 const NoticeDetail = () => {
   const { id } = useParams();
@@ -20,7 +21,11 @@ const NoticeDetail = () => {
   }, [id]);
 
   if (loading)
-    return <div className="p-10 text-center text-xl">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading notice..." />
+      </div>
+    );
   if (!notice)
     return (
       <div className="p-10 text-center text-red-600">Notice not found.</div>

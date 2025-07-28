@@ -4,18 +4,21 @@ import html2pdf from "html2pdf.js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useUser } from "../../contexts/UserContext";
+import Loader from "../Loader";
 
 const AdminAssignmentsPage = () => {
   const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
   const [fromDate, setFromDate] = useState("2025-01-01");
   const [toDate, setToDate] = useState("2025-01-01");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, [fromDate, toDate]);
 
   const fetchData = async () => {
+    setLoading(true);
     const data = await getAllAssignments();
     // Frontend filtering based on role
     let filtered = data;
@@ -29,6 +32,7 @@ const AdminAssignmentsPage = () => {
       );
     }
     setAssignments(filtered);
+    setLoading(false);
   };
 
   const exportToPDF = () => {
@@ -70,6 +74,14 @@ const AdminAssignmentsPage = () => {
     acc[year].push(row);
     return acc;
   }, {});
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading assignments data..." />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen">

@@ -8,6 +8,7 @@ import {
   deleteAssignment,
   getAssignmentSubmissions,
   updateAssignment,
+  getStudentsByClass,
 } from "../../supabaseConfig/supabaseApi";
 import { AssignmentForm } from "../Forms/AssignmentForm";
 import supabase from "../../supabaseConfig/supabaseClient";
@@ -29,6 +30,7 @@ import {
   Line,
 } from "recharts";
 import Modal from "../Modal";
+import Loader from "../Loader";
 
 const TeacherAssignments = () => {
   const { user, role } = useUser();
@@ -50,6 +52,7 @@ const TeacherAssignments = () => {
   const [viewAssignment, setViewAssignment] = useState(null);
   const [editAssignment, setEditAssignment] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,14 +65,26 @@ const TeacherAssignments = () => {
         const assignmentData = await getAssignmentsByTeacher(user.id);
         setAssignments(assignmentData || []);
         // Fetch classes directly from classes table
-        const classes = await getClassesByTeacher(user.id);
-        setClasses(classes || []);
+        let classes = await getClassesByTeacher(user.id);
+        classes = classes || [];
+        // Fetch student counts for each class if not present
+        setChartLoading(true);
+        const classesWithCounts = await Promise.all(
+          classes.map(async (cls) => {
+            if (cls.studentCount !== undefined) return cls;
+            const students = await getStudentsByClass(cls.id || cls.class_id);
+            return { ...cls, studentCount: students.length };
+          })
+        );
+        setClasses(classesWithCounts);
         // Fetch submission progress for StepLine chart
         const submissions = await getAssignmentSubmissions();
         // Calculate submission rate per assignment/class
         const progress = (assignmentData || []).map((a) => {
           const classStudents =
-            classes.find((c) => c.id === a.class_id)?.studentCount || 0;
+            classesWithCounts.find(
+              (c) => c.id === a.class_id || c.class_id === a.class_id
+            )?.studentCount || 0;
           const submitted = (submissions || []).filter(
             (s) => s.assignment_id === a.id
           ).length;
@@ -85,6 +100,7 @@ const TeacherAssignments = () => {
         console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
+        setChartLoading(false);
       }
     };
     fetchData();
@@ -256,16 +272,8 @@ const TeacherAssignments = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="h-10 bg-gray-200 rounded mb-6"></div>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading assignments data..." />
       </div>
     );
   }
@@ -487,24 +495,45 @@ const TeacherAssignments = () => {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Assignment Submission Progress (Ladder Chart)
           </h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart
-              data={submissionProgress}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="stepAfter"
-                dataKey="submissionRate"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          {chartLoading ? (
+            <div className="flex items-center justify-center min-h-[150px]">
+              <Loader message="Loading chart data..." />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart
+                data={submissionProgress}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <XAxis
+                  dataKey="name"
+                  label={{
+                    value: "Assignment Name ->",
+                    position: "bottom",
+                    offset: -20,
+                  }}
+                  tick={false}
+                />
+                <YAxis
+                  label={{
+                    value: "Submission  Rate (%)",
+                    angle: -90,
+                    position: "insideLeft",
+                    style: { textAnchor: "middle" },
+                  }}
+                />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="stepAfter"
+                  dataKey="submissionRate"
+                  stroke="#3B82F6"
+                  strokeWidth={3}
+                  // dot={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
       {/* Create Assignment Modal */}

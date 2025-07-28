@@ -34,6 +34,7 @@ import {
   FaGraduationCap,
   FaFileExport,
 } from "react-icons/fa";
+import Loader from "../Loader";
 
 const TeacherAnalytics = () => {
   const { user } = useUser();
@@ -221,17 +222,6 @@ const TeacherAnalytics = () => {
           .sort((a, b) => b.absences - a.absences)
           .slice(0, 7); // Show top 7
 
-        // Debug logging
-        console.log("Debug - Attendance Records:", attendanceRecords.length);
-        console.log("Debug - Students Data:", studentsData.length);
-        console.log("Debug - All Students Data:", allStudentsData.length);
-        console.log("Debug - Absence Count:", Object.keys(absenceCount).length);
-        console.log("Debug - Alerts:", alerts.length);
-        console.log("Debug - Class IDs:", classIds);
-        console.log(
-          "Debug - Sample Student IDs from attendance:",
-          Object.keys(absenceCount).slice(0, 3)
-        );
         setAbsenceAlerts(alerts);
         // --- Attendance Trends: Last 30 Days ---
         const today = new Date();
@@ -331,15 +321,8 @@ const TeacherAnalytics = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader message="Loading analytics data..." />
       </div>
     );
   }
@@ -358,7 +341,7 @@ const TeacherAnalytics = () => {
           Export pdf <FaFileExport />
         </button>
       </div>
-      {/* Filters Row */}
+      {/* Filters Row
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-semibold text-base sm:text-lg text-gray-700">
@@ -396,7 +379,7 @@ const TeacherAnalytics = () => {
             </select>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Summary Section: Stat Cards */}
       <div className="mb-8">
@@ -567,20 +550,21 @@ const TeacherAnalytics = () => {
                 <XAxis
                   dataKey="course"
                   label={{
-                    value: "Course",
-                    position: "insideBottomRight",
-                    offset: 0,
+                    value: "Course ->",
+                    position: "insideBottom",
+                    offset: 10,
                   }}
+                  tick={false}
                 />
                 <YAxis
                   label={{ value: "Marks", angle: -90, position: "insideLeft" }}
-                  domain={[0, 100]}
+                  // domain={[0, 40]}
                 />
                 <Tooltip />
                 <Bar
                   dataKey="marks"
                   fill="#1E90FF"
-                  barSize={40}
+                  barSize={30}
                   radius={[8, 8, 0, 0]}
                 />
               </BarChart>
@@ -609,8 +593,25 @@ const TeacherAnalytics = () => {
                     <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" />
-                <YAxis />
+                <XAxis
+                  dataKey="date"
+                  label={{
+                    value: "Date ->",
+                    position: "insideBottom",
+                    offset: 10,
+                  }}
+                  tick={false}
+                />
+                <YAxis
+                  label={{
+                    value: "No of Attendies ->",
+                    angle: -90,
+                    position: "insideLeft",
+                    // offset: 15,
+                    style:{textAnchor: "middle" },
+                  }}
+                  domain={[0, 25]}
+                />
                 <Tooltip />
                 <Legend />
                 <Area
