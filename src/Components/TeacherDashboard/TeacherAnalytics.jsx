@@ -9,6 +9,7 @@ import {
   fetchAssignmentSubmissions,
   fetchAttendance,
   getStudentsByClass,
+  getTeacherStudentPerformanceStats,
 } from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
@@ -43,6 +44,16 @@ const TeacherAnalytics = () => {
     totalClasses: 0,
     totalAssignments: 0,
     averageGrade: 0,
+  });
+  const [performanceStats, setPerformanceStats] = useState({
+    totalStudents: 0,
+    averageAttendance: 0,
+    averageGrade: 0,
+    highPerformers: 0,
+    needsAttention: 0,
+    recentActivity: 0,
+    highPerformerNames: [],
+    needsAttentionNames: [],
   });
   const [attendanceData, setAttendanceData] = useState([]);
   const [gradeData, setGradeData] = useState([]);
@@ -102,76 +113,90 @@ const TeacherAnalytics = () => {
         const assignmentsData = await getAllAssignments();
         const allClassesData = await getAllClasses();
 
-        // 4. Fetch all assignments for this teacher, and all submissions/grades
+        // 4. Use the centralized performance stats API
+        const performanceStatsData = await getTeacherStudentPerformanceStats(
+          user.id
+        );
+
+        // Store the complete performance stats
+        setPerformanceStats(performanceStatsData);
+
+        // 5. Set analytics using the centralized data
+        setAnalytics({
+          totalStudents: performanceStatsData.totalStudents,
+          totalClasses: allClassesData?.length || 0,
+          totalAssignments: assignmentsData?.length || 0,
+          averageGrade: performanceStatsData.averageGrade,
+        });
+
+        // --- Score Distribution: Assignment-based data ---
+        // Fetch assignments for this teacher and calculate average grades per assignment
         const teacherAssignments = await fetchAssignments({
           teacher_id: user.id,
         });
-        let allGrades = [];
-        const courseGrades = {};
-        let topStudent = null;
-        let topScore = -Infinity;
-        let studentScores = {};
+
+        const assignmentAverages = [];
 
         for (const assignment of teacherAssignments) {
-          const subject =
-            assignment.subject?.name || assignment.subject || "Unknown";
           const submissions = await fetchAssignmentSubmissions(assignment.id);
+          const grades = [];
+
           for (const submission of submissions) {
             const gradeValue = submission.grade?.grade;
             if (gradeValue !== undefined && gradeValue !== null) {
-              if (!courseGrades[subject]) courseGrades[subject] = [];
-              courseGrades[subject].push(Number(gradeValue));
-              allGrades.push(Number(gradeValue));
-              const studentName = submission.student
-                ? `${submission.student.first_name || ""} ${
-                    submission.student.last_name || ""
-                  }`.trim()
-                : "Unknown";
-              if (!studentScores[studentName]) studentScores[studentName] = [];
-              studentScores[studentName].push(Number(gradeValue));
-              if (Number(gradeValue) > topScore) {
-                topScore = Number(gradeValue);
-                topStudent = studentName;
-              }
+              grades.push(Number(gradeValue));
             }
+          }
+
+          if (grades.length > 0) {
+            const avgGrade =
+              grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
+            assignmentAverages.push({
+              course:
+                assignment.title ||
+                assignment.subject?.name ||
+                `Assignment ${assignment.id.slice(0, 8)}`,
+              marks: Math.round(avgGrade),
+            });
           }
         }
 
-        // 5. Calculate average grade from allGrades
-        const avgGrade =
-          allGrades.length > 0
-            ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length
-            : 0;
+        // Sort by assignment title and limit to top 10 for better visualization
+        const scoreDistArr = assignmentAverages
+          .sort((a, b) => a.course.localeCompare(b.course))
+          .slice(0, 10);
 
-        // 6. Set analytics
-        setAnalytics({
-          totalStudents: studentsData.length,
-          totalClasses: allClassesData?.length || 0,
-          totalAssignments: assignmentsData?.length || 0,
-          averageGrade: isNaN(avgGrade) ? 0 : avgGrade.toFixed(1),
-        });
-
-        // --- Score Distribution: Real Data ---
-        const scoreDistArr = Object.entries(courseGrades).map(
-          ([course, grades]) => ({
-            course,
-            marks:
-              grades.length > 0
-                ? grades.reduce((a, b) => a + b, 0) / grades.length
-                : 0,
-          })
-        );
         setScoreDistribution(scoreDistArr);
-        // --- Performance Overview: Real Data ---
-        const numAbove80 = allGrades.filter((g) => g >= 80).length;
-        const numGradedSubmissions = allGrades.length;
+
+        // --- Performance Overview: Using centralized data with names ---
+        const topPerformer =
+          performanceStatsData.highPerformerNames &&
+          performanceStatsData.highPerformerNames.length > 0
+            ? performanceStatsData.highPerformerNames[0]
+            : null;
+        const lowestPerformer =
+          performanceStatsData.needsAttentionNames &&
+          performanceStatsData.needsAttentionNames.length > 0
+            ? performanceStatsData.needsAttentionNames[0]
+            : null;
+
         setPerformanceOverview([
-          { label: "Avg Grade", value: `${avgGrade.toFixed(1)}%` },
           {
-            label: "Top Score",
-            value: topStudent ? `${topStudent} ${topScore}%` : "-",
+            label: "Avg Grade",
+            value: `${performanceStatsData.averageGrade}%`,
           },
-          { label: "Submissions Graded", value: `${numGradedSubmissions}` },
+          {
+            label: "High Performers",
+            value: topPerformer
+              ? `${topPerformer.name} (${topPerformer.averageGrade}%)`
+              : `${performanceStatsData.highPerformers} students`,
+          },
+          {
+            label: "Needs Attention",
+            value: lowestPerformer
+              ? `${lowestPerformer.name} (${lowestPerformer.averageGrade}%)`
+              : `${performanceStatsData.needsAttention} students`,
+          },
         ]);
         // --- Absence Alerts: Real Data ---
         // 1. Fetch all attendance records for these classes
@@ -519,57 +544,166 @@ const TeacherAnalytics = () => {
               </table>
             </div>
           </div>
+
+          {/* High Performers - Below Absence Alerts */}
+          {performanceStats.highPerformerNames &&
+            performanceStats.highPerformerNames.length > 0 && (
+              <div className="bg-green-100 rounded-xl p-3 sm:p-6 shadow overflow-x-auto min-w-0">
+                <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4 flex items-center">
+                  <svg
+                    className="w-5 h-5 text-green-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                    />
+                  </svg>
+                  High Performers (Grade ≥ 85%)
+                </h2>
+                <div className="space-y-3">
+                  {performanceStats.highPerformerNames.map((student, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-green-600">
+                            {student.name
+                              .split(" ")
+                              .map((n) => n.charAt(0))
+                              .join("")
+                              .toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {student.name}
+                          </p>
+                          <p className="text-sm text-green-600 font-semibold">
+                            {student.averageGrade}% Average
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
         {/* Right Column: Score Distribution Chart */}
-        <div className="bg-blue-50 rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 overflow-x-auto">
-          <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4 flex items-center gap-2">
-            <span className="inline-block">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="inline-block mr-1"
-                width="22"
-                height="22"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <rect width="24" height="24" fill="none" />
-                <path
-                  d="M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v8H8V8z"
-                  fill="#222F3E"
-                />
-              </svg>
-            </span>
-            Score Distribution
-          </h2>
-          <div className="w-full min-w-0 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart
-                data={scoreDistribution}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-              >
-                <XAxis
-                  dataKey="course"
-                  label={{
-                    value: "Course ->",
-                    position: "insideBottom",
-                    offset: 10,
-                  }}
-                  tick={false}
-                />
-                <YAxis
-                  label={{ value: "Marks", angle: -90, position: "insideLeft" }}
-                  // domain={[0, 40]}
-                />
-                <Tooltip />
-                <Bar
-                  dataKey="marks"
-                  fill="#1E90FF"
-                  barSize={30}
-                  radius={[8, 8, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+        <div>
+          <div className="bg-blue-50 rounded-xl p-3 sm:p-6 shadow flex flex-col min-w-0 ">
+            <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4 flex items-center gap-2">
+              <span className="inline-block">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="inline-block mr-1"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <rect width="24" height="24" fill="none" />
+                  <path
+                    d="M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v8H8V8z"
+                    fill="#222F3E"
+                  />
+                </svg>
+              </span>
+              Assignment Performance
+            </h2>
+            <div className="w-full min-w-0 overflow-x-auto">
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart
+                  data={scoreDistribution}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
+                  <XAxis
+                    dataKey="course"
+                    label={{
+                      value: "Assignment ->",
+                      position: "insideBottom",
+                      offset: 10,
+                    }}
+                    tick={false}
+                  />
+                  <YAxis
+                    label={{
+                      value: "Average Grade (%)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip />
+                  <Bar
+                    dataKey="marks"
+                    fill="#1E90FF"
+                    barSize={30}
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
+          {/* Needs Attention - Below Score Distribution */}
+          {performanceStats.needsAttentionNames &&
+            performanceStats.needsAttentionNames.length > 0 && (
+              <div className="bg-red-100 rounded-xl p-3 sm:p-6 shadow overflow-x-auto min-w-0 mt-4 sm:mt-6">
+                <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-2 sm:mb-4 flex items-center">
+                  <svg
+                    className="w-5 h-5 text-red-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  Needs Attention (Grade &lt; 60%)
+                </h2>
+                <div className="space-y-3">
+                  {performanceStats.needsAttentionNames.map(
+                    (student, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-red-600">
+                              {student.name
+                                .split(" ")
+                                .map((n) => n.charAt(0))
+                                .join("")
+                                .toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {student.name}
+                            </p>
+                            <p className="text-sm text-red-600 font-semibold">
+                              {student.averageGrade}% Average
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
         </div>
       </div>
       {/* Charts Section: Attendance, Grade, Class Performance, etc. */}
@@ -608,7 +742,7 @@ const TeacherAnalytics = () => {
                     angle: -90,
                     position: "insideLeft",
                     // offset: 15,
-                    style:{textAnchor: "middle" },
+                    style: { textAnchor: "middle" },
                   }}
                   domain={[0, 25]}
                 />

@@ -140,28 +140,64 @@ const TeacherMainDashboard = () => {
         setCompletionData(completion);
         const today = new Date().toISOString().split("T")[0];
 
-        // Fix today's classes filtering - check if schedule contains today's date
-        const todaysClasses = (teacherClasses || []).filter((c) => {
-          if (!c.schedule) return false;
+        // Debug class structure
+        console.log("Sample class data:", teacherClasses?.[0]);
+        console.log("Total classes found:", teacherClasses?.length);
 
-          // Handle different schedule formats
-          const scheduleDate = c.schedule.includes("T")
-            ? c.schedule.split("T")[0]
-            : c.schedule;
+        // Filter classes for today's schedule
+        let todaysClasses = [];
+        if (teacherClasses && teacherClasses.length > 0) {
+          // Check if classes have schedule information
+          todaysClasses = teacherClasses.filter((c) => {
+            // Check for schedule in different possible fields
+            const schedule = c.schedule || c.class_schedule || c.day_of_week || c.time;
+            
+            if (!schedule) return false;
+            
+            // If it's a day of week, check if it matches today
+            const today = new Date();
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayName = dayNames[today.getDay()];
+            
+            if (schedule.toLowerCase().includes(todayName)) {
+              return true;
+            }
+            
+            // If it's a date, check if it matches today
+            const todayDate = today.toISOString().split('T')[0];
+            if (schedule.includes(todayDate)) {
+              return true;
+            }
+            
+            return false;
+          });
+          
+          console.log("Today's classes found:", todaysClasses.length);
+        }
 
-          return scheduleDate === today;
-        });
-
-        // Fix today's assignments filtering
-        const todaysAssignments = (assignmentsData || []).filter((a) => {
-          if (!a.due_date) return false;
-
-          const dueDate = a.due_date.includes("T")
-            ? a.due_date.split("T")[0]
-            : a.due_date;
-
-          return dueDate === today;
-        });
+        // Filter assignments due today
+        let todaysAssignments = [];
+        if (assignmentsData && assignmentsData.length > 0) {
+          const today = new Date().toISOString().split('T')[0];
+          
+          todaysAssignments = assignmentsData.filter((a) => {
+            if (!a.due_date) return false;
+            
+            // Handle different date formats
+            let dueDate;
+            if (a.due_date.includes('T')) {
+              dueDate = a.due_date.split('T')[0];
+            } else if (a.due_date.includes(' ')) {
+              dueDate = a.due_date.split(' ')[0];
+            } else {
+              dueDate = a.due_date;
+            }
+            
+            return dueDate === today;
+          });
+          
+          console.log("Today's assignments due:", todaysAssignments.length);
+        }
         // Debug schedule data
         console.log("Today:", today);
         console.log("Teacher Classes:", teacherClasses);
@@ -441,40 +477,57 @@ const TeacherMainDashboard = () => {
               No classes or assignments due today.
             </p>
           ) : (
-            <>
-              {todaysSchedule.classes.length > 0 && (
-                <>
-                  <h3 className="font-semibold text-blue-800 mb-2">Classes</h3>
-                  <ul className="space-y-2 mb-4">
-                    {todaysSchedule.classes.map((cls, idx) => (
-                      <li key={idx} className="flex items-center gap-4">
-                        <FaBook className="text-blue-500" />
-                        <span className="font-medium">{cls.name}</span>
-                        <span className="text-gray-500">{cls.schedule}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {todaysSchedule.assignments.length > 0 && (
-                <>
-                  <h3 className="font-semibold text-purple-800 mb-2">
-                    Assignments Due
-                  </h3>
-                  <ul className="space-y-2">
-                    {todaysSchedule.assignments.map((a, idx) => (
-                      <li key={idx} className="flex items-center gap-4">
-                        <FaClipboardList className="text-purple-500" />
-                        <span className="font-medium">{a.title}</span>
-                        <span className="text-gray-500">
-                          {a.due_date?.split("T")[1] || "Today"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </>
+            (
+              <div className="text-sm text-gray-600 mb-3">
+                {todaysSchedule.classes.length > 0 ||
+                  todaysSchedule.assignments.length > 0 ? (
+                  <span className="text-blue-600">
+                    📅 Today's schedule
+                  </span>
+                ) : (
+                  <span className="text-orange-600">
+                    📋 No classes or assignments scheduled for today
+                  </span>
+                )}
+              </div>
+            ) && (
+              <>
+                {todaysSchedule.classes.length > 0 && (
+                  <>
+                    <h3 className="font-semibold text-blue-800 mb-2">
+                      Classes
+                    </h3>
+                    <ul className="space-y-2 mb-4">
+                      {todaysSchedule.classes.map((cls, idx) => (
+                        <li key={idx} className="flex items-center gap-4">
+                          <FaBook className="text-blue-500" />
+                          <span className="font-medium">{cls.name}</span>
+                          <span className="text-gray-500">{cls.schedule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {todaysSchedule.assignments.length > 0 && (
+                  <>
+                    <h3 className="font-semibold text-purple-800 mb-2">
+                      Assignments Due Today
+                    </h3>
+                    <ul className="space-y-2">
+                      {todaysSchedule.assignments.map((a, idx) => (
+                        <li key={idx} className="flex items-center gap-4">
+                          <FaClipboardList className="text-purple-500" />
+                          <span className="font-medium">{a.title}</span>
+                          <span className="text-gray-500">
+                            {a.due_date?.split("T")[1] || "Today"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            )
           )}
         </div>
         {/* Recent Activities and Quick Actions */}

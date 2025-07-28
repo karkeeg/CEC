@@ -8,6 +8,7 @@ import {
   getClassesByTeacher,
   getAssignmentsByTeacher,
   fetchAssignmentSubmissions,
+  getTeacherStudentPerformanceStats,
 } from "../../supabaseConfig/supabaseApi";
 import { useUser } from "../../contexts/UserContext";
 import Modal from "../Modal";
@@ -36,6 +37,7 @@ const TeacherStudents = () => {
     console.log("TeacherStudents useEffect - user:", user);
     if (user?.id) {
       fetchStudents();
+      fetchPerformanceSummary();
     } else {
       console.log("No user ID available, cannot fetch students");
     }
@@ -113,9 +115,6 @@ const TeacherStudents = () => {
         new Set(allStudents.map((s) => s.year))
       ).filter(Boolean);
       setYears(uniqueYears.sort());
-
-      // Fetch performance data
-      await fetchPerformanceData(allStudents);
     } catch (error) {
       console.error("Error fetching students:", error);
       // Fallback to all students if there's an error
@@ -129,7 +128,6 @@ const TeacherStudents = () => {
             new Set(fallbackStudents.map((s) => s.year))
           ).filter(Boolean);
           setYears(uniqueYears.sort());
-          await fetchPerformanceData(fallbackStudents);
         }
       } catch (fallbackError) {
         console.error("Fallback also failed:", fallbackError);
@@ -154,203 +152,28 @@ const TeacherStudents = () => {
         ];
         setStudents(dummyStudents);
         setYears(["2024"]);
-        await fetchPerformanceData(dummyStudents);
       }
     }
     setLoading(false);
   };
 
-  const fetchPerformanceData = async (studentList) => {
+  const fetchPerformanceSummary = async () => {
+    setLoading(true);
     try {
-      console.log(
-        "Starting REAL performance data fetch for",
-        studentList.length,
-        "students"
-      );
-
-      // For now, let's use a simpler approach with fallback data
-      // This will help us see if the basic structure works
-      const studentCount = studentList.length;
-
-      // Initialize counters
-      let totalAttendance = 0;
-      let totalGrades = 0;
-      let highPerformers = 0;
-      let needsAttention = 0;
-      let recentActivityCount = 0;
-      const recentStudentsList = [];
-
-      // Try to get teacher's assignments
-      let teacherAssignments = [];
-      try {
-        teacherAssignments = (await getAssignmentsByTeacher(user?.id)) || [];
-        console.log("Teacher assignments found:", teacherAssignments.length);
-      } catch (error) {
-        console.log("Error fetching teacher assignments:", error);
-      }
-
-      // Try to get submissions with grades
-      let allSubmissions = [];
-      if (teacherAssignments.length > 0) {
-        try {
-          // Get submissions for first few assignments to avoid too many API calls
-          const limitedAssignments = teacherAssignments.slice(0, 5);
-          for (const assignment of limitedAssignments) {
-            try {
-              const submissions = await fetchAssignmentSubmissions(
-                assignment.id
-              );
-              if (submissions && submissions.length > 0) {
-                allSubmissions = [...allSubmissions, ...submissions];
-              }
-            } catch (error) {
-              console.log(
-                "Error fetching submissions for assignment:",
-                assignment.id,
-                error
-              );
-            }
-          }
-          console.log("Total submissions found:", allSubmissions.length);
-        } catch (error) {
-          console.log("Error fetching submissions:", error);
-        }
-      }
-
-      // Process a limited number of students to avoid performance issues
-      const studentsToProcess = studentList.slice(0, 50); // Process first 50 students
-      console.log(
-        "Processing",
-        studentsToProcess.length,
-        "students out of",
-        studentList.length
-      );
-
-      for (const student of studentsToProcess) {
-        // Get attendance for last 30 days
-        try {
-          const now = new Date();
-          const thirtyDaysAgo = new Date(
-            now.getTime() - 30 * 24 * 60 * 60 * 1000
-          );
-          const sevenDaysAgo = new Date(
-            now.getTime() - 7 * 24 * 60 * 60 * 1000
-          );
-
-          const attendance = await getAttendanceByStudent(
-            student.id,
-            thirtyDaysAgo.toISOString().split("T")[0],
-            now.toISOString().split("T")[0]
-          );
-
-          if (attendance && attendance.length > 0) {
-            const presentCount = attendance.filter(
-              (a) => a.status === "present"
-            ).length;
-            const totalSessions = attendance.length;
-            const attendanceRate =
-              totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
-            totalAttendance += attendanceRate;
-
-            // Check for recent activity (last 7 days)
-            const recentAttendance = attendance.filter(
-              (a) => new Date(a.date) >= sevenDaysAgo
-            );
-            if (recentAttendance.length > 0) {
-              recentActivityCount++;
-              recentStudentsList.push({
-                ...student,
-                lastActivity: recentAttendance[0].date,
-                activityType: "attendance",
-              });
-            }
-          }
-        } catch (attendanceError) {
-          console.log(
-            "Error fetching attendance for student:",
-            student.id,
-            attendanceError
-          );
-        }
-
-        // Process grades for the student
-        const studentSubmissions = allSubmissions.filter(
-          (s) => s.student_id === student.id
-        );
-        if (studentSubmissions.length > 0) {
-          const grades = studentSubmissions
-            .map((s) => s.grade)
-            .filter((g) => g && g.length > 0)
-            .map((g) => g[0])
-            .filter((g) => g.grade !== null && g.grade !== undefined);
-
-          if (grades.length > 0) {
-            const avgGrade =
-              grades.reduce((sum, g) => sum + g.grade, 0) / grades.length;
-            totalGrades += avgGrade;
-
-            if (avgGrade >= 85) {
-              highPerformers++;
-            } else if (avgGrade < 60) {
-              needsAttention++;
-            }
-          }
-        }
-      }
-
-      // Calculate averages based on processed students
-      const processedCount = studentsToProcess.length;
-      const avgAttendance =
-        processedCount > 0 ? Math.round(totalAttendance / processedCount) : 0;
-      const avgGrade =
-        processedCount > 0 ? Math.round(totalGrades / processedCount) : 0;
-
-      // Scale the results to represent the full student count
-      const scaleFactor = studentCount / processedCount;
-      const scaledHighPerformers = Math.round(highPerformers * scaleFactor);
-      const scaledNeedsAttention = Math.round(needsAttention * scaleFactor);
-      const scaledRecentActivity = Math.round(
-        recentActivityCount * scaleFactor
-      );
-
-      console.log("Final REAL stats:", {
-        studentCount,
-        processedCount,
-        avgAttendance,
-        avgGrade,
-        scaledHighPerformers,
-        scaledNeedsAttention,
-        scaledRecentActivity,
-        recentStudentsList: recentStudentsList.length,
-      });
-
-      setPerformanceStats({
-        totalStudents: studentCount,
-        averageAttendance: avgAttendance,
-        averageGrade: avgGrade,
-        highPerformers: scaledHighPerformers,
-        needsAttention: scaledNeedsAttention,
-        recentActivity: scaledRecentActivity,
-      });
-
-      // Sort recent students by activity date and take top 5
-      setRecentStudents(
-        recentStudentsList
-          .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity))
-          .slice(0, 5)
-      );
+      const stats = await getTeacherStudentPerformanceStats(user.id);
+      setPerformanceStats(stats);
     } catch (error) {
-      console.error("Error fetching performance data:", error);
-      // Set fallback data if everything fails
+      console.error("Error fetching performance summary:", error);
       setPerformanceStats({
-        totalStudents: studentList.length,
-        averageAttendance: 75,
-        averageGrade: 78,
-        highPerformers: Math.floor(studentList.length * 0.25),
-        needsAttention: Math.floor(studentList.length * 0.15),
-        recentActivity: Math.floor(studentList.length * 0.4),
+        totalStudents: 0,
+        averageAttendance: 0,
+        averageGrade: 0,
+        highPerformers: 0,
+        needsAttention: 0,
+        recentActivity: 0,
       });
     }
+    setLoading(false);
   };
 
   const handleDelete = async (id) => {
@@ -394,33 +217,6 @@ const TeacherStudents = () => {
 
   return (
     <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black min-h-screen min-w-0">
-      {/* Summary Section: Filters and Search */}
-      <div className="mb-8 min-w-0">
-        <h1 className="text-3xl font-bold mb-6">My Students</h1>
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-4 min-w-0">
-          <input
-            type="text"
-            placeholder="Search students by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border px-4 py-2 rounded w-full max-w-md"
-          />
-          <select
-            value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
-            className="border px-4 py-2 rounded w-full max-w-xs"
-          >
-            <option value="all">All Years</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       {/* Performance Summary Cards */}
       <div className="mb-8 min-w-0">
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -523,9 +319,27 @@ const TeacherStudents = () => {
                 <p className="text-sm font-medium text-gray-600">
                   High Performers
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                {/* <p className="text-3xl font-bold text-gray-900">
                   {performanceStats.highPerformers}
-                </p>
+                </p> */}
+                {performanceStats.highPerformerNames &&
+                  performanceStats.highPerformerNames.length > 0 && (
+                    <p className="text-xl font-bold text-green-600">
+                      Top:{" "}
+                      {
+                        [...performanceStats.highPerformerNames].sort(
+                          (a, b) => b.averageGrade - a.averageGrade
+                        )[0].name
+                      }{" "}
+                      (
+                      {
+                        [...performanceStats.highPerformerNames].sort(
+                          (a, b) => b.averageGrade - a.averageGrade
+                        )[0].averageGrade
+                      }
+                      %)
+                    </p>
+                  )}
                 <p className="text-xs text-gray-500">Grade ≥ 85%</p>
               </div>
               <div className="p-3 bg-yellow-100 rounded-full">
@@ -553,9 +367,27 @@ const TeacherStudents = () => {
                 <p className="text-sm font-medium text-gray-600">
                   Needs Attention
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                {/* <p className="text-3xl font-bold text-gray-900">
                   {performanceStats.needsAttention}
-                </p>
+                </p> */}
+                {performanceStats.needsAttentionNames &&
+                  performanceStats.needsAttentionNames.length > 0 && (
+                    <p className="text-xl font-bold text-red-600 font-medium">
+                      Lowest:{" "}
+                      {
+                        [...performanceStats.needsAttentionNames].sort(
+                          (a, b) => a.averageGrade - b.averageGrade
+                        )[0].name
+                      }{" "}
+                      (
+                      {
+                        [...performanceStats.needsAttentionNames].sort(
+                          (a, b) => a.averageGrade - b.averageGrade
+                        )[0].averageGrade
+                      }
+                      %)
+                    </p>
+                  )}
                 <p className="text-xs text-gray-500">Grade &lt; 60%</p>
               </div>
               <div className="p-3 bg-red-100 rounded-full">
@@ -570,36 +402,6 @@ const TeacherStudents = () => {
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity Card */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Recent Activity
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {performanceStats.recentActivity}
-                </p>
-                <p className="text-xs text-gray-500">Last 7 days</p>
-              </div>
-              <div className="p-3 bg-indigo-100 rounded-full">
-                <svg
-                  className="w-6 h-6 text-indigo-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
               </div>
@@ -649,6 +451,32 @@ const TeacherStudents = () => {
             </div>
           </div>
         )}
+      </div>
+      {/* Summary Section: Filters and Search */}
+      <div className="mb-8 min-w-0">
+        <h2 className="text-2xl font-semibold mb-6">Students</h2>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-4 min-w-0">
+          <input
+            type="text"
+            placeholder="Search students by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border px-4 py-2 rounded w-full max-w-md"
+          />
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="border px-4 py-2 rounded w-full max-w-xs"
+          >
+            <option value="all">All Years</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Student Table Section */}

@@ -500,11 +500,11 @@ const TeacherAssignments = () => {
               <Loader message="Loading chart data..." />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <ComposedChart
-                data={submissionProgress}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-              >
+          <ResponsiveContainer width="100%" height={250}>
+            <ComposedChart
+              data={submissionProgress}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
                 <XAxis
                   dataKey="name"
                   label={{
@@ -522,17 +522,17 @@ const TeacherAssignments = () => {
                     style: { textAnchor: "middle" },
                   }}
                 />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="stepAfter"
-                  dataKey="submissionRate"
-                  stroke="#3B82F6"
-                  strokeWidth={3}
+              <Tooltip />
+              <Legend />
+              <Line
+                type="stepAfter"
+                dataKey="submissionRate"
+                stroke="#3B82F6"
+                strokeWidth={3}
                   // dot={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
           )}
         </div>
       </div>

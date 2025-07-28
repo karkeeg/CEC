@@ -163,7 +163,7 @@ export const fetchAssignments = async (filters = {}) => {
   let query = supabase
     .from("assignments")
     .select(
-      "id, title, due_date, teacher_id, description, subject:subject_id(name), year, class_id, created_at, files"
+      "id, title, due_date,teacher_id, teacher:teacher_id(first_name, last_name), description, subject:subject_id(name), year, class_id, created_at, files"
     )
     .limit(10000);
   if (filters.due_date) query = query.gte("due_date", filters.due_date);
@@ -481,11 +481,12 @@ export const createNotice = async (notice) => {
   return { data, error };
 };
 export const getGradesByTeacher = async (teacherId) => {
+  // Get grades that were rated by this teacher
   const { data, error } = await supabase
     .from("grades")
-    .select("date, average_grade")
-    .eq("teacher_id", teacherId)
-    .order("date", { ascending: true });
+    .select("id, submission_id, grade, feedback, rated_at, rated_by")
+    .eq("rated_by", teacherId)
+    .order("rated_at", { ascending: true });
   if (error) throw error;
   return data;
 };
@@ -903,4 +904,231 @@ export const getAssignmentSubmissionRateBySubject = async (subjectId) => {
     if (!sError && subs && subs.length > 0) submitted++;
   }
   return { submitted, total: assignmentIds.length };
+};
+
+/**
+ * Get performance summary stats for all students taught by a teacher.
+ * Returns: {
+ *   totalStudents, averageAttendance, averageGrade, highPerformers, needsAttention, recentActivity,
+ *   highPerformerNames, needsAttentionNames
+ * }
+ */
+export const getTeacherStudentPerformanceStats = async (teacherId) => {
+  // 1. Get all classes for this teacher
+  const teacherClasses = await getClassesByTeacher(teacherId);
+  const classIds = teacherClasses.map((cls) => cls.id || cls.class_id);
+  if (classIds.length === 0) {
+    return {
+      totalStudents: 0,
+      averageAttendance: 0,
+      averageGrade: 0,
+      highPerformers: 0,
+      needsAttention: 0,
+      recentActivity: 0,
+      highPerformerNames: [],
+      needsAttentionNames: [],
+    };
+  }
+  // 2. Get all students in these classes
+  let allStudents = [];
+  for (const classId of classIds) {
+    const students = await getStudentsByClass(classId);
+    allStudents = allStudents.concat(
+      (students || []).map((item) => item.student?.id).filter(Boolean)
+    );
+  }
+  // Remove duplicates
+  allStudents = Array.from(new Set(allStudents));
+  const totalStudents = allStudents.length;
+  if (totalStudents === 0) {
+    return {
+      totalStudents: 0,
+      averageAttendance: 0,
+      averageGrade: 0,
+      highPerformers: 0,
+      needsAttention: 0,
+      recentActivity: 0,
+      highPerformerNames: [],
+      needsAttentionNames: [],
+    };
+  }
+  // 3. Get all assignments for this teacher
+  const assignments = await getAssignmentsByTeacher(teacherId);
+  const assignmentIds = assignments.map((a) => a.id);
+  // 4. Get all submissions and grades directly (like TeacherAnalytics)
+  let allGradeValues = [];
+  let studentGradeMap = {};
+  let allSubmissions = [];
+
+  for (const assignment of assignments) {
+    const submissions = await fetchAssignmentSubmissions(assignment.id);
+    allSubmissions = allSubmissions.concat(submissions || []);
+
+    for (const submission of submissions) {
+      // Extract grade directly from submission (like TeacherAnalytics)
+      const gradeValue = submission.grade?.grade;
+
+      if (gradeValue !== undefined && gradeValue !== null) {
+        const numericGrade = Number(gradeValue);
+
+        if (!isNaN(numericGrade)) {
+          allGradeValues.push(numericGrade);
+
+          // Track grades per student for performance stats
+          const studentId = submission.student_id;
+          if (studentId) {
+            if (!studentGradeMap[studentId]) {
+              studentGradeMap[studentId] = [];
+            }
+            studentGradeMap[studentId].push(numericGrade);
+          }
+        }
+      }
+    }
+  }
+
+  console.log("=== GRADES DEBUG ===");
+  console.log("Teacher ID:", teacherId);
+  console.log("Assignment IDs:", assignmentIds);
+  console.log("Total assignments:", assignments.length);
+  console.log("Total submissions found:", allSubmissions.length);
+  console.log("Total grade values found:", allGradeValues.length);
+  console.log("All grade values:", allGradeValues);
+  console.log("Student grade map:", studentGradeMap);
+  // 6. For each student, calculate attendance and performance stats
+  let totalAttendance = 0;
+  let highPerformers = 0;
+  let needsAttention = 0;
+  let recentActivity = 0;
+  let highPerformerNames = [];
+  let needsAttentionNames = [];
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Get student details for names
+  const { data: studentDetails, error: studentError } = await supabase
+    .from("students")
+    .select("id, first_name, middle_name, last_name")
+    .in("id", allStudents);
+
+  const studentNameMap = {};
+  if (!studentError && studentDetails) {
+    studentDetails.forEach((student) => {
+      const fullName = `${student.first_name || ""} ${
+        student.middle_name || ""
+      } ${student.last_name || ""}`.trim();
+      studentNameMap[student.id] = fullName;
+    });
+  }
+
+  for (const studentId of allStudents) {
+    // Attendance
+    const attendance = await getAttendanceByStudent(
+      studentId,
+      thirtyDaysAgo.toISOString().split("T")[0],
+      now.toISOString().split("T")[0]
+    );
+    if (attendance && attendance.length > 0) {
+      const presentCount = attendance.filter(
+        (a) => a.status === "present"
+      ).length;
+      const totalSessions = attendance.length;
+      const attendanceRate =
+        totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
+      totalAttendance += attendanceRate;
+      // Recent activity (attendance)
+      const recentAttendance = attendance.filter(
+        (a) => new Date(a.date) >= sevenDaysAgo
+      );
+      if (recentAttendance.length > 0) {
+        recentActivity++;
+      }
+    }
+    // Grades - use the pre-calculated student grade map
+    const studentGrades = studentGradeMap[studentId] || [];
+
+    if (studentGrades.length > 0) {
+      const avgGrade =
+        studentGrades.reduce((sum, grade) => sum + grade, 0) /
+        studentGrades.length;
+
+      const studentName = studentNameMap[studentId] || `Student ${studentId}`;
+
+      if (avgGrade >= 85) {
+        highPerformers++;
+        highPerformerNames.push({
+          name: studentName,
+          averageGrade: Math.round(avgGrade),
+        });
+      } else if (avgGrade < 60) {
+        needsAttention++;
+        needsAttentionNames.push({
+          name: studentName,
+          averageGrade: Math.round(avgGrade),
+        });
+      }
+
+      console.log(
+        `Student ${studentName}: ${
+          studentGrades.length
+        } grades, avg: ${avgGrade.toFixed(2)}, grades: [${studentGrades.join(
+          ", "
+        )}]`
+      );
+
+      // Recent activity (assignment submission)
+      const recentSubmission = allSubmissions.find((s) => {
+        const submittedAt = s.submitted_at ? new Date(s.submitted_at) : null;
+        return (
+          s.student_id === studentId &&
+          submittedAt &&
+          submittedAt >= sevenDaysAgo
+        );
+      });
+      if (recentSubmission) recentActivity++;
+    }
+  }
+  // Calculate averages
+  const avgAttendance =
+    totalStudents > 0 ? Math.round(totalAttendance / totalStudents) : 0;
+  const avgGrade =
+    allGradeValues.length > 0
+      ? Math.round(
+          allGradeValues.reduce((sum, grade) => sum + grade, 0) /
+            allGradeValues.length
+        )
+      : 0;
+
+  console.log("=== FINAL RESULTS ===");
+  console.log("Total students:", totalStudents);
+  console.log("Total individual grades:", allGradeValues.length);
+  console.log("All grade values:", allGradeValues);
+  console.log(
+    "Sum of all grades:",
+    allGradeValues.reduce((sum, grade) => sum + grade, 0)
+  );
+  console.log("Average grade:", avgGrade);
+  console.log("High performers:", highPerformers);
+  console.log("Needs attention:", needsAttention);
+  console.log("Recent activity:", recentActivity);
+
+  // Sort the arrays by grades before returning
+  const sortedHighPerformerNames = highPerformerNames.sort(
+    (a, b) => b.averageGrade - a.averageGrade
+  );
+  const sortedNeedsAttentionNames = needsAttentionNames.sort(
+    (a, b) => a.averageGrade - b.averageGrade
+  );
+
+  return {
+    totalStudents,
+    averageAttendance: avgAttendance,
+    averageGrade: avgGrade,
+    highPerformers,
+    needsAttention,
+    recentActivity,
+    highPerformerNames: sortedHighPerformerNames,
+    needsAttentionNames: sortedNeedsAttentionNames,
+  };
 };

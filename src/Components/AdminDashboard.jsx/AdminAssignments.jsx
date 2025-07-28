@@ -122,7 +122,9 @@ const AdminAssignmentsPage = () => {
                         }`}
                       >
                         <td className="p-3 border">{row.title}</td>
-                        <td className="p-3 border">{row.teacher_id}</td>
+                        <td className="p-3 border">
+                          {row.teacher.first_name}  {row.teacher.last_name}
+                        </td>
                         <td className="p-3 border">
                           {row.submission_rate || "N/A"}
                         </td>
