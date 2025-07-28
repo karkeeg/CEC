@@ -8,7 +8,7 @@ import Assignment from "./Components/StudentDashboard/Assignments";
 // import AdminLayout from "./Pages/UserDasboardLayout";
 import Classes from "./Components/StudentDashboard/Classes";
 import Attendance from "./Components/StudentDashboard/Attendance";
-import StudentList from "./Components/StudentList";
+
 import Register from "./Pages/RegisterPage";
 import UserDasboardLayout from "./Pages/StudentDashboardLayout";
 import AdminDasboardLayout from "./Pages/AdminDashboardLayout";
@@ -70,8 +70,6 @@ const MyRoutes = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
-
-        <Route path="/st" element={<StudentList />} />
 
         {/* Student Routes - Protected */}
         <Route
