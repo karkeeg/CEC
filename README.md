@@ -2,7 +2,7 @@
 
 A comprehensive **React-based College Management System** with role-based dashboards for students, teachers, and administrators. Built with modern web technologies and Supabase backend.
 
-## 🚀 Features
+## Features
 
 ### 🎯 Core Functionality
 - **Multi-role Authentication System** (Student, Teacher, Admin)
@@ -94,7 +94,7 @@ CEC/
 └── vercel.json             # Vercel deployment config
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - **Node.js** (v18 or higher)
@@ -171,7 +171,7 @@ npm run lint         # Run ESLint
 - **Separation of Concerns** between UI and logic
 - **Responsive Design** with mobile-first approach
 
-## 🎯 Key Features Deep Dive
+##  Key Features Deep Dive
 
 ### Dashboard Analytics
 - **Real-time Charts** using Chart.js and Recharts
@@ -210,7 +210,7 @@ npm run lint         # Run ESLint
 - **Input Validation** and sanitization
 - **CORS Configuration** for production
 
-## 📱 Responsive Design
+##  Responsive Design
 
 - **Mobile-first** approach with Tailwind CSS
 - **Breakpoint-specific** layouts
@@ -218,7 +218,7 @@ npm run lint         # Run ESLint
 - **Progressive Web App** features
 - **Cross-browser** compatibility
 
-## 🚀 Deployment
+##  Deployment
 
 ### Vercel Deployment
 The project is configured for Vercel deployment with:
@@ -248,7 +248,7 @@ VITE_SUPABASE_KEY=your_supabase_anon_key
 - **Component naming** conventions
 - **File structure** organization
 
-## 📊 Performance Optimization
+##  Performance Optimization
 
 - **Code Splitting** with React Router
 - **Lazy Loading** for components
@@ -256,7 +256,7 @@ VITE_SUPABASE_KEY=your_supabase_anon_key
 - **Bundle Analysis** with Vite
 - **Caching Strategies** for static assets
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -286,15 +286,15 @@ VITE_SUPABASE_KEY=your_supabase_anon_key
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the NextWave & Bibek Karki License - see the [LICENSE](LICENSE) file for details.
 
 ## 👥 Support
 
 For support and questions:
 - **Documentation**: Check the inline code comments
 - **Issues**: Create an issue in the repository
-- **Email**: Contact the development team
+- **Email**: Contact the development team (karkibibek642@gmail.com)
 
 ---
 
-**Built with ❤️ using React, Supabase, and modern web technologies**
+**Build By Bibek Karki & NextWaveAi Team.**
