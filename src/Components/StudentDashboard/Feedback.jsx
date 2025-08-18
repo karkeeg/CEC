@@ -10,6 +10,8 @@ import {
   FaStarHalfAlt,
   FaRegStar,
 } from "react-icons/fa";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { useUser } from "../../contexts/UserContext";
 import {
   getFeedbackForStudent,
@@ -25,6 +27,8 @@ const Feedback = () => {
   const [viewModal, setViewModal] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [teacherMap, setTeacherMap] = useState({});
+  const [sortOrder, setSortOrder] = useState("latest"); // 'latest' or 'oldest'
+  const [filterDate, setFilterDate] = useState(""); // State for date filter
 
   const renderStars = (value, max = 5) => {
     const stars = [];
@@ -48,7 +52,23 @@ const Feedback = () => {
       setLoading(true);
       try {
         const data = await getFeedbackForStudent(user.id);
-        setFeedback(data || []);
+        const sortedData = data.sort((a, b) => {
+          if (sortOrder === "latest") {
+            return new Date(b.submitted_at) - new Date(a.submitted_at);
+          } else {
+            return new Date(a.submitted_at) - new Date(b.submitted_at);
+          }
+        });
+
+        const filteredData = filterDate
+          ? sortedData.filter(
+              (item) =>
+                new Date(item.submitted_at).toLocaleDateString() ===
+                new Date(filterDate).toLocaleDateString()
+            )
+          : sortedData;
+
+        setFeedback(filteredData || []);
         setError(null);
       } catch (err) {
         setError(err);
@@ -57,7 +77,7 @@ const Feedback = () => {
       setLoading(false);
     };
     fetchFeedback();
-  }, [user]);
+  }, [user, sortOrder, filterDate]); // Add sortOrder and filterDate to dependency array
 
   useEffect(() => {
     // Fetch teachers for checked by name lookup
@@ -78,6 +98,47 @@ const Feedback = () => {
     fetchAllTeachers();
   }, []);
 
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+    doc.text("Student Feedback Report", 14, 15);
+
+    const tableColumn = [
+      "Assignment",
+      "Subject",
+      "Submission Date",
+      "Feedback",
+      "Score",
+      "Checked By",
+    ];
+    const tableRows = [];
+
+    feedback.forEach((item) => {
+      const assignment = item.assignment || {};
+      const subjectName = assignment.subject?.name || "-";
+      const grade = item.grade || {};
+      const score = grade.grade != null ? `${grade.grade}%` : "-";
+      const submittedDate = item.submitted_at
+        ? new Date(item.submitted_at).toLocaleDateString()
+        : "-";
+      const checkedBy = item.grade?.rated_by
+        ? teacherMap[item.grade.rated_by] || item.grade.rated_by
+        : "-";
+
+      const rowData = [
+        assignment.title || "-",
+        subjectName,
+        submittedDate,
+        grade.feedback || "-",
+        score,
+        checkedBy,
+      ];
+      tableRows.push(rowData);
+    });
+
+    doc.autoTable(tableColumn, tableRows, { startY: 25 });
+    doc.save("student_feedback_report.pdf");
+  };
+
   return (
     <div className="p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black w-full min-w-0">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
@@ -86,9 +147,12 @@ const Feedback = () => {
 
       {/* Controls */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 min-w-0">
-        <button className="flex items-center gap-2 bg-[#007bff] text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
-          <FaCalendarAlt /> 2025-01-01
-        </button>
+        <input
+          type="date"
+          className="py-2 px-4 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-300"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+        />
 
         <div className="relative w-full md:w-1/2">
           <input
@@ -99,7 +163,10 @@ const Feedback = () => {
           <FaSearch className="absolute right-3 top-2.5 text-gray-400" />
         </div>
 
-        <button className="flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
+        <button
+          className="flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
+          onClick={handleExportPdf}
+        >
           <FaFilePdf /> Export PDF
         </button>
       </div>

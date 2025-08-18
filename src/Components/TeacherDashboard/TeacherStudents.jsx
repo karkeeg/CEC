@@ -17,6 +17,7 @@ import Loader from "../Loader";
 const TeacherStudents = () => {
   const { user } = useUser();
   const [students, setStudents] = useState([]);
+  const [teacherClasses, setTeacherClasses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFilter, setYearFilter] = useState("all");
   const [years, setYears] = useState([]);

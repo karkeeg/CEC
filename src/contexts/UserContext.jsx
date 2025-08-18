@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { fetchStudents, fetchTeachers } from "../supabaseConfig/supabaseApi";
+import { fetchStudentProfileById, fetchTeacherProfileById } from "../supabaseConfig/supabaseApi";
 
 const UserContext = createContext();
 
@@ -20,12 +20,10 @@ export const UserProvider = ({ children }) => {
   const fetchUserProfile = async (userId, role) => {
     if (!userId || !role) return;
     if (role === "student") {
-      const students = await fetchStudents();
-      const student = students.find((s) => s.id === userId);
+      const student = await fetchStudentProfileById(userId);
       setProfile(student || null);
     } else if (role === "teacher") {
-      const teachers = await fetchTeachers();
-      const teacher = teachers.find((t) => t.id === userId);
+      const teacher = await fetchTeacherProfileById(userId);
       setProfile(teacher || null);
     }
   };

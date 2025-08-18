@@ -18,6 +18,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 import {
   getFeedbackForStudent,
@@ -29,6 +30,7 @@ const pieColors = ["#1de9b6", "#ff1744"];
 
 const StudentAnalytics = () => {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [gradeTrend, setGradeTrend] = useState([]);
   const [subjectBar, setSubjectBar] = useState([]);
@@ -260,7 +262,10 @@ const StudentAnalytics = () => {
           />
           <FaSearch className="text-black ml-2" />
         </div>
-        <button className="flex items-center gap-2 bg-teal-500 text-white px-6 py-2 rounded font-semibold hover:bg-teal-600 transition">
+        <button
+          className="flex items-center gap-2 bg-teal-500 text-white px-6 py-2 rounded font-semibold hover:bg-teal-600 transition"
+          onClick={() => navigate("/student/feedback")}
+        >
           View feedback <MdFeedback />
         </button>
       </div>

@@ -148,12 +148,32 @@ export const fetchStudents = async () => {
   return allStudents;
 };
 
+export const fetchStudentProfileById = async (studentId) => {
+  const { data, error } = await supabase
+    .from("students")
+    .select("*")
+    .eq("id", studentId)
+    .maybeSingle(); // Use maybeSingle for a single record
+  if (error) throw error;
+  return data;
+};
+
 // ------------------- TEACHERS -------------------
 export const fetchTeachers = async () => {
   const { data, error } = await supabase
     .from("teachers")
     .select("*, department:teacher_department(id, name)")
     .limit(10000);
+  if (error) throw error;
+  return data;
+};
+
+export const fetchTeacherProfileById = async (teacherId) => {
+  const { data, error } = await supabase
+    .from("teachers")
+    .select("*, department:teacher_department(id, name)")
+    .eq("id", teacherId)
+    .maybeSingle(); // Use maybeSingle for a single record
   if (error) throw error;
   return data;
 };

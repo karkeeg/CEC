@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
 import {
   updateTeacherProfile,
   updateTeacherPassword,
 } from "../../supabaseConfig/supabaseApi";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
+import { getAllTeacherDepartments, getTeacherDepartmentsWithClasses } from "../../supabaseConfig/supabaseApi";
 
 const TeacherSettings = () => {
   const { user } = useUser();
@@ -36,6 +37,36 @@ const TeacherSettings = () => {
     attendance_alerts: true,
     grade_updates: true,
   });
+
+  // Departments associated with this teacher (can be multiple)
+  const [teacherDepartments, setTeacherDepartments] = useState([]);
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      if (!user?.id) return;
+      try {
+        // Prefer a direct mapping for this teacher
+        const data = await getTeacherDepartmentsWithClasses(user.id);
+        if (Array.isArray(data) && data.length > 0) {
+          const names = data
+            .map((d) => d.department?.name)
+            .filter(Boolean);
+          setTeacherDepartments([...new Set(names)]);
+          return;
+        }
+        // Fallback to all teacher departments and filter by teacher_id if schema differs
+        const all = await getAllTeacherDepartments();
+        const names = (all || [])
+          .filter((row) => String(row.teacher?.id) === String(user.id))
+          .map((row) => row.department?.name)
+          .filter(Boolean);
+        setTeacherDepartments([...new Set(names)]);
+      } catch {
+        setTeacherDepartments([]);
+      }
+    };
+    loadDepartments();
+  }, [user]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -238,16 +269,26 @@ const TeacherSettings = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
+                    Departments
                   </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={profileForm.department}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-                  />
+                  {teacherDepartments.length === 0 ? (
+                    <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500">
+                      Not assigned
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {teacherDepartments.map((name) => (
+                        <span
+                          key={name}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm border border-blue-200"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
-                    Department is managed by admin
+                    Managed by admin; a teacher can belong to multiple departments
                   </p>
                 </div>
               </div>

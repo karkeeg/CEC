@@ -272,9 +272,6 @@ const Assignments = () => {
             />
             <FaSearch className="absolute left-3 top-3 text-gray-400" />
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md flex items-center gap-2 text-white shadow-md w-full md:w-auto justify-center">
-            Export PDF <FaDownload />
-          </button>
         </div>
 
         {/* Modern Table */}

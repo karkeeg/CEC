@@ -29,6 +29,7 @@ const Attendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
+  console.log("Current User ID:", user?.id);
   const [subjects, setSubjects] = useState([]);
   const [subjectMap, setSubjectMap] = useState({});
   const [teachers, setTeachers] = useState([]);
@@ -40,6 +41,7 @@ const Attendance = () => {
   const [monthlyStats, setMonthlyStats] = useState([]);
   const [attendancePie, setAttendancePie] = useState([]);
   const [subjectBar, setSubjectBar] = useState([]);
+  const [currentDisplayDate, setCurrentDisplayDate] = useState(new Date()); // For month navigation
   const pieColors = ["#22c55e", "#ef4444", "#facc15", "#3b82f6", "#a3a3a3"];
 
   useEffect(() => {
@@ -47,15 +49,30 @@ const Attendance = () => {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const records = await getAttendanceByStudent(user.id);
+        const year = currentDisplayDate.getFullYear();
+        const month = currentDisplayDate.getMonth() + 1;
+        // Calculate the first and last day of the month
+        const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = `${year}-${String(month).padStart(2, "0")}-${String(
+          new Date(year, month, 0).getDate()
+        ).padStart(2, "0")}`;
+
+        const records = await getAttendanceByStudent(
+          user.id,
+          firstDay,
+          lastDay
+        );
+        console.log("Fetched Attendance Records:", records);
         setAttendance(records || []);
+        console.log("Attendance State After Set:", records || []);
       } catch (error) {
+        console.error("Error fetching attendance:", error);
         setAttendance([]);
       }
       setLoading(false);
     };
     fetchAttendance();
-  }, [user]);
+  }, [user, currentDisplayDate]); // Add currentDisplayDate to dependency array
 
   useEffect(() => {
     // Fetch subjects, teachers, and classes for name lookup
@@ -94,6 +111,7 @@ const Attendance = () => {
 
   useEffect(() => {
     if (!attendance.length) return;
+    console.log("Attendance data for chart calculations:", attendance);
     setLoadingStats(true);
     // Weekly stats
     const weekMap = {};
@@ -163,16 +181,40 @@ const Attendance = () => {
   // Helper: build a map of date string (YYYY-MM-DD) => attendance record
   const attendanceMap = React.useMemo(() => {
     const map = {};
+    const statusPriority = {
+      holiday: 4,
+      absent: 3,
+      late: 2,
+      present: 1,
+    };
+
     attendance.forEach((rec) => {
-      map[rec.date] = rec;
+      if (!map[rec.date] || statusPriority[rec.status] > statusPriority[map[rec.date].status]) {
+        map[rec.date] = rec;
+      }
     });
     return map;
   }, [attendance]);
 
+  const goToPreviousMonth = () => {
+    setCurrentDisplayDate(
+      (prevDate) => new Date(prevDate.getFullYear(), prevDate.getMonth() - 1, 1)
+    );
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDisplayDate(
+      (prevDate) => new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 1)
+    );
+  };
+
+  const goToCurrentMonth = () => {
+    setCurrentDisplayDate(new Date());
+  };
+
   // Get current year and month for the calendar
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth(); // 0-based
+  const currentYear = currentDisplayDate.getFullYear();
+  const currentMonth = currentDisplayDate.getMonth(); // 0-based
   // Get number of days in current month
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   // Build calendar weeks for the current month
@@ -247,9 +289,17 @@ const Attendance = () => {
 
       {/* Date Picker and Tabs */}
       <div className="bg-[#6750A41A] mt-6 rounded-lg overflow-hidden min-w-0">
-        <div className="p-4 flex justify-center text-gray-600 items-center text-sm font-semibold">
-          <span>2025-01-01</span>
-          <MdCalendarToday className="ml-2" />
+        <div className="p-4 flex justify-between text-gray-600 items-center text-sm font-semibold">
+          <button onClick={goToPreviousMonth} className="px-2 py-1 rounded hover:bg-gray-200">
+            &lt;
+          </button>
+          <span>
+            {currentDisplayDate.toLocaleString("default", { month: "long" })}{" "}
+            {currentDisplayDate.getFullYear()}
+          </span>
+          <button onClick={goToNextMonth} className="px-2 py-1 rounded hover:bg-gray-200">
+            &gt;
+          </button>
         </div>
         <div className="flex">
           <button

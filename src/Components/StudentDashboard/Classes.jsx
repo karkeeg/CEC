@@ -93,9 +93,6 @@ const Classes = () => {
 
         {/* Controls */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-10 min-w-0">
-          <button className="flex items-center gap-2 bg-[#007bff] text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
-            <FaCalendarAlt /> 2025-01-01
-          </button>
           <div className="relative w-full md:w-1/2 min-w-0">
             <input
               type="text"
@@ -103,9 +100,6 @@ const Classes = () => {
               className="w-full py-2 pl-4 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
-          <button className="flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
-            Export PDF
-          </button>
         </div>
 
         {/* Card Layout */}
