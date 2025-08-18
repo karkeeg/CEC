@@ -1,1063 +1,224 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
-import {
-  FaGraduationCap,
-  FaMoneyBillWave,
-  FaEdit,
-  FaTrash,
-} from "react-icons/fa";
-import { MdCalendarToday } from "react-icons/md";
-import html2pdf from "html2pdf.js";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import {
-  createFee,
-  updateFee,
-  getAllStudents,
-  getAllFees,
-  logActivity,
-} from "../../supabaseConfig/supabaseApi";
-import Select from "react-select";
-import Modal from "../Modal";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import Loader from "../Loader";
+import { getAllFees, getAllStudents } from "../../supabaseConfig/supabaseApi";
 
-const COLORS = ["#A5D8FF", "#FBC7C7", "#666"];
-
-// 1. Status enums/constants
-const FEE_STATUS = {
-  PAID: "paid",
-  PARTIAL: "partial",
-  OVERDUE: "overdue",
-  UNPAID: "unpaid",
-};
-
-const FeeDashboard = () => {
-  // Auto-calculate status based on payment data - moved to top
-  const calculateStatus = useCallback((amount, paidAmount, dueDate) => {
-    const totalAmount = Number(amount) || 0;
-    const paid = Number(paidAmount) || 0; // This handles null, undefined, 0, etc.
-    const due = new Date(dueDate);
-    const today = new Date();
-
-    // If fully paid or overpaid
-    if (paid >= totalAmount && totalAmount > 0) {
-      return "paid";
-    }
-    // If partially paid
-    else if (paid > 0 && paid < totalAmount) {
-      return "partial";
-    }
-    // If not paid at all (paid is 0, null, undefined, etc.)
-    else if (paid === 0 || paidAmount === null || paidAmount === undefined) {
-      // Only mark as overdue if amount > 0 and due date has passed
-      if (totalAmount > 0 && due < today) {
-        return "overdue";
-      } else {
-        return "unpaid";
-      }
-    }
-    // Default fallback
-    return "unpaid";
-  }, []);
-
-  const [form, setForm] = useState({
-    student_id: "",
-    amount: "",
-    due_date: "",
-    paid_date: "",
-    paid_amount: "",
-    status: "unpaid",
-    notes: "",
-  });
-
+function FeeDashboard() {
   const [fees, setFees] = useState([]);
   const [students, setStudents] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editIndex, setEditIndex] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterYear, setFilterYear] = useState("");
-  const [maxDue, setMaxDue] = useState("");
-  const [studentSearch, setStudentSearch] = useState("");
-  const [loadingStudents, setLoadingStudents] = useState(true);
-  const [loadingFees, setLoadingFees] = useState(true);
-  const [error, setError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [overdueDisplayCount, setOverdueDisplayCount] = useState(7);
-  const [mainTableDisplayCount, setMainTableDisplayCount] = useState(5);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Memoized student lookup map for better performance
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [feesData, studentsData] = await Promise.all([
+          getAllFees(),
+          getAllStudents(),
+        ]);
+        if (!isMounted) return;
+        setFees(Array.isArray(feesData) ? feesData : []);
+        setStudents(Array.isArray(studentsData) ? studentsData : []);
+      } catch (err) {
+        if (!isMounted) return;
+        setError("Failed to load fee data");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const studentMap = useMemo(() => {
     const map = new Map();
-    students.forEach((student) => {
-      map.set(student.id, student);
-    });
+    for (const s of students) {
+      map.set(s.id, s);
+    }
     return map;
   }, [students]);
 
-  // Memoized getStudentName function
-  const getStudentName = useCallback(
-    (id) => {
-      const student = studentMap.get(id);
-      return student
-        ? `${student.first_name} ${student.middle_name ?? ""} ${
-            student.last_name
-          }`.trim()
-        : id;
-    },
-    [studentMap]
-  );
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoadingStudents(true);
-      setLoadingFees(true);
-      setError("");
-      try {
-        const [studentsData, feesData] = await Promise.all([
-          getAllStudents(),
-          getAllFees(),
-        ]);
-
-        setStudents(studentsData || []);
-        setFees(feesData || []);
-
-        // Auto-fix status mismatches in database (only if needed)
-        if (feesData && feesData.length > 0) {
-          await fixStatusMismatches(feesData);
-        }
-      } catch (e) {
-        setError("Failed to fetch data. Please try again later.");
-      } finally {
-        setLoadingStudents(false);
-        setLoadingFees(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  // Function to fix status mismatches in database
-  const fixStatusMismatches = useCallback(
-    async (feesData) => {
-      const mismatches = [];
-
-      for (const fee of feesData) {
-        const calculatedStatus = calculateStatus(
-          fee.amount,
-          fee.paid_amount,
-          fee.due_date
-        );
-        if (calculatedStatus !== fee.status) {
-          mismatches.push({
-            feeId: fee.id,
-            oldStatus: fee.status,
-            newStatus: calculatedStatus,
-            studentName: getStudentName(fee.student_id),
-          });
-        }
-      }
-
-      if (mismatches.length > 0) {
-        console.log(
-          `Found ${mismatches.length} status mismatches:`,
-          mismatches
-        );
-
-        // Update database with correct statuses
-        const updatePromises = mismatches.map(async (mismatch) => {
-          try {
-            await updateFee(mismatch.feeId, { status: mismatch.newStatus });
-            console.log(
-              `Fixed status for ${mismatch.studentName}: ${mismatch.oldStatus} → ${mismatch.newStatus}`
-            );
-          } catch (error) {
-            console.error(
-              `Failed to update status for fee ${mismatch.feeId}:`,
-              error
-            );
-          }
-        });
-
-        await Promise.all(updatePromises);
-
-        // Refresh fees data after updates
-        const updatedFees = await getAllFees();
-        setFees(updatedFees || []);
-      }
-    },
-    [calculateStatus, getStudentName]
-  );
-
-  // Memoized data calculations
   const memoizedData = useMemo(() => {
-    if (!fees.length || !students.length) {
-      return {
-        dataSummary: [],
-        totalDue: 0,
-        totalPaid: 0,
-        barData: [],
-        yearGroups: [],
-        overdueFees: [],
-        displayedOverdueFees: [],
-        topDebtors: [],
-        summary: { totalDue: 0, totalPaid: 0, overdue: 0, unpaid: 0 },
-        statusData: [],
-        filteredFees: [],
-      };
-    }
-
-  const dataSummary = [
-    { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
-    {
-        name: "Partial",
-      value: fees.filter((f) => f.status === "partial").length,
-    },
-      {
-        name: "Unpaid",
-        value: fees.filter((f) => f.status === "unpaid").length,
-      },
-    {
-      name: "Overdue",
-      value: fees.filter((f) => f.status === "overdue").length,
-    },
-  ];
-
-  const totalDue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-  const totalPaid = fees.reduce(
-    (sum, f) => sum + Number(f.paid_amount || 0),
-    0
-  );
-
-  const barData = [
-    { name: "Total Due", value: totalDue },
-    { name: "Total Paid", value: totalPaid },
-  ];
-
-  const yearGroups = [1, 2, 3, 4].map((year) => {
-    const yearFees = fees.filter((fee) => {
-        const student = studentMap.get(fee.student_id);
-      return student && String(student.year) === String(year);
-    });
     return {
-      year: String(year),
-      totalDue: yearFees.reduce((sum, f) => sum + Number(f.amount), 0),
-      totalPaid: yearFees.reduce(
-        (sum, f) => sum + Number(f.paid_amount || 0),
-        0
-      ),
+      filteredFees: fees,
     };
-  });
+  }, [fees]);
 
-    // Overdue Fees Table with database status (after auto-fix)
-  const overdueFees = fees
-    .filter((f) => f.status === "overdue")
-    .map((fee) => {
-        const student = studentMap.get(fee.student_id);
-      return {
-        name: getStudentName(fee.student_id),
-        year: student ? student.year : "-",
-        due: fee.amount - (fee.paid_amount || 0),
-        due_date: fee.due_date,
-      };
-      })
-      .sort((a, b) => b.due - a.due); // Sort by highest overdue amount first
+  const handleExportPdf = useCallback(() => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-    const displayedOverdueFees = overdueFees.slice(0, overdueDisplayCount);
+    doc.setFontSize(24);
+    doc.setTextColor(30, 68, 157);
+    doc.text("Fee Management Report", 40, 40);
 
-    // Top Debtors Table with database status (after auto-fix)
-  const topDebtors = fees
-      .filter((f) => {
-        return (
-          f.status === "unpaid" ||
-          f.status === "overdue" ||
-          f.status === "partial"
-        );
-      })
-    .map((fee) => {
-        const student = studentMap.get(fee.student_id);
-      return {
-        name: getStudentName(fee.student_id),
-        year: student ? student.year : "-",
-        due: fee.amount - (fee.paid_amount || 0),
-      };
-    })
-    .sort((a, b) => b.due - a.due)
-    .slice(0, 5);
+    doc.setFontSize(12);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, 60);
 
-    const summary = {
-      totalDue,
-      totalPaid,
-      overdue: fees.filter((f) => f.status === "overdue").length,
-      unpaid: fees.filter((f) => f.status === "unpaid").length,
-    };
+    let startY = 80;
 
-    const statusData = [
-      { name: "Paid", value: fees.filter((f) => f.status === "paid").length },
-      {
-        name: "Partial",
-        value: fees.filter((f) => f.status === "partial").length,
-      },
-      {
-        name: "Unpaid",
-        value: fees.filter((f) => f.status === "unpaid").length,
-      },
-      {
-        name: "Overdue",
-        value: fees.filter((f) => f.status === "overdue").length,
-      },
-    ];
+    doc.setFontSize(16);
+    doc.setTextColor(30, 68, 157);
+    doc.text("Summary Statistics", 40, startY);
+    startY += 20;
 
-    // Filtered fees calculation
-    const filteredFees = fees.filter((fee) => {
+    const totalCount = memoizedData.filteredFees.length;
+    const paidCount = memoizedData.filteredFees.filter((f) => f.status === "paid").length;
+    const unpaidCount = memoizedData.filteredFees.filter((f) => f.status === "unpaid").length;
+    const overdueCount = memoizedData.filteredFees.filter((f) => f.status === "overdue").length;
+    const partialCount = memoizedData.filteredFees.filter((f) => f.status === "partial").length;
+    const totalDue = memoizedData.filteredFees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
+    const totalCollected = memoizedData.filteredFees.reduce((sum, f) => sum + Number(f.paid_amount || 0), 0);
+    const totalOutstanding = Math.max(0, totalDue - totalCollected);
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Records: ${totalCount}`, 40, startY);
+    startY += 15;
+    doc.text(`Paid: ${paidCount}`, 40, startY);
+    startY += 15;
+    doc.text(`Unpaid: ${unpaidCount}`, 40, startY);
+    startY += 15;
+    doc.text(`Overdue: ${overdueCount}`, 40, startY);
+    startY += 15;
+    doc.text(`Partial: ${partialCount}`, 40, startY);
+    startY += 15;
+    doc.text(`Total Due: Rs ${totalDue.toLocaleString()}`, 40, startY);
+    startY += 15;
+    doc.text(`Total Collected: Rs ${totalCollected.toLocaleString()}`, 40, startY);
+    startY += 15;
+    doc.text(`Outstanding: Rs ${totalOutstanding.toLocaleString()}`, 40, startY);
+    startY += 30;
+
+    doc.setFontSize(16);
+    doc.setTextColor(30, 68, 157);
+    doc.text("Detailed Fee Report", 40, startY);
+    startY += 20;
+
+    const tableData = memoizedData.filteredFees.map((fee) => {
       const student = studentMap.get(fee.student_id);
-      if (!student) return false;
+      const studentName = student ? `${student.first_name} ${student.last_name}` : String(fee.student_id || "-");
+      const year = student ? student.year : "-";
 
-      const nameMatch = `${student.first_name} ${student.middle_name ?? ""} ${
-        student.last_name
-      }`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const yearMatch = filterYear
-        ? String(student.year) === String(filterYear)
-        : true;
-      const dueRemaining = fee.amount - (fee.paid_amount || 0);
-      const maxDueMatch = maxDue ? dueRemaining <= Number(maxDue) : true;
-      const statusMatch = statusFilter ? fee.status === statusFilter : true;
-      return nameMatch && yearMatch && maxDueMatch && statusMatch;
-    });
-
-    return {
-      dataSummary,
-      totalDue,
-      totalPaid,
-      barData,
-      yearGroups,
-      overdueFees,
-      displayedOverdueFees,
-      topDebtors,
-      summary,
-      statusData,
-      filteredFees,
-      displayedMainFees: filteredFees.slice(0, mainTableDisplayCount),
-    };
-  }, [
-    fees,
-    students,
-    studentMap,
-    getStudentName,
-    searchTerm,
-    filterYear,
-    maxDue,
-    statusFilter,
-    overdueDisplayCount,
-    mainTableDisplayCount,
-  ]);
-
-  const handleOpenModal = useCallback(
-    (idx = null) => {
-      setEditIndex(idx);
-      if (idx !== null) {
-        setForm(fees[idx]);
-      } else {
-        setForm({
-          student_id: "",
-          amount: "",
-          due_date: "",
-          paid_date: "",
-          paid_amount: "",
-          status: "unpaid",
-          notes: "",
-        });
-      }
-      setShowModal(true);
-    },
-    [fees]
-  );
-
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (e) => {
-    e.preventDefault();
-    if (!form.student_id || !form.amount || !form.due_date) {
-      alert("Student, amount, and due date are required.");
-      return;
-    }
-
-      // Auto-calculate status based on payment data
-      const calculatedStatus = calculateStatus(
-        form.amount,
-        form.paid_amount,
-        form.due_date
-      );
-
-    // Convert empty paid_amount and paid_date to null
-    const feeData = {
-      ...form,
-      paid_amount:
-        form.paid_amount === "" || form.paid_amount == null
-          ? null
-          : Number(form.paid_amount),
-      paid_date:
-          form.paid_date === "" || form.paid_date == null
-            ? null
-            : form.paid_date,
-        status: calculatedStatus, // Use calculated status instead of form status
-    };
-
-    let isPayment = false;
-    if (editIndex !== null) {
-      // Edit: update in database
-      const feeId = fees[editIndex].id;
-      const { error } = await updateFee(feeId, feeData);
-      if (error) {
-        alert("Failed to update fee: " + error.message);
-        return;
-      }
-      // If paid_amount is set and changed, log payment
-      const prevPaid = fees[editIndex].paid_amount || 0;
-      if (feeData.paid_amount && Number(feeData.paid_amount) > prevPaid) {
-        isPayment = true;
-      }
-    } else {
-      // Add: insert into database
-      const { error } = await createFee(feeData);
-      if (error) {
-        alert("Failed to add fee: " + error.message);
-        return;
-      }
-      if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
-        isPayment = true;
-      }
-    }
-
-    if (isPayment) {
-        const student = studentMap.get(form.student_id);
-      await logActivity(
-        `Fee payment of Rs ${form.paid_amount} received from ${
-          student
-            ? student.first_name + " " + student.last_name
-            : form.student_id
-        }.`,
-        "fee",
-        typeof currentUser !== "undefined" ? currentUser : {}
-      );
-    }
-
-    // Re-fetch fees from DB
-    const feesData = await getAllFees();
-    setFees(feesData || []);
-    setShowModal(false);
-    setForm({
-      student_id: "",
-      amount: "",
-      due_date: "",
-      paid_date: "",
-      paid_amount: "",
-      status: "unpaid",
-      notes: "",
-    });
-      setEditIndex(null);
-    },
-    [form, editIndex, fees, calculateStatus, studentMap]
-  );
-
-  const exportToPDF = useCallback(() => {
-    const element = document.getElementById("fee-dashboard");
-    const opt = {
-      margin: 1,
-      filename: "fee-report.pdf",
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-    };
-    html2pdf().set(opt).from(element).save();
-  }, []);
-
-  const validateForm = useCallback(() => {
-    const errors = [];
-    if (!form.student_id) errors.push("Student is required");
-    if (!form.amount || form.amount <= 0)
-      errors.push("Valid amount is required");
-    if (!form.due_date) errors.push("Due date is required");
-    if (form.paid_amount && form.paid_amount > form.amount) {
-      errors.push("Paid amount cannot exceed total amount");
-    }
-    if (form.paid_amount && !form.paid_date) {
-      errors.push("Payment date is required when paid amount is provided");
-    }
-    setFormError(errors.join(", "));
-    return errors.length === 0;
-  }, [form]);
-
-  const handleDelete = useCallback(
-    async (idx) => {
-      if (window.confirm("Are you sure you want to delete this fee?")) {
-        const feeId = fees[idx].id;
-        const { error } = await updateFee(feeId, { status: "deleted" });
-        if (error) {
-          alert("Failed to delete fee: " + error.message);
-          return;
-        }
-        const updatedFees = fees.filter((_, i) => i !== idx);
-        setFees(updatedFees);
-      }
-    },
-    [fees]
-  );
-
-  const exportToCSV = useCallback(() => {
-    const headers = [
-      "Student Name",
-      "Year",
-      "Amount",
-      "Due Date",
-      "Paid Amount",
-      "Paid Date",
-      "Status",
-      "Notes",
-    ];
-    const csvData = memoizedData.filteredFees.map((fee) => {
-      const student = studentMap.get(fee.student_id);
       return [
-        student ? `${student.first_name} ${student.last_name}` : fee.student_id,
-        student ? student.year : "-",
-        fee.amount,
-        fee.due_date,
-        fee.paid_amount || 0,
-        fee.paid_date || "",
-        fee.status,
-        fee.notes || "",
+        studentName,
+        year,
+        `Rs ${Number(fee.amount || 0).toLocaleString()}`,
+        fee.due_date ? new Date(fee.due_date).toLocaleDateString() : "-",
+        fee.paid_amount ? `Rs ${Number(fee.paid_amount).toLocaleString()}` : "-",
+        fee.paid_date ? new Date(fee.paid_date).toLocaleDateString() : "-",
+        (fee.status || "-").toString().toUpperCase(),
+        fee.notes || "-",
       ];
     });
-    const csvContent = [headers, ...csvData]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "fee-report.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    autoTable(doc, {
+      startY,
+      head: [["Student", "Year", "Amount", "Due Date", "Paid", "Paid Date", "Status", "Notes"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 68, 157],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 10,
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 6,
+        textColor: [0, 0, 0],
+        halign: 'center',
+        valign: 'middle',
+      },
+      columnStyles: {
+        0: { cellWidth: 140, halign: 'left' },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 80 },
+        3: { cellWidth: 80 },
+        4: { cellWidth: 80 },
+        5: { cellWidth: 80 },
+        6: { cellWidth: 60, fontStyle: 'bold' },
+        7: { cellWidth: 120, halign: 'left' },
+      },
+      margin: { left: 40, right: 40 },
+      didDrawPage: function (data) {
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text(
+          `Page ${doc.internal.getNumberOfPages()}`,
+          data.settings.margin.left,
+          doc.internal.pageSize.height - 10
+        );
+      },
+    });
+
+    doc.save("fee-management-report.pdf");
   }, [memoizedData.filteredFees, studentMap]);
 
-  const pieColors = ["#34d399", "#fbbf24", "#60a5fa", "#ef4444"];
-
-  if (loadingStudents || loadingFees) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader message="Loading fee dashboard data..." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-red-600">
-          <p className="text-lg">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div
-      id="fee-dashboard"
-      className="min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-500 p-6"
-    >
-      {/* Heading and Top Actions */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-bold text-blue-900">
-          Admin Fee Dashboard
-        </h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleOpenModal()}
-            className="bg-blue-600 px-4 py-2 rounded shadow text-white hover:bg-blue-700"
-          >
-            Add Fee
-          </button>
-          <button
-            onClick={exportToPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Export PDF
-          </button>
-          <button
-            onClick={exportToCSV}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Export CSV
-          </button>
-        </div>
+    <div className="min-h-screen border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-700 p-6 w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Fee Management</h1>
+        <button
+          onClick={handleExportPdf}
+          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+        >
+          Export PDF
+        </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-          <div className="text-2xl font-bold text-blue-700">
-            {memoizedData.summary.totalDue}
-          </div>
-          <div className="text-gray-600">Total Due</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-          <div className="text-2xl font-bold text-green-700">
-            {memoizedData.summary.totalPaid}
-          </div>
-          <div className="text-gray-600">Total Paid</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-          <div className="text-2xl font-bold text-red-700">
-            {memoizedData.summary.overdue}
-          </div>
-          <div className="text-gray-600"># Overdue</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-          <div className="text-2xl font-bold text-yellow-700">
-            {memoizedData.summary.unpaid}
-          </div>
-          <div className="text-gray-600"># Unpaid</div>
-        </div>
-      </div>
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h3 className="text-lg font-bold mb-4 text-gray-800">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="text"
-            placeholder="Search by student name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(e.target.value)}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">All Years</option>
-            <option value="1">Year 1</option>
-            <option value="2">Year 2</option>
-            <option value="3">Year 3</option>
-            <option value="4">Year 4</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Max due amount..."
-            value={maxDue}
-            onChange={(e) => setMaxDue(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
-      </div>
-
-             {/* Main Fees Table */}
-       <div className="bg-white rounded-lg shadow p-6">
-         <div className="flex justify-between items-center mb-4">
-           <h3 className="text-lg font-bold text-gray-800">
-             All Fees ({memoizedData.filteredFees.length} records)
-           </h3>
-           <div className="flex gap-2">
-             {memoizedData.filteredFees.length > 5 && (
-               <>
-                 <button
-                  onClick={() =>
-                    setMainTableDisplayCount((prev) => Math.max(5, prev - 5))
-                  }
-                   className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                 >
-                   Show Less (-5)
-                 </button>
-                 <button
-                  onClick={() => setMainTableDisplayCount((prev) => prev + 5)}
-                   className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                 >
-                   Show More (+5)
-                 </button>
-               </>
-             )}
-           </div>
-         </div>
-         {memoizedData.filteredFees.length === 0 ? (
-           <div className="text-gray-400 text-center py-4">No fees found.</div>
-         ) : (
-           <div className="overflow-x-auto">
-             <div className="max-h-96 overflow-y-auto">
-               <table className="min-w-full bg-white">
-                 <thead className="sticky top-0 bg-gray-50">
-                   <tr>
-                     <th className="px-4 py-2 text-left">Student</th>
-                     <th className="px-4 py-2 text-left">Year</th>
-                     <th className="px-4 py-2 text-left">Amount</th>
-                     <th className="px-4 py-2 text-left">Due Date</th>
-                     <th className="px-4 py-2 text-left">Paid Amount</th>
-                     <th className="px-4 py-2 text-left">Status</th>
-                     <th className="px-4 py-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-                   {memoizedData.displayedMainFees.map((fee, idx) => {
-                     const student = studentMap.get(fee.student_id);
-              return (
-                <tr
-                         key={fee.id || idx}
-                         className="border-b hover:bg-gray-50"
-                       >
-                         <td className="px-4 py-2">
-                           {student
-                             ? `${student.first_name} ${student.last_name}`
-                             : fee.student_id}
-                  </td>
-                         <td className="px-4 py-2">
-                           {student ? student.year : "-"}
-                         </td>
-                         <td className="px-4 py-2">Rs. {fee.amount}</td>
-                         <td className="px-4 py-2">{fee.due_date}</td>
-                         <td className="px-4 py-2">
-                           {fee.paid_amount ? `Rs. ${fee.paid_amount}` : "-"}
-                         </td>
-                         <td className="px-4 py-2">
-                    <span
-                             className={`px-2 py-1 rounded text-xs font-semibold ${
-                               fee.status === "paid"
-                          ? "bg-green-100 text-green-800"
-                                 : fee.status === "partial"
-                          ? "bg-yellow-100 text-yellow-800"
-                                 : fee.status === "overdue"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                             {fee.status.toUpperCase()}
-                    </span>
-                  </td>
-                         <td className="px-4 py-2">
-                           <div className="flex gap-2">
-                    <button
-                      onClick={() => handleOpenModal(idx)}
-                               className="text-blue-600 hover:text-blue-800"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(idx)}
-                               className="text-red-600 hover:text-red-800"
-                    >
-                      <FaTrash />
-                    </button>
-                           </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-             {memoizedData.filteredFees.length > 5 && (
-               <div className="text-center mt-4 text-sm text-gray-600">
-                Showing {memoizedData.displayedMainFees.length} of{" "}
-                {memoizedData.filteredFees.length} records
-              </div>
-            )}
-           </div>
-         )}
-       </div>
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Fee Status Distribution */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">
-            Fee Status Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={memoizedData.statusData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label
-              >
-                {memoizedData.statusData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={pieColors[index % pieColors.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Fee Collection vs Due */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">
-            Fee Collection vs Due
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={memoizedData.barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Overdue Fees Section */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-yellow-600">Overdue Fees</h3>
-          <div className="flex gap-2">
-            {memoizedData.overdueFees.length > 7 && (
-              <>
-                <button
-                  onClick={() =>
-                    setOverdueDisplayCount((prev) => Math.max(7, prev - 5))
-                  }
-                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-                >
-                  Show Less (-5)
-                </button>
-                <button
-                  onClick={() => setOverdueDisplayCount((prev) => prev + 5)}
-                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-                >
-                  Show More (+5)
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-        {memoizedData.displayedOverdueFees.length === 0 ? (
-          <div className="text-gray-400 text-center py-4">No overdue fees.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2 text-left">Student</th>
-                  <th className="px-4 py-2 text-left">Year</th>
-                  <th className="px-4 py-2 text-left">Amount Due</th>
-                  <th className="px-4 py-2 text-left">Due Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {memoizedData.displayedOverdueFees.map((fee, idx) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-2">{fee.name}</td>
-                    <td className="px-4 py-2">{fee.year}</td>
-                    <td className="px-4 py-2 font-semibold text-red-600">
-                      Rs. {fee.due}
-                    </td>
-                    <td className="px-4 py-2">{fee.due_date}</td>
+      {loading ? (
+        <div className="text-gray-500">Loading fees...</div>
+      ) : error ? (
+        <div className="text-red-600">{error}</div>
+      ) : memoizedData.filteredFees.length === 0 ? (
+        <div className="text-gray-500">No fee records found.</div>
+      ) : (
+        <div className="bg-white rounded shadow p-4 overflow-x-auto">
+          <table className="min-w-full text-left">
+            <thead className="bg-blue-100">
+              <tr>
+                <th className="p-2">Student</th>
+                <th className="p-2">Year</th>
+                <th className="p-2">Amount</th>
+                <th className="p-2">Due Date</th>
+                <th className="p-2">Paid</th>
+                <th className="p-2">Paid Date</th>
+                <th className="p-2">Status</th>
+                <th className="p-2">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {memoizedData.filteredFees.map((fee) => {
+                const student = studentMap.get(fee.student_id);
+                const studentName = student
+                  ? `${student.first_name} ${student.last_name}`
+                  : String(fee.student_id || "-");
+                const year = student ? student.year : "-";
+                return (
+                  <tr key={fee.id} className="border-b last:border-0">
+                    <td className="p-2">{studentName}</td>
+                    <td className="p-2">{year}</td>
+                    <td className="p-2">Rs {Number(fee.amount || 0).toLocaleString()}</td>
+                    <td className="p-2">{fee.due_date ? new Date(fee.due_date).toLocaleDateString() : "-"}</td>
+                    <td className="p-2">{fee.paid_amount ? `Rs ${Number(fee.paid_amount).toLocaleString()}` : "-"}</td>
+                    <td className="p-2">{fee.paid_date ? new Date(fee.paid_date).toLocaleDateString() : "-"}</td>
+                    <td className="p-2 uppercase">{fee.status || "-"}</td>
+                    <td className="p-2">{fee.notes || "-"}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Top Debtors Table */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h3 className="text-lg font-bold mb-4 text-yellow-600">Top Debtors</h3>
-        {memoizedData.topDebtors.length === 0 ? (
-          <div className="text-gray-400 text-center py-4">
-            No debtors found.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2 text-left">Student</th>
-                  <th className="px-4 py-2 text-left">Year</th>
-                  <th className="px-4 py-2 text-left">Amount Due</th>
-                </tr>
-              </thead>
-              <tbody>
-                {memoizedData.topDebtors.map((row, idx) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-2">{row.name}</td>
-                    <td className="px-4 py-2">{row.year}</td>
-                    <td className="px-4 py-2 font-semibold text-red-600">
-                      Rs. {row.due}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Modal */}
-      {showModal && (
-        <Modal onClose={() => setShowModal(false)}>
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">
-              {editIndex !== null ? "Edit Fee" : "Add New Fee"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Student
-                </label>
-                <Select
-                  value={
-                    form.student_id
-                      ? {
-                          value: form.student_id,
-                          label: getStudentName(form.student_id),
-                        }
-                      : null
-                  }
-                  onChange={(option) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      student_id: option?.value || "",
-                    }))
-                  }
-                  options={students.map((s) => ({
-                    value: s.id,
-                    label: `${s.first_name} ${s.last_name} (Year ${s.year})`,
-                  }))}
-                  placeholder="Select student..."
-                  isSearchable
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Amount</label>
-                <input
-                  type="number"
-                  name="amount"
-                  value={form.amount}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  name="due_date"
-                  value={form.due_date}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Paid Amount
-                </label>
-                <input
-                  type="number"
-                  name="paid_amount"
-                  value={form.paid_amount}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Paid Date
-                </label>
-                <input
-                  type="date"
-                  name="paid_date"
-                  value={form.paid_date}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <textarea
-                  name="notes"
-                  value={form.notes}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
-                  rows="3"
-                />
-              </div>
-              {formError && (
-                <div className="text-red-600 text-sm">{formError}</div>
-              )}
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  {editIndex !== null ? "Update" : "Add"} Fee
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
-};
+}
 
 export default FeeDashboard;

@@ -45,7 +45,7 @@ const AdminSidebar = (props) => {
           &times;
         </button>
       </div>
-      <nav className="flex flex-col mt-4 space-y-2 px-4 flex-1">
+      <nav className="flex flex-col mt-6 space-y-1 px-4 flex-1 overflow-y-auto">
         <NavItem
           icon={<FaTachometerAlt />}
           label="Dashboard"
@@ -75,6 +75,7 @@ const AdminSidebar = (props) => {
         />
         <NavItem icon={<CiMoneyBill />} label="Fees" to="/admin/fee" />
         <NavItem icon={<FiSettings />} label="Settings" to="/admin/settings" />
+        <NavItem icon={<FaSignOutAlt />} label="Sign Out" onClick={handleLogout} />
       </nav>
     </div>
   );
@@ -117,19 +118,29 @@ const AdminSidebar = (props) => {
   );
 };
 
-const NavItem = ({ icon, label, to }) => (
-  <NavLink
-    to={to}
-    className={({ isActive }) =>
-      `flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition ${
-        isActive ? "bg-white text-[#2C3E50] font-semibold" : ""
-      }`
-    }
-    end
-  >
-    {icon}
-    <span>{label}</span>
-  </NavLink>
-);
+const NavItem = ({ icon, label, to, onClick }) => {
+  const baseClass =
+    "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-white hover:text-[#2C3E50] transition";
+  if (to) {
+    return (
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          `${baseClass} ${isActive ? "bg-white text-[#2C3E50] font-semibold" : ""}`
+        }
+        end
+      >
+        {icon}
+        <span>{label}</span>
+      </NavLink>
+    );
+  }
+  return (
+    <button onClick={onClick} className={baseClass}>
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+};
 
 export default AdminSidebar;

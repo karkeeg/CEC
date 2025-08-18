@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import supabase from "../../supabaseConfig/supabaseClient";
-import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   fetchClasses,
   fetchStudents,
@@ -55,8 +56,123 @@ const AdminAttandancePage = () => {
   }, [fromDate, toDate]);
 
   const exportToPDF = () => {
-    const element = document.getElementById("attendance-table");
-    html2pdf().from(element).save("attendance-report.pdf");
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    
+    // Add header
+    doc.setFontSize(24);
+    doc.setTextColor(30, 68, 157); // Blue color
+    doc.text("Attendance Report", 40, 40);
+    
+    // Add date range
+    doc.setFontSize(12);
+    doc.setTextColor(107, 114, 128); // Gray color
+    doc.text(`Date Range: ${new Date(fromDate).toLocaleDateString()} - ${new Date(toDate).toLocaleDateString()}`, 40, 60);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, 75);
+    
+    let startY = 100;
+    
+    // Add overall statistics
+    doc.setFontSize(16);
+    doc.setTextColor(30, 68, 157);
+    doc.text("Overall Statistics", 40, startY);
+    startY += 20;
+    
+    const totalRecords = attendance.length;
+    const present = attendance.filter((r) => r.status === "present").length;
+    const absent = attendance.filter((r) => r.status === "absent").length;
+    const late = attendance.filter((r) => r.status === "late").length;
+    const overallAttendance = totalRecords > 0 ? Math.round((present / totalRecords) * 100) : 0;
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total Records: ${totalRecords}`, 40, startY);
+    startY += 15;
+    doc.text(`Present: ${present}`, 40, startY);
+    startY += 15;
+    doc.text(`Absent: ${absent}`, 40, startY);
+    startY += 15;
+    doc.text(`Late: ${late}`, 40, startY);
+    startY += 15;
+    doc.text(`Overall Attendance: ${overallAttendance}%`, 40, startY);
+    startY += 30;
+    
+    // Add detailed attendance table
+    doc.setFontSize(16);
+    doc.setTextColor(30, 68, 157);
+    doc.text("Class-wise Attendance Report", 40, startY);
+    startY += 20;
+    
+    // Create table data for PDF (without action buttons)
+    const tableData = classTableData.map((row) => {
+      const percent = row.total > 0 ? Math.round((row.present / row.total) * 100) : 0;
+      return [
+        classMap[row.class_id]?.name || row.class_id,
+        row.total.toString(),
+        row.present.toString(),
+        row.absent.toString(),
+        row.late.toString(),
+        `${percent}%`
+      ];
+    });
+    
+    // Add table with improved formatting
+    autoTable(doc, {
+      startY,
+      head: [["Class", "Total", "Present", "Absent", "Late", "Attendance %"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 68, 157],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 11,
+        halign: 'center'
+      },
+      styles: { 
+        fontSize: 10, 
+        cellPadding: 6,
+        textColor: [0, 0, 0],
+        halign: 'center',
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { 
+          halign: 'left',
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        1: { 
+          halign: 'center'
+        },
+        2: { 
+          halign: 'center'
+        },
+        3: { 
+          halign: 'center'
+        },
+        4: { 
+          halign: 'center'
+        },
+        5: { 
+          halign: 'center',
+          fontStyle: 'bold'
+        }
+      },
+      margin: { left: 40, right: 40 },
+      didDrawPage: function (data) {
+        // Add page number
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text(
+          `Page ${doc.internal.getNumberOfPages()}`,
+          data.settings.margin.left,
+          doc.internal.pageSize.height - 10
+        );
+      }
+    });
+    
+    // Save the PDF
+    doc.save("attendance-report.pdf");
   };
 
   const classMap = Object.fromEntries(
@@ -124,6 +240,10 @@ const AdminAttandancePage = () => {
   ];
   const pieColors = ["#22c55e", "#ef4444", "#facc15"];
 
+  // Calculate overall attendance percentage
+  const totalRecords = attendance.length;
+  const overallAttendance = totalRecords > 0 ? Math.round((present / totalRecords) * 100) : 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -134,7 +254,7 @@ const AdminAttandancePage = () => {
 
   return (
     <div className="w-full p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen min-w-0">
-      <div className="max-w-5xl mx-auto min-w-0">
+      <div className="max-w-7xl mx-auto min-w-0">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4 min-w-0">
           <h1 className="text-3xl font-bold text-blue-900">Admin Attendance</h1>
           <button
@@ -145,82 +265,182 @@ const AdminAttandancePage = () => {
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6 min-w-0">
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="border px-4 py-2 rounded bg-white text-gray-800 w-full md:w-1/4"
-          />
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="border px-4 py-2 rounded bg-white text-gray-800 w-full md:w-1/4"
-          />
+        {/* Enhanced Date Range Filters */}
+        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Date Range Filter</h3>
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                From Date
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="border px-4 py-2 rounded bg-white text-gray-800 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="border px-4 py-2 rounded bg-white text-gray-800 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              <p>Showing data from <span className="font-medium">{new Date(fromDate).toLocaleDateString()}</span></p>
+              <p>to <span className="font-medium">{new Date(toDate).toLocaleDateString()}</span></p>
+            </div>
+          </div>
         </div>
 
-        {/* Class Attendance Table (moved above charts) */}
-        <div
-          className="overflow-x-auto border rounded bg-white mb-8 min-w-0"
-          id="attendance-table"
-        >
-          <table className="min-w-full text-center border-collapse text-sm md:text-base">
-            <thead className="bg-blue-900 text-white">
-              <tr>
-                <th className="p-3 border">Class</th>
-                <th className="p-3 border">Total Records</th>
-                <th className="p-3 border">Present</th>
-                <th className="p-3 border">Absent</th>
-                <th className="p-3 border">Late</th>
-                <th className="p-3 border">Attendance %</th>
-                <th className="p-3 border">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classTableData.length === 0 ? (
+        {/* Overall Statistics Card */}
+        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Overall Statistics</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{totalRecords}</div>
+              <div className="text-sm text-gray-600">Total Records</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{present}</div>
+              <div className="text-sm text-gray-600">Present</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">{absent}</div>
+              <div className="text-sm text-gray-600">Absent</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">{late}</div>
+              <div className="text-sm text-gray-600">Late</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">{overallAttendance}%</div>
+              <div className="text-sm text-gray-600">Overall Attendance</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Improved Class Attendance Table */}
+        <div className="bg-white rounded-lg shadow-sm mb-8 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-800">Class-wise Attendance Report</h3>
+            <p className="text-sm text-gray-600 mt-1">Overall Attendance: {overallAttendance}%</p>
+          </div>
+          <div className="overflow-x-auto" id="attendance-table">
+            <table className="min-w-full">
+              <thead className="bg-blue-900 border-b border-blue-800">
                 <tr>
-                  <td colSpan="7" className="py-4 text-gray-500">
-                    No data found
-                  </td>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Class
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Total Records
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Present
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Absent
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Late
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Attendance %
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ) : (
-                classTableData.map((row, idx) => {
-                  const percent =
-                    row.total > 0
-                      ? Math.round((row.present / row.total) * 100)
-                      : 0;
-                  return (
-                    <tr
-                      key={row.class_id}
-                      className={idx % 2 === 0 ? "bg-blue-50" : "bg-purple-50"}
-                    >
-                      <td className="p-3 border font-semibold">
-                        {classMap[row.class_id]?.name || row.class_id}
-                      </td>
-                      <td className="p-3 border">{row.total}</td>
-                      <td className="p-3 border">{row.present}</td>
-                      <td className="p-3 border">{row.absent}</td>
-                      <td className="p-3 border">{row.late}</td>
-                      <td className="p-3 border">{percent}%</td>
-                      <td className="p-3 border">
-                        <button
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
-                          onClick={() => {
-                            setSelectedClass(row);
-                            setShowModal(true);
-                          }}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {classTableData.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                      <div className="flex flex-col items-center">
+                        <svg className="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        <p className="text-lg font-medium">No attendance data found</p>
+                        <p className="text-sm">Try adjusting your date range or check if data exists for the selected period.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  classTableData.map((row, idx) => {
+                    const percent = row.total > 0 ? Math.round((row.present / row.total) * 100) : 0;
+                    const getAttendanceColor = (percentage) => {
+                      if (percentage >= 90) return 'bg-green-100 text-green-800 border-green-200';
+                      if (percentage >= 75) return 'bg-blue-100 text-blue-800 border-blue-200';
+                      if (percentage >= 60) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                      return 'bg-red-100 text-red-800 border-red-200';
+                    };
+                    
+                    // Alternate row colors: light blue and light pink
+                    const rowBgColor = idx % 2 === 0 ? 'bg-blue-50' : 'bg-pink-50';
+                    
+                    return (
+                      <tr key={row.class_id} className={`${rowBgColor} hover:bg-gray-100 transition-colors`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="text-sm font-medium text-gray-900">
+                              {classMap[row.class_id]?.name || row.class_id}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {row.total}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {row.present}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {row.absent}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {row.late}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getAttendanceColor(percent)}`}>
+                            {percent}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                          <button
+                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            onClick={() => {
+                              setSelectedClass(row);
+                              setShowModal(true);
+                            }}
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Charts Section (now below table) */}
@@ -276,7 +496,7 @@ const AdminAttandancePage = () => {
         </div>
 
         {/* Additional Analytics: Stacked Bar chart for present/absent/late per day */}
-        <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center mb-6 min-w-0 overflow-x-auto">
+        {/* <div className="bg-blue-50 round/ed-xl p-3 sm:p-4 shadow flex flex-col items-center mb-6 min-w-0 overflow-x-auto">
           <h3 className="text-md font-semibold mb-2 text-blue-800">
             Daily Present/Absent/Late Breakdown
           </h3>
@@ -299,7 +519,7 @@ const AdminAttandancePage = () => {
               <Bar dataKey="late" stackId="a" fill="#facc15" name="Late" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </div> */}
 
         {/* Modal for class details */}
         {showModal && selectedClass && (

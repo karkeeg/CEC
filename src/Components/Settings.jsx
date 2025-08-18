@@ -4,7 +4,7 @@ import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
 import supabase from "../supabaseConfig/supabaseClient";
 
 const Settings = () => {
-  const { user, profile, signOut } = useUser();
+  const { user, profile, signOut, role } = useUser();
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -224,7 +224,7 @@ const Settings = () => {
                   <input
                     type="text"
                     disabled
-                    value={user?.user_metadata?.role?.toUpperCase() || "USER"}
+                    value={(role || user?.user_metadata?.role || "user").toUpperCase()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">

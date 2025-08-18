@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { getAllAssignments } from "../../supabaseConfig/supabaseApi";
-import html2pdf from "html2pdf.js";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import {
+  getAllAssignments,
+  fetchAssignmentSubmissions,
+  getStudentsByClass,
+} from "../../supabaseConfig/supabaseApi";
+// Removed PDF export per request
 import { useUser } from "../../contexts/UserContext";
 import Loader from "../Loader";
 
 const AdminAssignmentsPage = () => {
   const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
-  const [fromDate, setFromDate] = useState("2025-01-01");
-  const [toDate, setToDate] = useState("2025-01-01");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,53 +21,64 @@ const AdminAssignmentsPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const data = await getAllAssignments();
-    // Frontend filtering based on role
-    let filtered = data;
-    if (role === "teacher") {
-      filtered = data.filter(
-        (a) => a.teacher_id === user.id || a.teacher_id === user.username
-      );
-    } else if (role === "student") {
-      filtered = data.filter(
-        (a) => a.year === user.year || a.class_id === user.class_id
-      );
+      const data = await getAllAssignments();
+      // Frontend filtering based on role
+      let filtered = data;
+      if (role === "teacher") {
+        filtered = data.filter(
+          (a) => a.teacher_id === user.id || a.teacher_id === user.username
+        );
+      } else if (role === "student") {
+        filtered = data.filter(
+          (a) => a.year === user.year || a.class_id === user.class_id
+        );
+      }
+    // Optional date filtering if provided
+    if (fromDate) {
+      filtered = filtered.filter((a) => new Date(a.due_date) >= new Date(fromDate));
     }
-    setAssignments(filtered);
+    if (toDate) {
+      filtered = filtered.filter((a) => new Date(a.due_date) <= new Date(toDate));
+    }
+    // Compute submission stats per assignment
+    const withRates = await Promise.all(
+      filtered.map(async (assignment) => {
+        try {
+          const submissions = await fetchAssignmentSubmissions(assignment.id);
+          const totalSubmissions = Array.isArray(submissions) ? submissions.length : 0;
+          let totalStudents = 0;
+          if (assignment.class_id) {
+            try {
+              const classStudents = await getStudentsByClass(assignment.class_id);
+              totalStudents = Array.isArray(classStudents) ? classStudents.length : 0;
+            } catch (e) {
+              totalStudents = 0;
+            }
+          }
+          const submission_rate = totalStudents > 0
+            ? Math.round((totalSubmissions / totalStudents) * 100)
+            : 0;
+          return {
+            ...assignment,
+            total_submissions: totalSubmissions,
+            total_students: totalStudents,
+            submission_rate,
+          };
+        } catch (e) {
+          return {
+            ...assignment,
+            total_submissions: 0,
+            total_students: 0,
+            submission_rate: 0,
+          };
+        }
+      })
+    );
+    setAssignments(withRates);
     setLoading(false);
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    let startY = 40;
-    doc.setFontSize(18);
-    doc.text("Assignments Report", 40, startY);
-    startY += 20;
-    Object.entries(groupedByYear).forEach(([year, yearAssignments], idx) => {
-      doc.setFontSize(14);
-      doc.text(`Year: ${year}`, 40, startY);
-      startY += 10;
-      autoTable(doc, {
-        startY,
-        head: [["Assignment", "Teacher", "Submission Rate %"]],
-        body: yearAssignments.map((row) => [
-          row.title,
-          row.teacher_id,
-          row.submission_rate || "N/A",
-        ]),
-        theme: "grid",
-        headStyles: {
-          fillColor: [30, 108, 123],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        styles: { fontSize: 10, cellPadding: 4 },
-        margin: { left: 40, right: 40 },
-      });
-      startY = doc.lastAutoTable.finalY + 30;
-    });
-    doc.save("assignments-report.pdf");
-  };
+  // Removed exportToPDF
 
   // Group assignments by year
   const groupedByYear = assignments.reduce((acc, row) => {
@@ -89,12 +102,7 @@ const AdminAssignmentsPage = () => {
         <h1 className="text-3xl font-bold flex items-center gap-2">
           📘 Assignment
         </h1>
-        <button
-          onClick={exportToPDF}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Export PDF
-        </button>
+        <div />
       </div>
       <h2 className="text-xl font-bold mb-4">Assignments Grouped by Year</h2>
       <div id="assignments-table" className="pdf-export">
@@ -110,6 +118,7 @@ const AdminAssignmentsPage = () => {
                     <tr>
                       <th className="p-3 border">Assignment</th>
                       <th className="p-3 border">Teacher</th>
+                      <th className="p-3 border">Submissions</th>
                       <th className="p-3 border">Submission Rate %</th>
                     </tr>
                   </thead>
@@ -123,11 +132,10 @@ const AdminAssignmentsPage = () => {
                       >
                         <td className="p-3 border">{row.title}</td>
                         <td className="p-3 border">
-                          {row.teacher.first_name}  {row.teacher.last_name}
+                          {row.teacher?.first_name} {row.teacher?.last_name}
                         </td>
-                        <td className="p-3 border">
-                          {row.submission_rate || "N/A"}
-                        </td>
+                        <td className="p-3 border">{row.total_submissions}/{row.total_students}</td>
+                        <td className="p-3 border">{typeof row.submission_rate === "number" ? `${row.submission_rate}%` : "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>
