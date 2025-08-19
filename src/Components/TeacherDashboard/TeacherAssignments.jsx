@@ -32,6 +32,17 @@ import {
 import Modal from "../Modal";
 import Loader from "../Loader";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  ASSIGNMENTS: 'teacher_assignments_cache',
+  CLASSES: 'teacher_assignments_classes_cache',
+  SUBJECTS: 'teacher_assignments_subjects_cache',
+  CACHE_TIMESTAMP: 'teacher_assignments_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherAssignments = () => {
   const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
@@ -48,6 +59,49 @@ const TeacherAssignments = () => {
     year: "",
     class_id: "", // add this
   });
+
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedAssignments = localStorage.getItem(CACHE_KEYS.ASSIGNMENTS);
+      const cachedClasses = localStorage.getItem(CACHE_KEYS.CLASSES);
+      const cachedSubjects = localStorage.getItem(CACHE_KEYS.SUBJECTS);
+      
+      if (cachedAssignments && cachedClasses && cachedSubjects) {
+        const assignmentsData = JSON.parse(cachedAssignments);
+        const classesData = JSON.parse(cachedClasses);
+        const subjectsData = JSON.parse(cachedSubjects);
+        
+        setAssignments(assignmentsData);
+        setClasses(classesData);
+        setSubjects(subjectsData);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading assignments cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (assignmentsData, classesData, subjectsData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.ASSIGNMENTS, JSON.stringify(assignmentsData));
+      localStorage.setItem(CACHE_KEYS.CLASSES, JSON.stringify(classesData));
+      localStorage.setItem(CACHE_KEYS.SUBJECTS, JSON.stringify(subjectsData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving assignments cache:", error);
+    }
+  };
   const [submissionProgress, setSubmissionProgress] = useState([]); // For StepLine chart
   const [viewAssignment, setViewAssignment] = useState(null);
   const [editAssignment, setEditAssignment] = useState(null);
@@ -55,56 +109,39 @@ const TeacherAssignments = () => {
   const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
+    if (!user?.id) return;
+
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
+
+    // If no valid cache, fetch fresh data
     const fetchData = async () => {
-      if (!user?.id) return;
+      setLoading(true);
       try {
-        // Fetch all subjects (no department filter)
-        const subjectData = await getSubjects();
-        setSubjects(subjectData || []);
-        // Fetch assignments for teacher's classes
-        const assignmentData = await getAssignmentsByTeacher(user.id);
-        setAssignments(assignmentData || []);
-        // Fetch classes directly from classes table
-        let classes = await getClassesByTeacher(user.id);
-        classes = classes || [];
-        // Fetch student counts for each class if not present
-        setChartLoading(true);
-        const classesWithCounts = await Promise.all(
-          classes.map(async (cls) => {
-            if (cls.studentCount !== undefined) return cls;
-            const students = await getStudentsByClass(cls.id || cls.class_id);
-            return { ...cls, studentCount: students.length };
-          })
-        );
-        setClasses(classesWithCounts);
-        // Fetch submission progress for StepLine chart
-        const submissions = await getAssignmentSubmissions();
-        // Calculate submission rate per assignment/class
-        const progress = (assignmentData || []).map((a) => {
-          const classStudents =
-            classesWithCounts.find(
-              (c) => c.id === a.class_id || c.class_id === a.class_id
-            )?.studentCount || 0;
-          const submitted = (submissions || []).filter(
-            (s) => s.assignment_id === a.id
-          ).length;
-          return {
-            name: a.title,
-            submissionRate: classStudents
-              ? Math.round((submitted / classStudents) * 100)
-              : 0,
-          };
-        });
-        setSubmissionProgress(progress);
+        const [assignmentsData, classesData, subjectsData] = await Promise.all([
+          getAssignmentsByTeacher(user.id),
+          getClassesByTeacher(user.id),
+          getSubjects(),
+        ]);
+        
+        setAssignments(assignmentsData || []);
+        setClasses(classesData || []);
+        setSubjects(subjectsData || []);
+        
+        // Save to cache
+        saveToCache(assignmentsData || [], classesData || [], subjectsData || []);
+        
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
-        setChartLoading(false);
       }
     };
     fetchData();
-  }, [user, role]);
+  }, [user?.id]);
 
   console.log("Assignments in table:", assignments);
 

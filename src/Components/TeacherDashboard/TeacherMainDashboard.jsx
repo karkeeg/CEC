@@ -11,6 +11,7 @@ import {
   fetchAttendance,
   getAttendanceByClassAndDate,
   getStudentsByClass,
+  getStudentsByTeacher,
   fetchAssignmentSubmissions,
   getGradeBySubmissionId,
 } from "../../supabaseConfig/supabaseApi";
@@ -38,6 +39,16 @@ import AttendanceForm from "./AttendanceForm";
 import GradeAssignmentsModal from "../Forms/GradeAssignmentsModal";
 import Modal from "../Modal";
 import Loader from "../Loader";
+
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  DASHBOARD_STATS: 'teacher_dashboard_stats',
+  DASHBOARD_DATA: 'teacher_dashboard_data',
+  CACHE_TIMESTAMP: 'teacher_dashboard_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 
 const TeacherMainDashboard = () => {
   const { user } = useUser();
@@ -67,6 +78,50 @@ const TeacherMainDashboard = () => {
   });
   const [reportLoading, setReportLoading] = useState(false);
 
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedStats = localStorage.getItem(CACHE_KEYS.DASHBOARD_STATS);
+      const cachedData = localStorage.getItem(CACHE_KEYS.DASHBOARD_DATA);
+      
+      if (cachedStats && cachedData) {
+        const statsData = JSON.parse(cachedStats);
+        const dashboardData = JSON.parse(cachedData);
+        
+        setStats(statsData);
+        setRecentActivities(dashboardData.recentActivities || []);
+        setPerformanceData(dashboardData.performanceData || []);
+        setCompletionData(dashboardData.completionData || []);
+        setTodaysSchedule(dashboardData.todaysSchedule || { classes: [], assignments: [] });
+        setTeacherAssignments(dashboardData.teacherAssignments || []);
+        setAttendanceData(dashboardData.attendanceData || []);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading dashboard cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (statsData, dashboardData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.DASHBOARD_STATS, JSON.stringify(statsData));
+      localStorage.setItem(CACHE_KEYS.DASHBOARD_DATA, JSON.stringify(dashboardData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving dashboard cache:", error);
+    }
+  };
+
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -79,10 +134,20 @@ const TeacherMainDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id) return;
+
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
       return;
     }
-    const fetchDashboardData = async () => {
+
+    // If no valid cache, fetch fresh data
+    fetchDashboardData();
+  }, [user?.id]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
       try {
         const [assignmentsData, teacherClasses, attendanceRecords] =
           await Promise.all([
@@ -95,20 +160,9 @@ const TeacherMainDashboard = () => {
         setTeacherAssignments(assignmentsData || []);
         setAttendanceData(attendanceRecords || []);
 
-        // Get students for teacher's classes
-        let studentsInTeacherClasses = 0;
-        if (teacherClasses && teacherClasses.length > 0) {
-          const classIds = teacherClasses.map((cls) => cls.class_id || cls.id);
-          // Get students for each class
-          const studentsPromises = classIds.map((classId) =>
-            import("../../supabaseConfig/supabaseApi").then((api) =>
-              api.getStudentsByClass(classId)
-            )
-          );
-          const studentsResults = await Promise.all(studentsPromises);
-          const allStudents = studentsResults.flat();
-          studentsInTeacherClasses = allStudents.length;
-        }
+        // Get students for teacher's classes (with deduplication)
+        const teacherStudents = await getStudentsByTeacher(user.id);
+        const studentsInTeacherClasses = teacherStudents?.length || 0;
 
         // Calculate attendance rate from actual data
         let attendanceRate = 0;
@@ -140,9 +194,6 @@ const TeacherMainDashboard = () => {
         setCompletionData(completion);
         const today = new Date().toISOString().split("T")[0];
 
-        // Debug class structure
-        console.log("Sample class data:", teacherClasses?.[0]);
-        console.log("Total classes found:", teacherClasses?.length);
 
         // Filter classes for today's schedule
         let todaysClasses = [];
@@ -208,14 +259,35 @@ const TeacherMainDashboard = () => {
           classes: todaysClasses,
           assignments: todaysAssignments,
         });
+
+        // Save to cache
+        const dashboardData = {
+          recentActivities: recentTeacherAssignments || [],
+          performanceData: gradesData || [],
+          completionData: completion,
+          todaysSchedule: {
+            classes: todaysClasses,
+            assignments: todaysAssignments,
+          },
+          teacherAssignments: assignmentsData || [],
+          attendanceData: attendanceRecords || []
+        };
+        
+        const statsData = {
+          totalStudents: studentsInTeacherClasses,
+          totalClasses: teacherClasses?.length || 0,
+          totalAssignments: assignmentsData?.length || 0,
+          attendanceRate: attendanceRate,
+        };
+        
+        saveToCache(statsData, dashboardData);
+        
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchDashboardData();
-  }, [user]);
 
   const fetchReportData = async (type) => {
     if (!user?.id) return;

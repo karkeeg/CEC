@@ -123,6 +123,13 @@ export const updateDepartment = async (id, updates) => {
 };
 
 // ------------------- STUDENTS -------------------
+export const updateStudentProfile = async (studentId, updates) => {
+  const { data, error } = await supabase
+    .from("students")
+    .update(updates)
+    .eq("id", studentId);
+  return { data, error };
+};
 export const fetchStudents = async () => {
   let allStudents = [];
   let from = 0;
@@ -159,6 +166,13 @@ export const fetchStudentProfileById = async (studentId) => {
 };
 
 // ------------------- TEACHERS -------------------
+export const updateTeacherProfile = async (teacherId, updates) => {
+  const { data, error } = await supabase
+    .from("teachers")
+    .update(updates)
+    .eq("id", teacherId);
+  return { data, error };
+};
 export const fetchTeachers = async () => {
   const { data, error } = await supabase
     .from("teachers")
@@ -176,6 +190,14 @@ export const fetchTeacherProfileById = async (teacherId) => {
     .maybeSingle(); // Use maybeSingle for a single record
   if (error) throw error;
   return data;
+};
+
+export const deleteTeacher = async (teacherId) => {
+  const { error } = await supabase
+    .from("teachers")
+    .delete()
+    .eq("id", teacherId);
+  return { error };
 };
 
 // ------------------- ASSIGNMENTS -------------------
@@ -459,13 +481,73 @@ export const getStudentsByClass = async (classId) => {
   if (error) throw error;
   return data;
 };
-export const updateTeacherProfile = async (teacherId, updates) => {
-  const { error } = await supabase
-    .from("teachers")
-    .update(updates)
-    .eq("id", teacherId);
-  return error;
+
+// Get all students for a teacher directly using student_classes table
+export const getStudentsByTeacher = async (teacherId) => {
+  try {
+    // First, get the class IDs for this teacher
+    const { data: teacherClasses, error: classError } = await supabase
+      .from('classes')
+      .select('class_id')
+      .eq('teacher_id', teacherId);
+    
+    if (classError) throw classError;
+    
+    if (!teacherClasses || teacherClasses.length === 0) {
+      return [];
+    }
+    
+    const classIds = teacherClasses.map(cls => cls.class_id);
+    
+    // Then get students from student_classes table for those class IDs
+    const { data, error } = await supabase
+      .from("student_classes")
+      .select(`
+        id,
+        class_id,
+        student_id,
+        created_at,
+        student:student_id(
+          id,
+          first_name,
+          middle_name,
+          last_name,
+          email,
+          gender,
+          year
+        )
+      `)
+      .in('class_id', classIds);
+    
+    if (error) throw error;
+    
+    // Transform the data to match the expected format
+    const students = data
+      ?.map(item => ({
+        id: item.student?.id,
+        first_name: item.student?.first_name,
+        middle_name: item.student?.middle_name,
+        last_name: item.student?.last_name,
+        email: item.student?.email,
+        gender: item.student?.gender,
+        year: item.student?.year,
+      }))
+      .filter(student => student.id); // Filter out any null students
+    
+    // Remove duplicates based on student ID
+    const uniqueStudents = students?.filter(
+      (student, index, self) =>
+        index === self.findIndex((s) => s.id === student.id)
+    ) || [];
+    
+    return uniqueStudents;
+    
+  } catch (error) {
+    console.error('Error in getStudentsByTeacher:', error);
+    throw error;
+  }
 };
+
 export const updateTeacherPassword = async (teacherId, newPassword) => {
   // This assumes you use Supabase Auth for password
   const { error } = await supabase.auth.updateUser({ password: newPassword });

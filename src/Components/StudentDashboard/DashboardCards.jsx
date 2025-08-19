@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { FaCalendarAlt, FaBook, FaBell, FaChartBar } from "react-icons/fa";
 import { MdExpandLess } from "react-icons/md";
 import { useUser } from "../../contexts/UserContext";
@@ -10,104 +10,79 @@ import {
   getAttendanceByStudent,
 } from "../../supabaseConfig/supabaseApi";
 
-const assignments = [
-  { subject: "C programming", date: "02-07-2025", time: "12:00pm" },
-  { subject: "Engineering Mathematics I", date: "28-07-2025", time: "12:00pm" },
-  { subject: "Physics", date: "09-07-2025", time: "12:00pm" },
-  { subject: "Nepali", date: "12-07-2025", time: "12:00pm" },
-  { subject: "Nepali", date: "12-07-2025", time: "12:00pm" },
-];
 
 const DashboardCards = () => {
   const { user } = useUser();
-  const [assignments, setAssignments] = useState([]);
+  const [upcomingAssignments, setUpcomingAssignments] = useState([]);
   const [notices, setNotices] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
-  const [loadingNotices, setLoadingNotices] = useState(true);
   const [classSchedule, setClassSchedule] = useState([]);
-  const [loadingSchedule, setLoadingSchedule] = useState(true);
-  const [attendanceSummary, setAttendanceSummary] = useState({
-    present: 0,
-    absent: 0,
-    total: 0,
-  });
-  const [loadingAttendance, setLoadingAttendance] = useState(true);
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch all dashboard data
   useEffect(() => {
-    if (!user) return;
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      const today = new Date().toISOString().split("T")[0];
-      const data = await getAssignmentsForStudent(user.id, today);
-      setAssignments(data || []);
-      setLoadingAssignments(false);
-    };
-    fetchAssignments();
-  }, [user]);
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch assignments
+        const today = new Date().toISOString().split("T")[0];
+        const assignmentsData = await getAssignmentsForStudent(user.id, today);
+        setUpcomingAssignments(assignmentsData || []);
 
-  useEffect(() => {
-    const fetchNotices = async () => {
-      setLoadingNotices(true);
-      const data = await getRecentNotices(5);
-      setNotices(data || []);
-      setLoadingNotices(false);
-    };
-    fetchNotices();
-  }, []);
+        // Fetch notices
+        const noticesData = await getRecentNotices(5);
+        setNotices(noticesData || []);
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchSchedule = async () => {
-      setLoadingSchedule(true);
-      // Get enrolled class IDs
-      const { data: enrolled, error } = await supabase
-        .from("student_classes")
-        .select("class_id")
-        .eq("student_id", user.id);
-      if (error || !enrolled) {
-        setClassSchedule([]);
-        setLoadingSchedule(false);
-        return;
+        // Fetch class schedule
+        const { data: enrolled, error: enrollError } = await supabase
+          .from("student_classes")
+          .select("class_id")
+          .eq("student_id", user.id);
+        
+        if (!enrollError && enrolled) {
+          const classIds = enrolled.map((sc) => sc.class_id);
+          const allClasses = await getAllClasses();
+          const filtered = (allClasses || []).filter((cls) =>
+            classIds.includes(cls.class_id || cls.id)
+          );
+          filtered.sort((a, b) => {
+            if (!a.schedule || !b.schedule) return 0;
+            return a.schedule.localeCompare(b.schedule);
+          });
+          setClassSchedule(filtered);
+        }
+
+        // Fetch attendance data
+        const { data: attendanceRecords } = await supabase
+          .from("attendance")
+          .select("status")
+          .eq("student_id", user.id);
+        
+        setAttendanceData(attendanceRecords || []);
+      } catch (err) {
+        setError("Failed to load dashboard data. Please try again.");
+        console.error('Dashboard data fetch error:', err);
+      } finally {
+        setLoading(false);
       }
-      const classIds = enrolled.map((sc) => sc.class_id);
-      // Get all classes and filter
-      const allClasses = await getAllClasses();
-      const filtered = (allClasses || []).filter((cls) =>
-        classIds.includes(cls.class_id || cls.id)
-      );
-      // Sort by schedule time if available
-      filtered.sort((a, b) => {
-        if (!a.schedule || !b.schedule) return 0;
-        return a.schedule.localeCompare(b.schedule);
-      });
-      setClassSchedule(filtered);
-      setLoadingSchedule(false);
     };
-    fetchSchedule();
+
+    fetchDashboardData();
   }, [user]);
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchAttendance = async () => {
-      setLoadingAttendance(true);
-      // Fetch all attendance records for this student
-      const { data, error } = await supabase
-        .from("attendance")
-        .select("status")
-        .eq("student_id", user.id);
-      if (error || !data) {
-        setAttendanceSummary({ present: 0, absent: 0, total: 0 });
-        setLoadingAttendance(false);
-        return;
-      }
-      const present = data.filter((a) => a.status === "present").length;
-      const absent = data.filter((a) => a.status === "absent").length;
-      const total = data.length;
-      setAttendanceSummary({ present, absent, total });
-      setLoadingAttendance(false);
-    };
-    fetchAttendance();
-  }, [user]);
+  // Calculate attendance summary
+  const attendanceSummary = useMemo(() => {
+    if (attendanceData.length === 0) {
+      return { present: 0, absent: 0, total: 0 };
+    }
+    const present = attendanceData.filter((a) => a.status === "present").length;
+    const absent = attendanceData.filter((a) => a.status === "absent").length;
+    return { present, absent, total: attendanceData.length };
+  }, [attendanceData]);
 
   const formatDate = (isoDate) => {
     const date = new Date(isoDate);
@@ -134,8 +109,10 @@ const DashboardCards = () => {
           <MdExpandLess />
         </div>
         <div className="flex flex-wrap gap-3">
-          {loadingSchedule ? (
+          {loading ? (
             <div className="text-gray-500 text-base">Loading schedule...</div>
+          ) : error ? (
+            <div className="text-red-500 text-base">{error}</div>
           ) : classSchedule.length === 0 ? (
             <div className="text-gray-500 text-base">No classes found.</div>
           ) : (
@@ -176,16 +153,18 @@ const DashboardCards = () => {
             <MdExpandLess className="text-blue-400" />
           </div>
           <div className="flex-1 flex flex-col gap-3">
-            {loadingAssignments ? (
+            {loading ? (
               <div className="text-gray-500 text-base">
                 Loading assignments...
               </div>
-            ) : assignments.length === 0 ? (
+            ) : error ? (
+              <div className="text-red-500 text-base">{error}</div>
+            ) : upcomingAssignments.length === 0 ? (
               <div className="text-gray-500 text-base">
                 No upcoming assignments.
               </div>
             ) : (
-              assignments.map((item, idx) => (
+              upcomingAssignments.map((item, idx) => (
                 <div
                   key={item.id}
                   className="flex justify-between items-center bg-white/80 rounded-lg px-5 py-3 shadow border border-blue-100 hover:shadow-md transition mb-1"
@@ -211,8 +190,10 @@ const DashboardCards = () => {
             <MdExpandLess className="text-pink-400" />
           </div>
           <div className="flex-1 flex flex-col gap-3">
-            {loadingNotices ? (
+            {loading ? (
               <div className="text-gray-500 text-base">Loading notices...</div>
+            ) : error ? (
+              <div className="text-red-500 text-base">{error}</div>
             ) : notices.length === 0 ? (
               <div className="text-gray-500 text-base">No notices found.</div>
             ) : (
@@ -240,8 +221,10 @@ const DashboardCards = () => {
           <FaChartBar /> Attendance Summary
         </h2>
         <div className="w-full flex flex-col gap-4">
-          {loadingAttendance ? (
+          {loading ? (
             <div className="text-gray-500 text-base">Loading attendance...</div>
+          ) : error ? (
+            <div className="text-red-500 text-base">{error}</div>
           ) : attendanceSummary.total === 0 ? (
             <div className="text-gray-500 text-base">
               No attendance records found.

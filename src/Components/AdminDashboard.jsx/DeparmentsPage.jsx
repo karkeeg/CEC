@@ -65,28 +65,6 @@ const DepartmentsPage = () => {
     count,
   }));
 
-  const exportToPDF = () => {
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    doc.setFontSize(18);
-    doc.text("Departments Report", 40, 40);
-    autoTable(doc, {
-      startY: 60,
-      head: [["Name", "Faculty"]],
-      body: filtered
-        .slice(0, visibleCount)
-        .map((dept) => [dept.name, dept.faculty.name]),
-      theme: "grid",
-      headStyles: {
-        fillColor: [30, 108, 123],
-        textColor: 255,
-        fontStyle: "bold",
-      },
-      styles: { fontSize: 10, cellPadding: 4 },
-      margin: { left: 40, right: 40 },
-    });
-    doc.save("departments-report.pdf");
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -102,12 +80,7 @@ const DepartmentsPage = () => {
         <h1 className="text-2xl md:text-3xl font-bold mb-2 md:mb-0 text-center md:text-left">
           Departments
         </h1>
-        <button
-          onClick={exportToPDF}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full md:w-auto"
-        >
-          Export PDF
-        </button>
+      .
       </div>
       {/* Search and Add Department */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2 min-w-0">

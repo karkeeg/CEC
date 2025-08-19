@@ -177,8 +177,14 @@ const Navbar = () => {
   });
 
   const getUserDisplayName = () => {
-    if (profile) {
-      return "Profile"; // Placeholder, actual name would be in user object
+    if (profile?.display_name) {
+      return profile.display_name;
+    } else if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    } else if (profile?.first_name) {
+      return profile.first_name;
+    } else if (profile?.last_name) {
+      return profile.last_name;
     }
     return user?.email?.split("@")[0] || "User";
   };

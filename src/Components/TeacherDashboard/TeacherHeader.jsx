@@ -10,8 +10,14 @@ const TeacherHeader = () => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const getUserDisplayName = () => {
-    if (user?.user_metadata?.display_name) {
-      return user.user_metadata.display_name;
+    if (profile?.display_name) {
+      return profile.display_name;
+    } else if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    } else if (profile?.first_name) {
+      return profile.first_name;
+    } else if (profile?.last_name) {
+      return profile.last_name;
     }
     return user?.email?.split("@")[0] || "Teacher";
   };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   FaUser,
   FaBookOpen,
@@ -27,8 +27,8 @@ const Feedback = () => {
   const [viewModal, setViewModal] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [teacherMap, setTeacherMap] = useState({});
-  const [sortOrder, setSortOrder] = useState("latest"); // 'latest' or 'oldest'
-  const [filterDate, setFilterDate] = useState(""); // State for date filter
+  const [filterDate, setFilterDate] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const renderStars = (value, max = 5) => {
     const stars = [];
@@ -46,29 +46,17 @@ const Feedback = () => {
     return stars;
   };
 
+  // Fetch feedback data
   useEffect(() => {
     const fetchFeedback = async () => {
       if (!user?.id) return;
       setLoading(true);
       try {
         const data = await getFeedbackForStudent(user.id);
-        const sortedData = data.sort((a, b) => {
-          if (sortOrder === "latest") {
-            return new Date(b.submitted_at) - new Date(a.submitted_at);
-          } else {
-            return new Date(a.submitted_at) - new Date(b.submitted_at);
-          }
-        });
-
-        const filteredData = filterDate
-          ? sortedData.filter(
-              (item) =>
-                new Date(item.submitted_at).toLocaleDateString() ===
-                new Date(filterDate).toLocaleDateString()
-            )
-          : sortedData;
-
-        setFeedback(filteredData || []);
+        const sortedData = data.sort((a, b) => 
+          new Date(b.submitted_at) - new Date(a.submitted_at)
+        );
+        setFeedback(sortedData || []);
         setError(null);
       } catch (err) {
         setError(err);
@@ -77,66 +65,91 @@ const Feedback = () => {
       setLoading(false);
     };
     fetchFeedback();
-  }, [user, sortOrder, filterDate]); // Add sortOrder and filterDate to dependency array
+  }, [user]);
 
+  // Fetch teachers data
   useEffect(() => {
-    // Fetch teachers for checked by name lookup
-    const fetchAllTeachers = async () => {
+    const loadTeachers = async () => {
       try {
-        const data = await fetchTeachers();
-        setTeachers(data || []);
-        // Build a map: id -> full name
-        const map = {};
-        (data || []).forEach((t) => {
-          map[t.id] = [t.first_name, t.middle_name, t.last_name]
-            .filter(Boolean)
-            .join(" ");
-        });
+        const teacherData = await fetchTeachers();
+        setTeachers(teacherData);
+        const map = teacherData.reduce((acc, teacher) => {
+          acc[teacher.id] = `${teacher.first_name} ${teacher.last_name}`;
+          return acc;
+        }, {});
         setTeacherMap(map);
-      } catch {}
+      } catch (err) {
+        console.error('Failed to load teachers:', err);
+      }
     };
-    fetchAllTeachers();
+    loadTeachers();
   }, []);
 
+  // Filter and search feedback data
+  const filteredFeedback = useMemo(() => {
+    return feedback.filter(item => {
+      const matchesDate = filterDate
+        ? new Date(item.submitted_at).toDateString() === new Date(filterDate).toDateString()
+        : true;
+      
+      const matchesSearch = searchTerm
+        ? item.assignment?.subject?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        : true;
+      
+      return matchesDate && matchesSearch;
+    });
+  }, [feedback, filterDate, searchTerm]);
+  
   const handleExportPdf = () => {
     const doc = new jsPDF();
+    
+    // Add header with styling
+    doc.setFontSize(16);
+    doc.setTextColor(30, 108, 123);
     doc.text("Student Feedback Report", 14, 15);
-
-    const tableColumn = [
-      "Assignment",
-      "Subject",
-      "Submission Date",
-      "Feedback",
-      "Score",
-      "Checked By",
-    ];
-    const tableRows = [];
-
-    feedback.forEach((item) => {
+    
+    // Add metadata
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    doc.text(`Student: ${user?.first_name} ${user?.last_name}`, 14, 25);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
+    
+    if (filterDate) {
+      doc.text(`Filtered by date: ${new Date(filterDate).toLocaleDateString()}`, 14, 39);
+    }
+  
+    const tableColumn = ["Assignment", "Subject", "Date", "Score", "Feedback", "Checked By"];
+    const tableRows = filteredFeedback.map(item => {
       const assignment = item.assignment || {};
-      const subjectName = assignment.subject?.name || "-";
       const grade = item.grade || {};
-      const score = grade.grade != null ? `${grade.grade}%` : "-";
-      const submittedDate = item.submitted_at
-        ? new Date(item.submitted_at).toLocaleDateString()
-        : "-";
-      const checkedBy = item.grade?.rated_by
-        ? teacherMap[item.grade.rated_by] || item.grade.rated_by
-        : "-";
-
-      const rowData = [
+      return [
         assignment.title || "-",
-        subjectName,
-        submittedDate,
+        assignment.subject?.name || "-",
+        new Date(item.submitted_at).toLocaleDateString(),
+        grade.grade != null ? `${grade.grade}%` : "-",
         grade.feedback || "-",
-        score,
-        checkedBy,
+        grade.rated_by ? teacherMap[grade.rated_by] || "-" : "-"
       ];
-      tableRows.push(rowData);
     });
-
-    doc.autoTable(tableColumn, tableRows, { startY: 25 });
-    doc.save("student_feedback_report.pdf");
+  
+    doc.autoTable({
+      startY: filterDate ? 45 : 40,
+      head: [tableColumn],
+      body: tableRows,
+      headStyles: { fillColor: [30, 108, 123] },
+      alternateRowStyles: { fillColor: [245, 250, 254] },
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 45 },
+        5: { cellWidth: 30 }
+      }
+    });
+  
+    doc.save(`feedback_report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
@@ -157,8 +170,10 @@ const Feedback = () => {
         <div className="relative w-full md:w-1/2">
           <input
             type="text"
-            placeholder="Search feedback..."
+            placeholder="Search by subject..."
             className="w-full py-2 pl-4 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
           <FaSearch className="absolute right-3 top-2.5 text-gray-400" />
         </div>
@@ -202,20 +217,17 @@ const Feedback = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {feedback.length === 0 ? (
+              {filteredFeedback.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="p-4 text-gray-500 text-center">
                     No feedback found.
                   </td>
                 </tr>
               ) : (
-                feedback.map((item, idx) => {
+                filteredFeedback.map((item, idx) => {
                   const assignment = item.assignment || {};
                   const subjectName = assignment.subject?.name || "-";
                   const grade = item.grade || {};
-                  // Prefer rating (decimal, e.g., 3.5) if available, else grade (percentage)
-                  const score =
-                    grade.rating != null ? grade.rating : grade.grade;
                   return (
                     <tr
                       key={item.id}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useUser } from "../contexts/UserContext";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
 import supabase from "../supabaseConfig/supabaseClient";
+import { updateStudentProfile, updateTeacherProfile } from "../supabaseConfig/supabaseApi";
 
 const Settings = () => {
   const { user, profile, signOut, role } = useUser();
@@ -11,9 +12,9 @@ const Settings = () => {
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    display_name: user?.user_metadata?.display_name || "",
+    display_name: profile?.display_name || user?.user_metadata?.display_name || "",
     email: user?.email || "",
-    phone: user?.user_metadata?.Phone || "",
+    phone: profile?.phone || user?.user_metadata?.Phone || "",
   });
 
   // Password form state
@@ -33,13 +34,14 @@ const Settings = () => {
 
   // Fetch latest profile data from Auth on mount
   useEffect(() => {
-    if (!user) return;
-    setProfileForm({
-      display_name: user.user_metadata?.display_name || "",
-      email: user.email || "",
-      phone: user.user_metadata?.Phone || "",
-    });
-  }, [user]);
+    if (profile) {
+      setProfileForm({
+        display_name: profile.display_name || "",
+        email: user?.email || "",
+        phone: profile.phone || "",
+      });
+    }
+  }, [profile, user]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -47,19 +49,34 @@ const Settings = () => {
     setMessage({ type: "", text: "" });
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
+      let error;
+      if (role === "student") {
+        ({ error } = await updateStudentProfile(user.id, {
           display_name: profileForm.display_name,
-          Phone: profileForm.phone,
-        },
-      });
+          phone: profileForm.phone,
+        }));
+      } else if (role === "teacher") {
+        ({ error } = await updateTeacherProfile(user.id, {
+          display_name: profileForm.display_name,
+          phone: profileForm.phone,
+        }));
+      } else {
+        // Fallback for other roles or if role is not set
+        ({ error } = await supabase
+          .from('profiles')
+          .update({
+            display_name: profileForm.display_name,
+            phone: profileForm.phone,
+          })
+          .eq('id', user.id));
+      }
 
       if (error) throw error;
 
       setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (error) {
-      console.error("Error updating profile:", error);
-      setMessage({ type: "error", text: "Failed to update profile" });
+      console.error("Error updating profile:", error.message);
+      setMessage({ type: "error", text: `Failed to update profile: ${error.message}` });
     } finally {
       setLoading(false);
     }

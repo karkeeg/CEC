@@ -33,6 +33,7 @@ import { StudentForm } from "../Forms/StudentForm";
 import { TeacherForm } from "../Forms/TeacherForm";
 import { NoticeForm } from "../Forms/NoticeForm";
 import { AssignmentForm } from "../Forms/AssignmentForm";
+import ArticleForm from "../Forms/ArticleForm";
 import { sendConfirmationEmail } from "../../utils/emailService";
 
 const Modal = ({ title, children, onClose }) => (
@@ -90,6 +91,7 @@ const MainDashboard = () => {
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showArticleModal, setShowArticleModal] = useState(false);
   const [notices, setNotices] = useState([]);
   const [editNotice, setEditNotice] = useState(null);
   const [visibleNoticesCount, setVisibleNoticesCount] = useState(3);
@@ -566,11 +568,17 @@ const MainDashboard = () => {
           <FaPlus /> Add Notice
         </button>
         <button
-          onClick={() => setShowAssignmentModal(true)}
-          className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700"
-        >
-          <FaPlus /> Add Assignment
-        </button>
+            onClick={() => setShowAssignmentModal(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700"
+          >
+            <FaPlus /> Add Assignment
+          </button>
+          <button
+            onClick={() => setShowArticleModal(true)}
+            className="bg-orange-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-orange-700"
+          >
+            <FaPlus /> Add Article
+          </button>
         <button
           onClick={handleAddImageClick}
           className="bg-indigo-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-indigo-700"
@@ -834,6 +842,17 @@ const MainDashboard = () => {
           <AssignmentForm
             onClose={() => setShowAssignmentModal(false)}
             onSuccess={fetchStats}
+          />
+        </Modal>
+      )}
+      {/* Article Modal */}
+      {showArticleModal && (
+        <Modal title="Add New Article" onClose={() => setShowArticleModal(false)}>
+          <ArticleForm
+            onSuccess={() => {
+              setShowArticleModal(false);
+              fetchStats();
+            }}
           />
         </Modal>
       )}

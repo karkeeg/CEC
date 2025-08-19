@@ -37,6 +37,17 @@ import {
 } from "react-icons/fa";
 import Loader from "../Loader";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  ANALYTICS: 'teacher_analytics_cache',
+  PERFORMANCE_STATS: 'teacher_analytics_performance_cache',
+  CHART_DATA: 'teacher_analytics_chart_data',
+  CACHE_TIMESTAMP: 'teacher_analytics_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherAnalytics = () => {
   const { user } = useUser();
   const [analytics, setAnalytics] = useState({
@@ -59,6 +70,81 @@ const TeacherAnalytics = () => {
   const [gradeData, setGradeData] = useState([]);
   const [classData, setClassData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedAnalytics = localStorage.getItem(CACHE_KEYS.ANALYTICS);
+      const cachedPerformanceStats = localStorage.getItem(CACHE_KEYS.PERFORMANCE_STATS);
+      const cachedChartData = localStorage.getItem(CACHE_KEYS.CHART_DATA);
+      
+      if (cachedAnalytics && cachedPerformanceStats && cachedChartData) {
+        const analyticsData = JSON.parse(cachedAnalytics);
+        const performanceData = JSON.parse(cachedPerformanceStats);
+        const chartData = JSON.parse(cachedChartData);
+        
+        setAnalytics(analyticsData);
+        setPerformanceStats(performanceData);
+        setClassPerformanceData(chartData.classPerformanceData || []);
+        setAttendanceTrendData(chartData.attendanceTrendData || []);
+        setGradeDistributionData(chartData.gradeDistributionData || []);
+        setAssignmentCompletionData(chartData.assignmentCompletionData || []);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading analytics cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (analyticsData, performanceData, chartData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.ANALYTICS, JSON.stringify(analyticsData));
+      localStorage.setItem(CACHE_KEYS.PERFORMANCE_STATS, JSON.stringify(performanceData));
+      localStorage.setItem(CACHE_KEYS.CHART_DATA, JSON.stringify(chartData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving analytics cache:", error);
+    }
+  };
+
+  // Generate chart data
+  const generateChartData = (classes, assignments, attendance, performanceData) => {
+    const chartData = {};
+
+    // Grade Distribution Data (for pie chart)
+    const gradeDistribution = [
+      { name: "A (90-100)", value: 25, color: "#10B981" },
+      { name: "B (80-89)", value: 35, color: "#3B82F6" },
+      { name: "C (70-79)", value: 25, color: "#F59E0B" },
+      { name: "D (60-69)", value: 10, color: "#EF4444" },
+      { name: "F (<60)", value: 5, color: "#6B7280" },
+    ];
+    setGradeDistributionData(gradeDistribution);
+    chartData.gradeDistributionData = gradeDistribution;
+
+    // Class Performance Data (for bar chart)
+    const classPerformance = (classes || []).map((cls, index) => ({
+      name: cls.name || `Class ${index + 1}`,
+      students: Math.floor(Math.random() * 30) + 10, // Mock data
+      avgGrade: Math.floor(Math.random() * 40) + 60, // Mock data
+      attendance: Math.floor(Math.random() * 30) + 70, // Mock data
+    }));
+    setClassPerformanceData(classPerformance);
+    chartData.classPerformanceData = classPerformance;
+
+    return chartData;
+  };
+
   // Score distribution state
   const [scoreDistribution, setScoreDistribution] = useState([]);
   // Performance overview state
@@ -75,272 +161,66 @@ const TeacherAnalytics = () => {
   const [selectedCourses, setSelectedCourses] = useState(["Physics"]);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      if (!user?.id) return;
-      try {
-        // 1. Fetch all classes taught by this teacher
-        const classesData = await getClassesByTeacher(user.id);
-        const classIds = (classesData || []).map((c) => c.class_id);
+    if (!user?.id) return;
 
-        // 2. Fetch all students in those classes
-        let studentsData = [];
-        if (classIds.length > 0) {
-          const allStudents = [];
-          for (const classId of classIds) {
-            const joins = await getStudentsByClass(classId); // [{id, student: {...}}]
-            for (const join of joins) {
-              if (join.student && join.student.id) {
-                allStudents.push(join.student);
-              }
-            }
-          }
-          // Remove duplicates by student id
-          const unique = {};
-          allStudents.forEach((s) => {
-            unique[s.id] = s;
-          });
-          studentsData = Object.values(unique);
-        }
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
 
-        // Also fetch all students to ensure we have complete data for attendance mapping
-        const allStudentsData = await getAllStudents();
-        const allStudentsMap = {};
-        allStudentsData.forEach((s) => {
-          allStudentsMap[s.id] = s;
-        });
+    // If no valid cache, fetch fresh data
+    fetchAnalyticsData();
+  }, [user?.id]);
 
-        // 3. Fetch assignments and all classes for stats
-        const assignmentsData = await getAllAssignments();
-        const allClassesData = await getAllClasses();
+  const fetchAnalyticsData = async () => {
+    setLoading(true);
+    try {
+      // Fetch performance stats using the existing API
+      const performanceData = await getTeacherStudentPerformanceStats(user.id);
+      const performanceStatsData = performanceData || {
+        totalStudents: 0,
+        averageAttendance: 0,
+        averageGrade: 0,
+        highPerformers: 0,
+        needsAttention: 0,
+        recentActivity: 0,
+      };
+      setPerformanceStats(performanceStatsData);
 
-        // 4. Use the centralized performance stats API
-        const performanceStatsData = await getTeacherStudentPerformanceStats(
-          user.id
-        );
+      // Fetch basic analytics data
+      const [classes, assignments, attendance] = await Promise.all([
+        getClassesByTeacher(user.id),
+        fetchAssignments(),
+        fetchAttendance({ teacher_id: user.id }),
+      ]);
 
-        // Store the complete performance stats
-        setPerformanceStats(performanceStatsData);
+      // Calculate analytics
+      const totalClasses = classes?.length || 0;
+      const totalAssignments = assignments?.length || 0;
+      const totalStudents = performanceData?.totalStudents || 0;
+      const averageGrade = performanceData?.averageGrade || 0;
 
-        // 5. Set analytics using the centralized data
-        setAnalytics({
-          totalStudents: performanceStatsData.totalStudents,
-          totalClasses: allClassesData?.length || 0,
-          totalAssignments: assignmentsData?.length || 0,
-          averageGrade: performanceStatsData.averageGrade,
-        });
+      const analyticsData = {
+        totalStudents,
+        totalClasses,
+        totalAssignments,
+        averageGrade,
+      };
+      setAnalytics(analyticsData);
 
-        // --- Score Distribution: Assignment-based data ---
-        // Fetch assignments for this teacher and calculate average grades per assignment
-        const teacherAssignments = await fetchAssignments({
-          teacher_id: user.id,
-        });
-
-        const assignmentAverages = [];
-
-        for (const assignment of teacherAssignments) {
-          const submissions = await fetchAssignmentSubmissions(assignment.id);
-          const grades = [];
-
-          for (const submission of submissions) {
-            const gradeValue = submission.grade?.grade;
-            if (gradeValue !== undefined && gradeValue !== null) {
-              grades.push(Number(gradeValue));
-            }
-          }
-
-          if (grades.length > 0) {
-            const avgGrade =
-              grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
-            assignmentAverages.push({
-              course:
-                assignment.title ||
-                assignment.subject?.name ||
-                `Assignment ${assignment.id.slice(0, 8)}`,
-              marks: Math.round(avgGrade),
-            });
-          }
-        }
-
-        // Sort by assignment title and limit to top 10 for better visualization
-        const scoreDistArr = assignmentAverages
-          .sort((a, b) => a.course.localeCompare(b.course))
-          .slice(0, 10);
-
-        setScoreDistribution(scoreDistArr);
-
-        // --- Performance Overview: Using centralized data with names ---
-        const topPerformer =
-          performanceStatsData.highPerformerNames &&
-          performanceStatsData.highPerformerNames.length > 0
-            ? performanceStatsData.highPerformerNames[0]
-            : null;
-        const lowestPerformer =
-          performanceStatsData.needsAttentionNames &&
-          performanceStatsData.needsAttentionNames.length > 0
-            ? performanceStatsData.needsAttentionNames[0]
-            : null;
-
-        setPerformanceOverview([
-          {
-            label: "Avg Grade",
-            value: `${performanceStatsData.averageGrade}%`,
-          },
-          {
-            label: "High Performers",
-            value: topPerformer
-              ? `${topPerformer.name} (${topPerformer.averageGrade}%)`
-              : `${performanceStatsData.highPerformers} students`,
-          },
-          {
-            label: "Needs Attention",
-            value: lowestPerformer
-              ? `${lowestPerformer.name} (${lowestPerformer.averageGrade}%)`
-              : `${performanceStatsData.needsAttention} students`,
-          },
-        ]);
-        // --- Absence Alerts: Real Data ---
-        // 1. Fetch all attendance records for these classes
-        let attendanceRecords = [];
-        if (classIds.length > 0) {
-          // Fetch attendance records for all classes taught by this teacher
-          for (const classId of classIds) {
-            const classAttendance = await fetchAttendance({
-              class_id: classId,
-            });
-            attendanceRecords = [...attendanceRecords, ...classAttendance];
-          }
-        }
-
-        // 2. Count absences per student (include all students with absences)
-        const absenceCount = {};
-        const studentIdSet = new Set(studentsData.map((s) => String(s.id)));
-
-        attendanceRecords.forEach((record) => {
-          if (record.status === "absent") {
-            absenceCount[record.student_id] =
-              (absenceCount[record.student_id] || 0) + 1;
-          }
-        });
-
-        // 3. Map to alert format and sort
-        const alerts = Object.entries(absenceCount)
-          .map(([studentId, absences]) => {
-            // First try to find in enrolled students
-            let student = studentsData.find(
-              (s) => String(s.id) === String(studentId)
-            );
-
-            // If not found in enrolled students, try in all students
-            if (!student) {
-              student = allStudentsMap[studentId];
-            }
-
-            return {
-              name: student
-                ? `${student.first_name || ""} ${
-                    student.last_name || ""
-                  }`.trim()
-                : `Student ${studentId}`,
-              absences,
-            };
-          })
-          .sort((a, b) => b.absences - a.absences)
-          .slice(0, 7); // Show top 7
-
-        setAbsenceAlerts(alerts);
-        // --- Attendance Trends: Last 30 Days ---
-        const today = new Date();
-        const last30Days = Array.from({ length: 30 }, (_, i) => {
-          const d = new Date(today);
-          d.setDate(today.getDate() - (29 - i));
-          return d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-        });
-        const attendanceByDate = {};
-        last30Days.forEach((date) => {
-          attendanceByDate[date] = { date, present: 0, absent: 0, late: 0 };
-        });
-        attendanceRecords.forEach((record) => {
-          const date = record.date;
-          if (attendanceByDate[date]) {
-            if (record.status === "present") attendanceByDate[date].present++;
-            else if (record.status === "absent")
-              attendanceByDate[date].absent++;
-            else if (record.status === "late") attendanceByDate[date].late++;
-          }
-        });
-        setAttendanceData(Object.values(attendanceByDate));
-        // --- Assignment Completion Rate & Class Performance ---
-        const classDataArr = [];
-        for (const classObj of classesData) {
-          const classId = classObj.class_id;
-          const className = classObj.name || "Class";
-          // Students in this class
-          const studentsInClass = studentsData.filter(
-            (s) => s.class_id === classId
-          );
-          const numStudents = studentsInClass.length;
-          // Assignments for this class
-          const assignmentsForClass = teacherAssignments.filter(
-            (a) => a.class_id === classId
-          );
-          const numAssignments = assignmentsForClass.length;
-          // Submissions for this class
-          let numSubmissions = 0;
-          for (const assignment of assignmentsForClass) {
-            const submissions = await fetchAssignmentSubmissions(assignment.id);
-            numSubmissions += submissions.length;
-          }
-          // Completion rate: submissions / (assignments * students)
-          let completionRate = 0;
-          if (numAssignments > 0 && numStudents > 0) {
-            completionRate =
-              (numSubmissions / (numAssignments * numStudents)) * 100;
-          }
-          classDataArr.push({
-            name: className,
-            completionRate: Number(completionRate.toFixed(1)),
-            students: numStudents,
-          });
-        }
-        setClassData(classDataArr);
-        // --- Class Performance Multi-Bar Chart Data ---
-        const classPerformanceArr = [];
-        for (const classObj of classesData) {
-          const classId = classObj.class_id;
-          const className = classObj.name || "Class";
-          // Students in this class
-          const studentsInClass = await getStudentsByClass(classId);
-          const numStudents = studentsInClass.length;
-          // Assignments for this class
-          const assignmentsForClass = teacherAssignments.filter(
-            (a) => a.class_id === classId
-          );
-          const numAssignments = assignmentsForClass.length;
-          // Attendance for this class
-          const attendanceForClass = attendanceRecords.filter(
-            (rec) => rec.class_id === classId
-          );
-          const presentCount = attendanceForClass.filter(
-            (rec) => rec.status === "present"
-          ).length;
-          const totalAttendance = attendanceForClass.length;
-          const attendanceRate =
-            totalAttendance > 0 ? (presentCount / totalAttendance) * 100 : 0;
-          classPerformanceArr.push({
-            name: className,
-            students: numStudents,
-            assignments: numAssignments,
-            attendanceRate: Number(attendanceRate.toFixed(1)),
-          });
-        }
-        setClassData(classPerformanceArr);
-      } catch (error) {
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAnalytics();
-  }, [user]);
+      // Generate chart data
+      const chartData = generateChartData(classes, assignments, attendance, performanceData);
+      
+      // Save to cache
+      saveToCache(analyticsData, performanceStatsData, chartData);
+      
+    } catch (error) {
+      console.error("Error fetching analytics data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
@@ -706,12 +586,12 @@ const TeacherAnalytics = () => {
             )}
         </div>
       </div>
-      {/* Charts Section: Attendance, Grade, Class Performance, etc. */}
+  
 
-      {/* Charts */}
+      {/* Charts
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-4 mb-8 min-w-0">
         {/* Attendance Mountain Chart */}
-        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
+        {/* <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-4">
             Attendance Trends (Last 30 Days)
           </h2>
@@ -770,10 +650,10 @@ const TeacherAnalytics = () => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </div> */}
 
         {/* Class Performance */}
-        <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
+        {/* <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md min-w-0 overflow-x-auto">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-4">
             Class Performance
           </h2>
@@ -810,8 +690,8 @@ const TeacherAnalytics = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
+        </div> */}
+      {/* </div>  */}
     </div>
   );
 };

@@ -3,6 +3,7 @@ import {
   getAllStudents,
   deleteStudent,
   getStudentsByClass,
+  getStudentsByTeacher,
   getAttendanceByStudent,
   getGradesByTeacher,
   getClassesByTeacher,
@@ -14,6 +15,16 @@ import { useUser } from "../../contexts/UserContext";
 import Modal from "../Modal";
 import Loader from "../Loader";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  STUDENTS: 'teacher_students_cache',
+  PERFORMANCE: 'teacher_performance_cache',
+  CACHE_TIMESTAMP: 'teacher_data_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherStudents = () => {
   const { user } = useUser();
   const [students, setStudents] = useState([]);
@@ -22,6 +33,8 @@ const TeacherStudents = () => {
   const [yearFilter, setYearFilter] = useState("all");
   const [years, setYears] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [performanceLoading, setPerformanceLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [viewStudent, setViewStudent] = useState(null);
   const [performanceStats, setPerformanceStats] = useState({
@@ -34,138 +47,82 @@ const TeacherStudents = () => {
   });
   const [recentStudents, setRecentStudents] = useState([]);
 
-  useEffect(() => {
-    console.log("TeacherStudents useEffect - user:", user);
-    if (user?.id) {
-      fetchStudents();
-      fetchPerformanceSummary();
-    } else {
-      console.log("No user ID available, cannot fetch students");
-    }
-  }, [user]);
-
-  const fetchStudents = async () => {
-    setLoading(true);
-    try {
-      console.log("Starting to fetch students for teacher:", user?.id);
-
-      // Get teacher's classes first
-      const teacherClasses = await getClassesByTeacher(user?.id);
-      console.log("Teacher classes found:", teacherClasses?.length || 0);
-
-      let allStudents = [];
-
-      // Get students from each class
-      if (teacherClasses && teacherClasses.length > 0) {
-        for (const classItem of teacherClasses) {
-          console.log("Fetching students for class:", classItem.id);
-          const classStudents = await getStudentsByClass(classItem.id);
-          console.log(
-            "Students in class",
-            classItem.id,
-            ":",
-            classStudents?.length || 0
-          );
-
-          if (classStudents && classStudents.length > 0) {
-            // Extract student data from nested structure
-            const students = classStudents
-              .map((item) => ({
-                id: item.student?.id,
-                first_name: item.student?.first_name,
-                middle_name: item.student?.middle_name,
-                last_name: item.student?.last_name,
-                email: item.student?.email,
-                gender: item.student?.gender,
-                year: item.student?.year,
-                phone: item.student?.phone,
-                dob: item.student?.dob,
-                address: item.student?.address,
-              }))
-              .filter((student) => student.id); // Filter out any null students
-
-            allStudents = [...allStudents, ...students];
-          }
-        }
-        // Remove duplicates based on student ID
-        allStudents = allStudents.filter(
-          (student, index, self) =>
-            index === self.findIndex((s) => s.id === student.id)
-        );
-      }
-
-      // If no students found through classes, try getting all students as fallback
-      if (allStudents.length === 0) {
-        console.log(
-          "No students found in teacher's classes, trying fallback..."
-        );
-        const fallbackStudents = await getAllStudents();
-        console.log("Fallback students found:", fallbackStudents?.length || 0);
-        if (fallbackStudents) {
-          allStudents = fallbackStudents;
-        }
-      }
-
-      console.log("Final students array length:", allStudents.length);
-      console.log("First few students:", allStudents.slice(0, 3));
-
-      setStudents(allStudents);
-
-      // Extract unique years for filter dropdown
-      const uniqueYears = Array.from(
-        new Set(allStudents.map((s) => s.year))
-      ).filter(Boolean);
-      setYears(uniqueYears.sort());
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      // Fallback to all students if there's an error
-      try {
-        console.log("Trying fallback due to error...");
-        const fallbackStudents = await getAllStudents();
-        console.log("Fallback students found:", fallbackStudents?.length || 0);
-        if (fallbackStudents) {
-          setStudents(fallbackStudents);
-          const uniqueYears = Array.from(
-            new Set(fallbackStudents.map((s) => s.year))
-          ).filter(Boolean);
-          setYears(uniqueYears.sort());
-        }
-      } catch (fallbackError) {
-        console.error("Fallback also failed:", fallbackError);
-        // Set some dummy data to prevent empty table
-        const dummyStudents = [
-          {
-            id: 1,
-            first_name: "John",
-            last_name: "Doe",
-            email: "john.doe@example.com",
-            gender: "Male",
-            year: "2024",
-          },
-          {
-            id: 2,
-            first_name: "Jane",
-            last_name: "Smith",
-            email: "jane.smith@example.com",
-            gender: "Female",
-            year: "2024",
-          },
-        ];
-        setStudents(dummyStudents);
-        setYears(["2024"]);
-      }
-    }
-    setLoading(false);
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
   };
 
-  const fetchPerformanceSummary = async () => {
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedStudents = localStorage.getItem(CACHE_KEYS.STUDENTS);
+      const cachedPerformance = localStorage.getItem(CACHE_KEYS.PERFORMANCE);
+      
+      if (cachedStudents && cachedPerformance) {
+        const studentsData = JSON.parse(cachedStudents);
+        const performanceData = JSON.parse(cachedPerformance);
+        
+        setStudents(studentsData);
+        setPerformanceStats(performanceData);
+        
+        // Extract unique years for filter dropdown
+        const uniqueYears = Array.from(
+          new Set(studentsData.map((s) => s.year))
+        ).filter(Boolean);
+        setYears(uniqueYears.sort());
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading from cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (studentsData, performanceData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.STUDENTS, JSON.stringify(studentsData));
+      localStorage.setItem(CACHE_KEYS.PERFORMANCE, JSON.stringify(performanceData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving to cache:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
+
+    // If no valid cache, fetch fresh data
+    fetchAllData();
+  }, [user?.id]);
+
+  const fetchAllData = async () => {
     setLoading(true);
     try {
-      const stats = await getTeacherStudentPerformanceStats(user.id);
-      setPerformanceStats(stats);
-    } catch (error) {
-      console.error("Error fetching performance summary:", error);
-      setPerformanceStats({
+      // Fetch both students and performance data in parallel
+      const [studentsData, performanceData] = await Promise.all([
+        getStudentsByTeacher(user?.id),
+        getTeacherStudentPerformanceStats(user.id)
+      ]);
+
+      // Set students data
+      setStudents(studentsData || []);
+      const uniqueYears = Array.from(
+        new Set((studentsData || []).map((s) => s.year))
+      ).filter(Boolean);
+      setYears(uniqueYears.sort());
+
+      // Set performance data
+      setPerformanceStats(performanceData || {
         totalStudents: 0,
         averageAttendance: 0,
         averageGrade: 0,
@@ -173,9 +130,30 @@ const TeacherStudents = () => {
         needsAttention: 0,
         recentActivity: 0,
       });
+
+      // Save to cache
+      saveToCache(studentsData || [], performanceData || {});
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setStudents([]);
+      setYears([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  // Add a function to force refresh data (for manual refresh if needed)
+  const refreshData = async () => {
+    // Clear cache
+    localStorage.removeItem(CACHE_KEYS.STUDENTS);
+    localStorage.removeItem(CACHE_KEYS.PERFORMANCE);
+    localStorage.removeItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    
+    // Fetch fresh data
+    await fetchAllData();
+  };
+
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this student?"))
@@ -200,18 +178,23 @@ const TeacherStudents = () => {
   // Only show up to visibleCount students
   const visibleStudents = filteredStudents.slice(0, visibleCount);
 
-  // Debug logging
-  console.log("Students state length:", students.length);
-  console.log("Filtered students length:", filteredStudents.length);
-  console.log("Visible students length:", visibleStudents.length);
-  console.log("Loading state:", loading);
-  console.log("Search term:", searchTerm);
-  console.log("Year filter:", yearFilter);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <Loader message="Loading students data..." />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader message="Loading teacher dashboard..." />
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${studentsLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+              <span className="text-sm text-gray-600">Students Data</span>
+            </div>
+            <div className="flex items-center justify-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${performanceLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+              <span className="text-sm text-gray-600">Performance Stats</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

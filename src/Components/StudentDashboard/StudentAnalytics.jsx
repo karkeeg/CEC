@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { FaSearch, FaRegChartBar } from "react-icons/fa";
 import { MdFeedback } from "react-icons/md";
 import {
@@ -26,226 +26,207 @@ import {
   getAssignmentSubmissionRateBySubject,
 } from "../../supabaseConfig/supabaseApi";
 
-const pieColors = ["#1de9b6", "#ff1744"];
+const pieColors = ["#1de9b6", "#ff1744", "#3399ff", "#ff9800", "#9c27b0", "#607d8b"];
 
 const StudentAnalytics = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [gradeTrend, setGradeTrend] = useState([]);
-  const [subjectBar, setSubjectBar] = useState([]);
-  const [attendanceTrend, setAttendanceTrend] = useState([]);
-  const [assignmentSubmission, setAssignmentSubmission] = useState([]);
-  const [classSubmissionRate, setClassSubmissionRate] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [loadingSubmissionRates, setLoadingSubmissionRates] = useState(false);
-  const [gradeDistribution, setGradeDistribution] = useState([]);
-  const [mostImproved, setMostImproved] = useState(null);
-  const [classAverageData, setClassAverageData] = useState([]);
   const [loadingAverages, setLoadingAverages] = useState(false);
+  const [classSubmissionData, setClassSubmissionData] = useState([]);
+  const [classAverageData, setClassAverageData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState(null);
 
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // Fetch feedback data
   useEffect(() => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError(null);
-    const fetchAnalytics = async () => {
+    const fetchFeedback = async () => {
+      if (!user?.id) return;
+      setLoading(true);
+      setError(null);
       try {
-        // Fetch feedback (grades) for the student
-        const feedback = await getFeedbackForStudent(user.id);
-        // Grade trend by month
-        const monthMap = {};
-        const subjectMap = {};
-        let allGrades = [];
-        feedback.forEach((item) => {
-          const grade = item.grade?.grade;
-          if (typeof grade === "number") {
-            const date = new Date(
-              item.submitted_at || item.assignment?.due_date
-            );
-            const month = date.toLocaleString("default", { month: "short" });
-            if (!monthMap[month]) monthMap[month] = [];
-            monthMap[month].push(grade);
-            // Subject-wise
-            const subject = item.assignment?.subject?.name || "Unknown";
-            if (!subjectMap[subject]) subjectMap[subject] = [];
-            subjectMap[subject].push(grade);
-            allGrades.push({ subject, grade });
-          }
-        });
-        const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        setGradeTrend(
-          months.map((month) => ({
-            month,
-            avg:
-              monthMap[month] && monthMap[month].length > 0
-                ? Number(
-                    (
-                      monthMap[month].reduce((a, b) => a + b, 0) /
-                      monthMap[month].length
-                    ).toFixed(1)
-                  )
-                : 0,
-          }))
-        );
-        // Subject-wise bar
-        setSubjectBar(
-          Object.entries(subjectMap).map(([name, arr]) => ({
-            subject: name,
-            avg:
-              arr.length > 0
-                ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)
-                : 0,
-          }))
-        );
-        // Attendance trend (by month)
-        // For simplicity, use feedback dates as attendance proxies (replace with real attendance if available)
-        const attendanceMap = {};
-        feedback.forEach((item) => {
-          const date = new Date(item.submitted_at || item.assignment?.due_date);
-          const month = date.toLocaleString("default", { month: "short" });
-          if (!attendanceMap[month])
-            attendanceMap[month] = { present: 0, total: 0 };
-          attendanceMap[month].present += 1; // Assume present for each feedback
-          attendanceMap[month].total += 1;
-        });
-        setAttendanceTrend(
-          months.map((month) => ({
-            month,
-            attendance:
-              attendanceMap[month] && attendanceMap[month].total > 0
-                ? Math.round(
-                    (attendanceMap[month].present /
-                      attendanceMap[month].total) *
-                      100
-                  )
-                : 0,
-          }))
-        );
-        // Assignment submission rate (student and class)
-        setLoadingSubmissionRates(true);
-        const subjectEntries = Object.entries(subjectMap);
-        const submissionPromises = subjectEntries.map(
-          async ([subject, arr]) => {
-            // Try to get subject id from feedback data
-            let subjectId = null;
-            for (const item of feedback) {
-              if (item.assignment?.subject?.name === subject) {
-                subjectId =
-                  item.assignment?.subject_id ||
-                  item.assignment?.subject?.id ||
-                  subject;
-                break;
-              }
-            }
-            if (!subjectId) subjectId = subject;
-            const classRate = await getAssignmentSubmissionRateBySubject(
-              subjectId
-            );
-            return {
-              subject,
-              student: arr.length, // student's own submissions for this subject
-              classSubmitted: classRate.submitted,
-              classTotal: classRate.total,
-            };
-          }
-        );
-        const submissionData = await Promise.all(submissionPromises);
-        // For the pie chart, sum all subjects
-        const totalStudent = submissionData.reduce((a, b) => a + b.student, 0);
-        const totalClassSubmitted = submissionData.reduce(
-          (a, b) => a + b.classSubmitted,
-          0
-        );
-        const totalClass = submissionData.reduce((a, b) => a + b.classTotal, 0);
-        setAssignmentSubmission([
-          { name: "You Submitted", value: totalStudent },
-          { name: "You Missed", value: Math.max(0, totalClass - totalStudent) },
-        ]);
-        setClassSubmissionRate([
-          { name: "Class Submitted", value: totalClassSubmitted },
-          {
-            name: "Class Missed",
-            value: Math.max(0, totalClass - totalClassSubmitted),
-          },
-        ]);
-        setLoadingSubmissionRates(false);
-        // Grade distribution (donut)
-        const gradeBuckets = [0, 60, 70, 80, 90, 100];
-        const dist = Array(gradeBuckets.length - 1).fill(0);
-        allGrades.forEach(({ grade }) => {
-          for (let i = 0; i < gradeBuckets.length - 1; i++) {
-            if (grade >= gradeBuckets[i] && grade < gradeBuckets[i + 1]) {
-              dist[i]++;
-              break;
-            }
-          }
-        });
-        setGradeDistribution(
-          dist.map((count, i) => ({
-            name: `${gradeBuckets[i]}-${gradeBuckets[i + 1] - 1}%`,
-            value: count,
-          }))
-        );
-        // Most improved subject (largest positive difference between first and last grade)
-        let improved = null;
-        for (const [subject, arr] of subjectEntries) {
-          if (arr.length > 1) {
-            const diff = arr[arr.length - 1] - arr[0];
-            if (!improved || diff > improved.diff) {
-              improved = { subject, diff };
-            }
-          }
-        }
-        setMostImproved(improved);
-        // Class average comparison (real)
-        setLoadingAverages(true);
-        const avgPromises = subjectEntries.map(async ([subject, arr]) => {
-          // Try to get subject id from feedback data
-          let subjectId = null;
-          for (const item of feedback) {
-            if (item.assignment?.subject?.name === subject) {
-              subjectId =
-                item.assignment?.subject_id ||
-                item.assignment?.subject?.id ||
-                subject;
-              break;
-            }
-          }
-          if (!subjectId) subjectId = subject;
-          const avg = await getClassAverageBySubject(subjectId);
-          return {
-            subject,
-            student:
-              arr.length > 0
-                ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)
-                : 0,
-            average: avg ? avg.toFixed(1) : 0,
-          };
-        });
-        const classAvgData = await Promise.all(avgPromises);
-        setClassAverageData(classAvgData);
-        setLoadingAverages(false);
+        const data = await getFeedbackForStudent(user.id);
+        setFeedback(data);
       } catch (err) {
-        setError("Failed to fetch analytics data.");
+        setError("Failed to fetch feedback data. Please try again.");
+        setFeedback([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchAnalytics();
+    fetchFeedback();
   }, [user]);
+
+  // Calculate grade trend by month
+  const gradeTrend = useMemo(() => {
+    const monthMap = {};
+    feedback.forEach((item) => {
+      const grade = item.grade?.grade;
+      if (typeof grade === "number") {
+        const date = new Date(item.submitted_at || item.assignment?.due_date);
+        const month = date.toLocaleString("default", { month: "short" });
+        if (!monthMap[month]) monthMap[month] = [];
+        monthMap[month].push(grade);
+      }
+    });
+    return months.map((month) => ({
+      month,
+      avg: monthMap[month] && monthMap[month].length > 0
+        ? Number((monthMap[month].reduce((a, b) => a + b, 0) / monthMap[month].length).toFixed(1))
+        : 0,
+    }));
+  }, [feedback, months]);
+
+  // Calculate subject-wise performance
+  const subjectPerformance = useMemo(() => {
+    const subjectMap = {};
+    feedback.forEach((item) => {
+      const grade = item.grade?.grade;
+      if (typeof grade === "number") {
+        const subject = item.assignment?.subject?.name || "Unknown";
+        if (!subjectMap[subject]) subjectMap[subject] = [];
+        subjectMap[subject].push(grade);
+      }
+    });
+    return Object.entries(subjectMap).map(([name, arr]) => ({
+      subject: name,
+      avg: arr.length > 0 ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : 0,
+    }));
+  }, [feedback]);
+
+  // Filter subjects based on search term
+  const filteredSubjectPerformance = useMemo(() => {
+    if (!searchTerm) return subjectPerformance;
+    return subjectPerformance.filter(item => 
+      item.subject.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [subjectPerformance, searchTerm]);
+
+  // Calculate attendance trend (proxy using feedback dates)
+  const attendanceTrend = useMemo(() => {
+    const attendanceMap = {};
+    feedback.forEach((item) => {
+      const date = new Date(item.submitted_at || item.assignment?.due_date);
+      const month = date.toLocaleString("default", { month: "short" });
+      if (!attendanceMap[month]) attendanceMap[month] = { present: 0, total: 0 };
+      attendanceMap[month].present += 1;
+      attendanceMap[month].total += 1;
+    });
+    return months.map((month) => ({
+      month,
+      attendance: attendanceMap[month] && attendanceMap[month].total > 0
+        ? Math.round((attendanceMap[month].present / attendanceMap[month].total) * 100)
+        : 0,
+    }));
+  }, [feedback, months]);
+
+  // Calculate grade distribution
+  const gradeDistribution = useMemo(() => {
+    const gradeBuckets = [0, 60, 70, 80, 90, 100];
+    const dist = Array(gradeBuckets.length - 1).fill(0);
+    feedback.forEach((item) => {
+      const grade = item.grade?.grade;
+      if (typeof grade === "number") {
+        for (let i = 0; i < gradeBuckets.length - 1; i++) {
+          if (grade >= gradeBuckets[i] && (i === gradeBuckets.length - 2 ? grade <= gradeBuckets[i + 1] : grade < gradeBuckets[i + 1])) {
+            dist[i]++;
+            break;
+          }
+        }
+      }
+    });
+    return dist.map((count, i) => ({
+      name: i === gradeBuckets.length - 2 ? `${gradeBuckets[i]}-${gradeBuckets[i + 1]}%` : `${gradeBuckets[i]}-${gradeBuckets[i + 1] - 1}%`,
+      value: count,
+    }));
+  }, [feedback]);
+
+  // Get subject ID helper function
+  const getSubjectId = useCallback((subjectName) => {
+    for (const item of feedback) {
+      if (item.assignment?.subject?.name === subjectName) {
+        return item.assignment?.subject_id || item.assignment?.subject?.id || subjectName;
+      }
+    }
+    return subjectName;
+  }, [feedback]);
+
+  // Fetch class submission rates
+  useEffect(() => {
+    const fetchSubmissionRates = async () => {
+      if (subjectPerformance.length === 0) return;
+      setLoadingSubmissionRates(true);
+      try {
+        const submissionPromises = subjectPerformance.map(async ({ subject, avg }) => {
+          const subjectId = getSubjectId(subject);
+          const classRate = await getAssignmentSubmissionRateBySubject(subjectId);
+          return {
+            subject,
+            student: feedback.filter(item => item.assignment?.subject?.name === subject).length,
+            classSubmitted: classRate.submitted,
+            classTotal: classRate.total,
+          };
+        });
+        const data = await Promise.all(submissionPromises);
+        setClassSubmissionData(data);
+      } catch (err) {
+        console.error('Failed to fetch submission rates:', err);
+      } finally {
+        setLoadingSubmissionRates(false);
+      }
+    };
+    fetchSubmissionRates();
+  }, [subjectPerformance, getSubjectId, feedback]);
+
+  // Fetch class averages
+  useEffect(() => {
+    const fetchClassAverages = async () => {
+      if (subjectPerformance.length === 0) return;
+      setLoadingAverages(true);
+      try {
+        const avgPromises = subjectPerformance.map(async ({ subject, avg }) => {
+          const subjectId = getSubjectId(subject);
+          const classAvg = await getClassAverageBySubject(subjectId);
+          return {
+            subject,
+            student: avg,
+            average: classAvg ? classAvg.toFixed(1) : 0,
+          };
+        });
+        const data = await Promise.all(avgPromises);
+        setClassAverageData(data);
+      } catch (err) {
+        console.error('Failed to fetch class averages:', err);
+      } finally {
+        setLoadingAverages(false);
+      }
+    };
+    fetchClassAverages();
+  }, [subjectPerformance, getSubjectId]);
+
+  // Calculate assignment submission data for pie charts
+  const assignmentSubmissionData = useMemo(() => {
+    if (classSubmissionData.length === 0) return { student: [], class: [] };
+    
+    const totalStudent = classSubmissionData.reduce((a, b) => a + b.student, 0);
+    const totalClassSubmitted = classSubmissionData.reduce((a, b) => a + b.classSubmitted, 0);
+    const totalClass = classSubmissionData.reduce((a, b) => a + b.classTotal, 0);
+    
+    return {
+      student: [
+        { name: "You Submitted", value: totalStudent },
+        { name: "You Missed", value: Math.max(0, totalClass - totalStudent) },
+      ],
+      class: [
+        { name: "Class Submitted", value: totalClassSubmitted },
+        { name: "Class Missed", value: Math.max(0, totalClass - totalClassSubmitted) },
+      ]
+    };
+  }, [classSubmissionData]);
 
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
@@ -257,7 +238,9 @@ const StudentAnalytics = () => {
         <div className="flex items-center bg-[#30B0C733] rounded px-4 py-2 w-full sm:w-80 min-w-0">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search subjects..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-transparent outline-none text-black flex-1 placeholder-black"
           />
           <FaSearch className="text-black ml-2" />
@@ -334,7 +317,7 @@ const StudentAnalytics = () => {
             <div className="w-full h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={subjectBar}
+                  data={filteredSubjectPerformance}
                   margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -401,7 +384,7 @@ const StudentAnalytics = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={assignmentSubmission}
+                      data={assignmentSubmissionData.student}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -409,7 +392,7 @@ const StudentAnalytics = () => {
                       outerRadius={60}
                       label
                     >
-                      {assignmentSubmission.map((entry, idx) => (
+                      {assignmentSubmissionData.student.map((entry, idx) => (
                         <Cell
                           key={`cell-${idx}`}
                           fill={pieColors[idx % pieColors.length]}
@@ -417,7 +400,7 @@ const StudentAnalytics = () => {
                       ))}
                     </Pie>
                     <Pie
-                      data={classSubmissionRate}
+                      data={assignmentSubmissionData.class}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -426,7 +409,7 @@ const StudentAnalytics = () => {
                       outerRadius={90}
                       label
                     >
-                      {classSubmissionRate.map((entry, idx) => (
+                      {assignmentSubmissionData.class.map((entry, idx) => (
                         <Cell
                           key={`cell-class-${idx}`}
                           fill={pieColors[(idx + 2) % pieColors.length]}
@@ -451,36 +434,36 @@ const StudentAnalytics = () => {
                         className="inline-block w-3 h-3 rounded-full mr-2"
                         style={{ background: pieColors[0] }}
                       />
-                      You Submitted: {assignmentSubmission[0]?.value ?? 0}
+                      You Submitted: {assignmentSubmissionData.student[0]?.value ?? 0}
                     </li>
                     <li>
                       <span
                         className="inline-block w-3 h-3 rounded-full mr-2"
                         style={{ background: pieColors[1] }}
                       />
-                      You Missed: {assignmentSubmission[1]?.value ?? 0}
+                      You Missed: {assignmentSubmissionData.student[1]?.value ?? 0}
                     </li>
                     <li>
                       <span
                         className="inline-block w-3 h-3 rounded-full mr-2"
                         style={{ background: pieColors[2] }}
                       />
-                      Class Submitted: {classSubmissionRate[0]?.value ?? 0}
+                      Class Submitted: {assignmentSubmissionData.class[0]?.value ?? 0}
                     </li>
                     <li>
                       <span
                         className="inline-block w-3 h-3 rounded-full mr-2"
                         style={{ background: pieColors[3] }}
                       />
-                      Class Missed: {classSubmissionRate[1]?.value ?? 0}
+                      Class Missed: {assignmentSubmissionData.class[1]?.value ?? 0}
                     </li>
                     <li className="mt-2 font-bold">
                       Your Submission Rate:{" "}
-                      {assignmentSubmission[0] && assignmentSubmission[1]
+                      {assignmentSubmissionData.student[0] && assignmentSubmissionData.student[1]
                         ? Math.round(
-                            (assignmentSubmission[0].value /
-                              (assignmentSubmission[0].value +
-                                assignmentSubmission[1].value)) *
+                            (assignmentSubmissionData.student[0].value /
+                              (assignmentSubmissionData.student[0].value +
+                                assignmentSubmissionData.student[1].value)) *
                               100
                           )
                         : 0}
@@ -488,11 +471,11 @@ const StudentAnalytics = () => {
                     </li>
                     <li className="mt-2 font-bold">
                       Class Submission Rate:{" "}
-                      {classSubmissionRate[0] && classSubmissionRate[1]
+                      {assignmentSubmissionData.class[0] && assignmentSubmissionData.class[1]
                         ? Math.round(
-                            (classSubmissionRate[0].value /
-                              (classSubmissionRate[0].value +
-                                classSubmissionRate[1].value)) *
+                            (assignmentSubmissionData.class[0].value /
+                              (assignmentSubmissionData.class[0].value +
+                                assignmentSubmissionData.class[1].value)) *
                               100
                           )
                         : 0}
@@ -537,20 +520,7 @@ const StudentAnalytics = () => {
               </ResponsiveContainer>
             </div>
           </div>
-          {/* Most Improved Subject */}
-          {mostImproved && (
-            <div className="bg-green-50 rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
-              <div className="flex items-center mb-4">
-                <span className="text-2xl mr-2">🚀</span>
-                <h3 className="text-xl font-bold text-gray-800">
-                  Most Improved Subject
-                </h3>
-              </div>
-              <div className="text-lg text-green-800 font-semibold">
-                {mostImproved.subject} (+{mostImproved.diff} points)
-              </div>
-            </div>
-          )}
+          
           {/* Comparison to Class Average */}
           <div className="bg-blue-50 rounded-md p-3 sm:p-6 mt-8 min-w-0 overflow-x-auto">
             <div className="flex items-center mb-4">

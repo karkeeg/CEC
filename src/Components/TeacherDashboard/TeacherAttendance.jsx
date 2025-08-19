@@ -29,6 +29,16 @@ import {
 } from "../../supabaseConfig/supabaseApi";
 import { getSubjects } from "../../supabaseConfig/supabaseApi";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  CLASSES: 'teacher_attendance_classes_cache',
+  SUBJECTS: 'teacher_attendance_subjects_cache',
+  CACHE_TIMESTAMP: 'teacher_attendance_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherAttendance = () => {
   const { user } = useUser();
   const [classes, setClasses] = useState([]);
@@ -48,6 +58,67 @@ const TeacherAttendance = () => {
   const [subjects, setSubjects] = useState([]);
   const [attendanceExists, setAttendanceExists] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedClasses = localStorage.getItem(CACHE_KEYS.CLASSES);
+      const cachedSubjects = localStorage.getItem(CACHE_KEYS.SUBJECTS);
+      
+      if (cachedClasses && cachedSubjects) {
+        const classesData = JSON.parse(cachedClasses);
+        const subjectsData = JSON.parse(cachedSubjects);
+        
+        setClasses(classesData);
+        setSubjects(subjectsData);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading attendance cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (classesData, subjectsData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.CLASSES, JSON.stringify(classesData));
+      localStorage.setItem(CACHE_KEYS.SUBJECTS, JSON.stringify(subjectsData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving attendance cache:", error);
+    }
+  };
+
+  const fetchClasses = async () => {
+    setLoading(true);
+    try {
+      const [classesData, subjectsData] = await Promise.all([
+        getClassesByTeacher(user.id),
+        getSubjects(),
+      ]);
+      
+      setClasses(classesData || []);
+      setSubjects(subjectsData || []);
+      
+      // Save to cache
+      saveToCache(classesData || [], subjectsData || []);
+      
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // New: State for all attendance records for all classes (for overall stats)
   const [allAttendanceRecords, setAllAttendanceRecords] = useState([]);
   // New: State for available dates for the selected class
@@ -55,12 +126,16 @@ const TeacherAttendance = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    getClassesByTeacher(user.id).then((data) => {
-      setClasses(data || []);
+
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
       setLoading(false);
-    });
-    getSubjects().then(setSubjects);
-  }, [user]);
+      return;
+    }
+
+    // If no valid cache, fetch fresh data
+    fetchClasses();
+  }, [user?.id]);
 
   useEffect(() => {
     if (!selectedClass) {
@@ -649,7 +724,7 @@ const TeacherAttendance = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">
-                Total Students
+                Total Attendees
               </p>
               <p className="text-3xl font-bold text-gray-800 mt-2">
                 {stats.total}

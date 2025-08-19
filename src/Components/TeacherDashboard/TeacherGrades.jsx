@@ -31,6 +31,16 @@ import {
 } from "recharts";
 import Loader from "../Loader";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  ASSIGNMENTS: 'teacher_grades_assignments_cache',
+  CLASSES: 'teacher_grades_classes_cache',
+  CACHE_TIMESTAMP: 'teacher_grades_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherGrades = () => {
   const { user } = useUser();
   const [assignments, setAssignments] = useState([]);
@@ -52,15 +62,62 @@ const TeacherGrades = () => {
   const [attendanceSubject, setAttendanceSubject] = useState("");
   const [attendanceSubjects, setAttendanceSubjects] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [showGradeModal, setShowGradeModal] = useState(false);
   const [modalSubmission, setModalSubmission] = useState(null);
   const [modalFeedback, setModalFeedback] = useState("");
   const [modalRating, setModalRating] = useState("");
   const [modalGrade, setModalGrade] = useState("");
+  const [showGradeModal, setShowGradeModal] = useState(false);
+
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedAssignments = localStorage.getItem(CACHE_KEYS.ASSIGNMENTS);
+      const cachedClasses = localStorage.getItem(CACHE_KEYS.CLASSES);
+      
+      if (cachedAssignments && cachedClasses) {
+        const assignmentsData = JSON.parse(cachedAssignments);
+        const classesData = JSON.parse(cachedClasses);
+        
+        setAssignments(assignmentsData);
+        setClasses(classesData);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading grades cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (assignmentsData, classesData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.ASSIGNMENTS, JSON.stringify(assignmentsData));
+      localStorage.setItem(CACHE_KEYS.CLASSES, JSON.stringify(classesData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving grades cache:", error);
+    }
+  };
 
   useEffect(() => {
+    if (!user?.id) return;
+
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
+
+    // If no valid cache, fetch fresh data
     const fetchAssignments = async () => {
-      if (!user?.id) return;
       try {
         const assignmentData = await getAssignmentsByTeacher(user.id);
         console.log("[DEBUG] Assignments fetched:", assignmentData);

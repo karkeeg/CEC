@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import supabase from "../../supabaseConfig/supabaseClient"; // adjust path
 import { FaLink, FaSearch, FaDownload, FaCheck } from "react-icons/fa";
 import { IoMdArrowDropdown } from "react-icons/io";
@@ -47,17 +47,20 @@ const Assignments = () => {
 
   useEffect(() => {
     const fetchAssignments = async () => {
+      if (!user?.id) return;
       setLoading(true);
-      let data = await getAssignmentsForStudent(user?.id, date);
-      if (role === "student") {
+      try {
+        const data = await getAssignmentsForStudent(user.id, date);
         setAssignments(data || []);
-      } else {
-        setAssignments(data || []);
+      } catch (error) {
+        console.error('Failed to fetch assignments:', error);
+        setAssignments([]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchAssignments();
-  }, [date, user, role]);
+  }, [date, user]);
 
   useEffect(() => {
     const fetchSubmissions = async () => {
@@ -82,42 +85,60 @@ const Assignments = () => {
   }, [assignments, user]);
 
   // Filter assignments by search term
-  const filteredAssignments = assignments.filter((a) =>
-    a.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredAssignments = useMemo(() => {
+    if (!search) return assignments;
+    return assignments.filter((a) =>
+      a.title.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [assignments, search]);
 
   // Analytics: Progress bar and stats
-  const totalAssignments = assignments.length;
-  const submittedCount = assignments.filter(
-    (a) => submissionStatus[a.id]?.submitted
-  ).length;
-  const overdueCount = assignments.filter(
-    (a) =>
-      !submissionStatus[a.id]?.submitted && new Date(a.due_date) < new Date()
-  ).length;
-  const pendingCount = totalAssignments - submittedCount;
-  const percentSubmitted =
-    totalAssignments > 0
-      ? Math.round((submittedCount / totalAssignments) * 100)
-      : 0;
-  // For chart: assignments due per week
-  const weekMap = {};
-  assignments.forEach((a) => {
-    const due = new Date(a.due_date);
-    // Get ISO week string (YYYY-WW)
-    const week = `${due.getFullYear()}-W${String(
-      Math.ceil(
-        ((due - new Date(due.getFullYear(), 0, 1)) / 86400000 +
-          new Date(due.getFullYear(), 0, 1).getDay() +
-          1) /
-          7
-      )
-    ).padStart(2, "0")}`;
-    weekMap[week] = (weekMap[week] || 0) + 1;
-  });
-  const chartLabels = Object.keys(weekMap).sort();
-  const chartData = chartLabels.map((w) => weekMap[w]);
-  const barChartData = {
+  const analyticsData = useMemo(() => {
+    const totalAssignments = assignments.length;
+    const submittedCount = assignments.filter(
+      (a) => submissionStatus[a.id]?.submitted
+    ).length;
+    const overdueCount = assignments.filter(
+      (a) =>
+        !submissionStatus[a.id]?.submitted && new Date(a.due_date) < new Date()
+    ).length;
+    const pendingCount = totalAssignments - submittedCount;
+    const percentSubmitted =
+      totalAssignments > 0
+        ? Math.round((submittedCount / totalAssignments) * 100)
+        : 0;
+
+    // Simplified week calculation
+    const getWeekString = (date) => {
+      const startOfYear = new Date(date.getFullYear(), 0, 1);
+      const dayOfYear = Math.floor((date - startOfYear) / (24 * 60 * 60 * 1000));
+      const weekNumber = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7);
+      return `${date.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+    };
+
+    const weekMap = {};
+    assignments.forEach((a) => {
+      const due = new Date(a.due_date);
+      const week = getWeekString(due);
+      weekMap[week] = (weekMap[week] || 0) + 1;
+    });
+    
+    const chartLabels = Object.keys(weekMap).sort();
+    const chartData = chartLabels.map((w) => weekMap[w]);
+
+    return {
+      totalAssignments,
+      submittedCount,
+      overdueCount,
+      pendingCount,
+      percentSubmitted,
+      chartLabels,
+      chartData
+    };
+  }, [assignments, submissionStatus]);
+
+  const { totalAssignments, submittedCount, overdueCount, pendingCount, percentSubmitted, chartLabels, chartData } = analyticsData;
+  const barChartData = useMemo(() => ({
     labels: chartLabels,
     datasets: [
       {
@@ -127,7 +148,7 @@ const Assignments = () => {
         borderRadius: 6,
       },
     ],
-  };
+  }), [chartLabels, chartData]);
   const barChartOptions = {
     responsive: true,
     plugins: {
@@ -145,7 +166,7 @@ const Assignments = () => {
     },
   };
   // Doughnut chart for status breakdown
-  const doughnutData = {
+  const doughnutData = useMemo(() => ({
     labels: ["Submitted", "Pending", "Overdue"],
     datasets: [
       {
@@ -154,7 +175,7 @@ const Assignments = () => {
         borderWidth: 2,
       },
     ],
-  };
+  }), [submittedCount, pendingCount, overdueCount]);
   const doughnutOptions = {
     cutout: "70%",
     plugins: {

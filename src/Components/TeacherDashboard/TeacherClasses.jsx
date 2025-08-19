@@ -37,6 +37,16 @@ import ClassForm from "../Forms/ClassForm";
 import Modal from "../Modal";
 import Loader from "../Loader";
 
+// Cache keys for localStorage
+const CACHE_KEYS = {
+  CLASSES: 'teacher_classes_cache',
+  CHART_DATA: 'teacher_classes_chart_data',
+  CACHE_TIMESTAMP: 'teacher_classes_timestamp'
+};
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const TeacherClasses = () => {
   const { user } = useUser();
   const [classes, setClasses] = useState([]);
@@ -48,6 +58,46 @@ const TeacherClasses = () => {
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [detailsModalClass, setDetailsModalClass] = useState(null);
   const [detailsModalStudents, setDetailsModalStudents] = useState([]);
+
+  // Check if cached data is still valid
+  const isCacheValid = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    if (!timestamp) return false;
+    return Date.now() - parseInt(timestamp) < CACHE_DURATION;
+  };
+
+  // Load data from cache
+  const loadFromCache = () => {
+    try {
+      const cachedClasses = localStorage.getItem(CACHE_KEYS.CLASSES);
+      const cachedChartData = localStorage.getItem(CACHE_KEYS.CHART_DATA);
+      
+      if (cachedClasses && cachedChartData) {
+        const classesData = JSON.parse(cachedClasses);
+        const chartData = JSON.parse(cachedChartData);
+        
+        setClasses(classesData);
+        setClassSizeTrend(chartData.classSizeTrend || []);
+        setClassFillStatus(chartData.classFillStatus || []);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error("Error loading classes cache:", error);
+    }
+    return false;
+  };
+
+  // Save data to cache
+  const saveToCache = (classesData, chartData) => {
+    try {
+      localStorage.setItem(CACHE_KEYS.CLASSES, JSON.stringify(classesData));
+      localStorage.setItem(CACHE_KEYS.CHART_DATA, JSON.stringify(chartData));
+      localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving classes cache:", error);
+    }
+  };
   const [detailsModalLoading, setDetailsModalLoading] = useState(false);
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [editCapacity, setEditCapacity] = useState(null);
@@ -55,50 +105,69 @@ const TeacherClasses = () => {
   const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
-    const fetchClasses = async () => {
-      if (!user?.id) return;
-      setLoading(true);
-      try {
-        const [classes, subjectsData, departmentsData] = await Promise.all([
-          getClassesByTeacher(user.id),
-          fetchSubjects(),
-          fetchDepartments(),
-        ]);
+    if (!user?.id) return;
 
-        // For each class, fetch the enrolled count from student_classes
-        const classesWithCounts = await Promise.all(
-          (classes || []).map(async (cls) => {
-            const studentCount = await getStudentCountByClass(
-              cls.class_id || cls.id
-            );
-            return { ...cls, studentCount };
-          })
-        );
-        setClasses(classesWithCounts);
-        setSubjects(subjectsData || []);
-        setDepartments(departmentsData || []);
+    // Try to load from cache first
+    if (isCacheValid() && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
 
-        // Update trend/fill with real data
-        const trend = (classesWithCounts || []).map((cls) => ({
-          name: cls.name,
-          size: cls.studentCount || 0,
-        }));
-        setClassSizeTrend(trend);
-        const fill = (classesWithCounts || []).map((cls) => ({
-          name: cls.name,
-          fill: cls.capacity
-            ? Math.round((cls.studentCount / cls.capacity) * 100)
-            : 0,
-        }));
-        setClassFillStatus(fill);
-      } catch (error) {
-        console.error("Error fetching classes:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // If no valid cache, fetch fresh data
     fetchClasses();
-  }, [user, refresh]);
+  }, [user?.id, refresh]);
+
+  const fetchClasses = async () => {
+    setLoading(true);
+    try {
+      const [classesData, subjectsData, departmentsData] = await Promise.all([
+        getClassesByTeacher(user.id),
+        fetchSubjects(),
+        fetchDepartments(),
+      ]);
+
+      // For each class, fetch the enrolled count from student_classes
+      const classesWithCounts = await Promise.all(
+        (classesData || []).map(async (cls) => {
+          const studentCount = await getStudentCountByClass(
+            cls.class_id || cls.id
+          );
+          return { ...cls, studentCount };
+        })
+      );
+      setClasses(classesWithCounts);
+      setSubjects(subjectsData || []);
+      setDepartments(departmentsData || []);
+
+      // Generate chart data
+      const sizeTrend = classesWithCounts.map((cls) => ({
+        name: cls.name || cls.class_name,
+        students: cls.studentCount,
+        capacity: cls.max_students || cls.capacity || 30,
+      }));
+      setClassSizeTrend(sizeTrend);
+
+      const fillStatus = classesWithCounts.map((cls) => ({
+        name: cls.name || cls.class_name,
+        fillPercentage: Math.round(
+          (cls.studentCount / (cls.max_students || cls.capacity || 30)) * 100
+        ),
+      }));
+      setClassFillStatus(fillStatus);
+
+      // Save to cache
+      const chartData = {
+        classSizeTrend: sizeTrend,
+        classFillStatus: fillStatus
+      };
+      saveToCache(classesWithCounts, chartData);
+      
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getClassStatus = (studentCount, capacity) => {
     const percentage = (studentCount / capacity) * 100;

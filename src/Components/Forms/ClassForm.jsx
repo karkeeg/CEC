@@ -129,14 +129,14 @@ const ClassForm = ({ user, onClose, onSuccess }) => {
             </option>
           ))}
         </select>
-        <input
+        {/* <input
           name="teacher_id"
           placeholder="Teacher ID"
           value={form.teacher_id}
           onChange={handleChange}
           className="border px-3 py-2 rounded w-full bg-gray-100"
           disabled
-        />
+        /> */}
         {/* Room Dropdown */}
         <select
           name="room_no"
