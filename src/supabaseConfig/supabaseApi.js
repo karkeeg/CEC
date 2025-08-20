@@ -332,7 +332,7 @@ export const fetchClasses = async () => {
   const { data, error } = await supabase
     .from("classes")
     .select(
-      `class:class_id(name), name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
+      `class_id, name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
     )
     .limit(10000);
   if (error) throw error;
@@ -607,11 +607,23 @@ export const getGradesByTeacher = async (teacherId) => {
   // Get grades that were rated by this teacher
   const { data, error } = await supabase
     .from("grades")
-    .select("id, submission_id, grade, feedback, rated_at, rated_by")
+    .select("id, submission_id, grade, feedback, rated_at, rated_by, rating")
     .eq("rated_by", teacherId)
     .order("rated_at", { ascending: true });
   if (error) throw error;
   return data;
+};
+// Fetch submissions with joined student info for a list of submission IDs
+export const getSubmissionsWithStudentsByIds = async (submissionIds) => {
+  if (!submissionIds || submissionIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("submissions")
+    .select(
+      `id, student:student_id (id, first_name, middle_name, last_name, email)`
+    )
+    .in("id", submissionIds);
+  if (error) throw error;
+  return data || [];
 };
 export const getClassesByTeacher = async (teacherId) => {
   const { data, error } = await supabase

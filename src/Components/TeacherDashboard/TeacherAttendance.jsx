@@ -58,6 +58,8 @@ const TeacherAttendance = () => {
   const [subjects, setSubjects] = useState([]);
   const [attendanceExists, setAttendanceExists] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // Keep raw records for class when selected (for "All Attendance Records" view)
+  const [classAttendanceRecords, setClassAttendanceRecords] = useState([]);
   // Month filter for charts (YYYY-MM)
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
@@ -249,6 +251,8 @@ const TeacherAttendance = () => {
         api
           .fetchAttendance({ teacher_id: user.id, class_id: selectedClass })
           .then((records) => {
+            // Save raw records for table view
+            setClassAttendanceRecords(records || []);
             const trendMap = {};
             (records || []).forEach((rec) => {
               const date = rec.date?.slice(0, 10);
@@ -267,11 +271,13 @@ const TeacherAttendance = () => {
           .catch((err) => {
             console.error("Error fetching class attendance trend:", err);
             setAttendanceTrend([]);
+            setClassAttendanceRecords([]);
           });
       });
     } else {
       // No class selected: clear class-specific trend (overall trend computed on the fly)
       setAttendanceTrend([]);
+      setClassAttendanceRecords([]);
     }
   }, [user?.id, selectedClass]);
 
@@ -474,6 +480,81 @@ const TeacherAttendance = () => {
       Present: monthlyTotals.present,
       Absent: monthlyTotals.absent,
       Late: monthlyTotals.late,
+    },
+  ];
+
+  // New: Build bar data for all months of the selected year
+  const deriveYear = () => {
+    // Prefer year from selectedDate if available, else from first trend item, else current year
+    if (selectedDate) return selectedDate.slice(0, 4);
+    const firstName = attendanceTrendData[0]?.name;
+    if (firstName) return firstName.slice(0, 4);
+    return new Date().toISOString().slice(0, 4);
+  };
+  const selectedYear = deriveYear();
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const monthAgg = {};
+  for (let i = 1; i <= 12; i++) {
+    const mm = String(i).padStart(2, "0");
+    monthAgg[mm] = { present: 0, absent: 0, late: 0 };
+  }
+  attendanceTrendData.forEach((d) => {
+    // d.name expected format YYYY-MM-DD
+    const dateStr = d.name;
+    if (!dateStr || dateStr.length < 7) return;
+    const y = dateStr.slice(0, 4);
+    const m = dateStr.slice(5, 7);
+    if (y === selectedYear && monthAgg[m]) {
+      monthAgg[m].present += d.present || 0;
+      monthAgg[m].absent += d.absent || 0;
+      monthAgg[m].late += d.late || 0;
+    }
+  });
+  const barDataAllMonths = Object.keys(monthAgg).map((mm, idx) => ({
+    name: monthNames[idx],
+    Present: monthAgg[mm].present,
+    Absent: monthAgg[mm].absent,
+    Late: monthAgg[mm].late,
+  }));
+
+  // Records to display in the table: class-specific or all-class
+  const recordsForTable =
+    selectedClass && selectedClass !== ""
+      ? classAttendanceRecords
+      : allAttendanceRecords;
+
+  // Cumulative totals till now from the records in scope
+  const cumulativeTotals = recordsForTable.reduce(
+    (acc, rec) => {
+      if (rec.status === "present") acc.present += 1;
+      else if (rec.status === "absent") acc.absent += 1;
+      else if (rec.status === "late") acc.late += 1;
+      return acc;
+    },
+    { present: 0, absent: 0, late: 0 }
+  );
+  const barDataTotals = [
+    {
+      name:
+        selectedClass && selectedClass !== ""
+          ? "Selected Class"
+          : "All Classes",
+      Present: cumulativeTotals.present,
+      Absent: cumulativeTotals.absent,
+      Late: cumulativeTotals.late,
     },
   ];
 
@@ -874,19 +955,16 @@ const TeacherAttendance = () => {
             </PieChart>
           </ResponsiveContainer>
         </div>
-        {/* Bar Chart: Monthly Attendance Totals */}
+        {/* Cumulative totals bar chart */}
         <div className="bg-blue-100 p-6 rounded-xl shadow flex flex-col items-center">
           <h2 className="text-xl font-semibold text-gray-800 mb-1 text-center">
-            Attendance of {selectedMonth}
+            Total Attendance Till Now {selectedClass && selectedClass !== "" ? "(Selected Class)" : "(All Classes)"}
           </h2>
           <p className="text-xs text-gray-600 mb-3 text-center">
-            Monthly totals: Present {monthlyTotals.present} · Absent {monthlyTotals.absent} · Late {monthlyTotals.late}
+            Present, Absent and Late counts aggregated over all available records
           </p>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart
-              data={barData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
+            <BarChart data={barDataTotals} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
               <Tooltip />

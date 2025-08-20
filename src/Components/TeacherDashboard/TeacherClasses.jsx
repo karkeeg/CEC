@@ -539,7 +539,7 @@ const TeacherClasses = () => {
                 }}
                 labelFormatter={(label) => `Class: ${label}`}
               />
-              <Legend />
+              {/* <Legend /> */}
               
               {/* Background capacity bars */}
               <Bar 

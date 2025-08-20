@@ -68,6 +68,38 @@ const TeacherGrades = () => {
   const [modalGrade, setModalGrade] = useState("");
   const [showGradeModal, setShowGradeModal] = useState(false);
 
+  // Helper: format notes to plain text (handles JSON strings gracefully)
+  const formatNotes = (notes) => {
+    if (!notes) return "";
+    if (typeof notes === "string") {
+      const trimmed = notes.trim();
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed === "string") return parsed;
+        if (Array.isArray(parsed)) return parsed.join(", ");
+        if (typeof parsed === "object" && parsed !== null) {
+          return Object.entries(parsed)
+            .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+            .join("; ");
+        }
+        return String(parsed);
+      } catch (_) {
+        // Not JSON, return as-is
+        return notes;
+      }
+    }
+    if (typeof notes === "object") {
+      try {
+        return Object.entries(notes)
+          .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+          .join("; ");
+      } catch (_) {
+        return String(notes);
+      }
+    }
+    return String(notes);
+  };
+
   // Check if cached data is still valid
   const isCacheValid = () => {
     const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
@@ -310,7 +342,7 @@ const TeacherGrades = () => {
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Grades</h1>
         <p className="text-gray-600">Manage and grade student assignments</p>
         {/* Combined Filter and Submissions Table Section */}
-        <div className="bg-blue-50 p-6 rounded-2xl shadow mb-8 border border-blue-100">
+        <div className="bg-blue-50 p-6 rounded-2xl shadow mb-8 border border-blue-100 max-w-[1400px] mx-auto">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
             <div className="flex flex-col md:flex-row md:items-center gap-2">
               <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-0 md:mr-2">
@@ -349,9 +381,9 @@ const TeacherGrades = () => {
             Select an assignment to see who submitted and grade them, or choose
             'All Assignments' to see all submissions.
           </div>
-          <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
-            <div className="max-h-96 overflow-y-auto">
-              <table className="min-w-full border-collapse text-left text-sm md:text-base">
+          <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white w-full">
+            <div className="h-[500px] overflow-y-auto">
+              <table className="min-w-[1100px] border-collapse text-left text-sm md:text-base">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -366,7 +398,7 @@ const TeacherGrades = () => {
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48 max-w-xs truncate">
                       Notes
                     </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-56">
                       Actions
                     </th>
                   </tr>
@@ -420,12 +452,12 @@ const TeacherGrades = () => {
                               ).toLocaleDateString()
                             : "Not submitted"}
                         </td>
-                        <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-48 max-w-xs truncate overflow-hidden">
-                          {submission.notes || "-"}
+                        <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-64 max-w-sm truncate overflow-hidden">
+                          {formatNotes(submission.notes) || "-"}
                         </td>
-                        <td className="px-2 py-4 whitespace-nowrap">
+                        <td className="px-2 py-4 whitespace-nowrap text-sm font-medium w-56">
                           <button
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                            className="inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-green-50 text-green-700 hover:bg-green-100 w-full md:w-auto"
                             onClick={() => {
                               setShowGradeModal(true);
                               setModalSubmission(submission);
@@ -434,6 +466,7 @@ const TeacherGrades = () => {
                               setModalGrade(submission.grade?.grade || "");
                             }}
                           >
+                            <FaEdit className="text-base" />
                             Give Feedback & Grade
                           </button>
                         </td>
@@ -509,14 +542,14 @@ const TeacherGrades = () => {
         {/* Feedback/Grade Modal */}
         {showGradeModal && modalSubmission && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md w-full max-w-md min-w-0">
+            <div className="bg-white p-3 sm:p-6 rounded-lg shadow-md w-full max-w-2xl min-w-[720px]">
               <h2 className="text-xl font-bold mb-4">Give Feedback & Grade</h2>
               <div className="mb-2">
                 <strong>Student:</strong> {modalSubmission.student?.first_name}{" "}
                 {modalSubmission.student?.last_name}
               </div>
               <div className="mb-2">
-                <strong>Notes:</strong> {modalSubmission.notes || "-"}
+                <strong>Notes:</strong> {formatNotes(modalSubmission.notes) || "-"}
               </div>
               <div className="mb-2">
                 <label className="block text-sm font-medium mb-1">

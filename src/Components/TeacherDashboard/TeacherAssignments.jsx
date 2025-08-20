@@ -357,10 +357,10 @@ const TeacherAssignments = () => {
       </div>
 
       {/* Assignments List Section */}
-      <div className="bg-blue-100 rounded-xl shadow overflow-hidden min-w-0">
+      <div className="bg-blue-100 rounded-xl shadow overflow-hidden min-w-0 max-w-[1400px] mx-auto">
         <div className="overflow-x-auto min-w-0">
-          <div className="max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
+          <div className="h-[500px] overflow-y-auto">
+            <table className="min-w-[1100px] divide-y divide-gray-200 text-sm md:text-base">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -379,7 +379,7 @@ const TeacherAssignments = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                     Actions
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -457,27 +457,25 @@ const TeacherAssignments = () => {
                             {statusText}
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium w-40">
+                          <div className="flex items-center gap-2">
                             <button
-                              className="text-blue-600 hover:text-blue-900"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
                               onClick={() => handleViewAssignment(assignment)}
                             >
-                              <FaEye className="text-lg" />
+                              <FaEye className="text-base" />
                             </button>
                             <button
-                              className="text-green-600 hover:text-green-900"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-green-50 text-green-700 hover:bg-green-100"
                               onClick={() => handleEditAssignment(assignment)}
                             >
-                              <FaEdit className="text-lg" />
+                              <FaEdit className="text-base" />
                             </button>
                             <button
-                              onClick={() =>
-                                handleDeleteAssignment(assignment.id)
-                              }
-                              className="text-red-600 hover:text-red-900"
+                              onClick={() => handleDeleteAssignment(assignment.id)}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-red-50 text-red-700 hover:bg-red-100"
                             >
-                              <FaTrash className="text-lg" />
+                              <FaTrash className="text-base" />
                             </button>
                           </div>
                         </td>

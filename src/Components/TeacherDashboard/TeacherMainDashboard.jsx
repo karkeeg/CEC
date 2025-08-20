@@ -14,6 +14,7 @@ import {
   getStudentsByTeacher,
   fetchAssignmentSubmissions,
   getGradeBySubmissionId,
+  getSubmissionsWithStudentsByIds,
 } from "../../supabaseConfig/supabaseApi";
 import {
   FaUsers,
@@ -338,111 +339,18 @@ const TeacherMainDashboard = () => {
           break;
 
         case "grades":
-          // Use the provided grades data
-          const gradesData = [
-            {
-              id: "4fe1f3be-9803-4486-a84f-010df53b86fd",
-              submission_id: "c27acef7-dbcc-4d1f-94a5-31f4a0fd026a",
-              grade: 69,
-              feedback:
-                "⭐⭐ Your work needs improvement. Consider seeking additional help to better understand the concepts.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "875625e6-c49c-46df-bfb9-d9b3a18ddf64",
-              rating: "2.0",
-            },
-            {
-              id: "82cd5ddd-58f5-4036-bcb9-c3964cea8813",
-              submission_id: "2a0d63fe-5faa-49a2-a665-46e1548197c5",
-              grade: 77,
-              feedback:
-                "⭐⭐⭐ Good effort! Consider strengthening your analysis and arguments for better results.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "e9195524-6f28-4857-8626-c2cd98d5804d",
-              rating: "3.0",
-            },
-            {
-              id: "cc6f7a15-de67-43d7-9f1d-8c0550420eea",
-              submission_id: "36624547-78b8-44b6-aa98-543f682c05fb",
-              grade: 66,
-              feedback:
-                "⭐⭐ Below average work. Please review the course materials and improve your understanding.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "6d1fd06f-44d9-4e9e-bbc6-15783782e581",
-              rating: "2.0",
-            },
-            {
-              id: "d454e1eb-b274-4e5b-b7c2-6a59176be0b0",
-              submission_id: "9c7177d4-4329-4238-9da3-711eb0632142",
-              grade: 75,
-              feedback:
-                "⭐⭐⭐ Satisfactory work. Your submission meets requirements with room for improvement.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "a0dcc0b5-c9bb-4939-bd40-6e80c9d6180c",
-              rating: "3.0",
-            },
-            {
-              id: "1297c18f-3984-443e-a82c-0fe5990d6166",
-              submission_id: "01fae518-99cc-4c28-9525-7c1b473bf813",
-              grade: 86,
-              feedback:
-                "⭐⭐⭐⭐ Great job! Your work shows excellent grasp of the material with room for minor improvements.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "9885a2b6-abaa-49d0-8876-4a229cf5b014",
-              rating: "4.0",
-            },
-            {
-              id: "698b024e-bf29-4e31-86ee-c299d2886183",
-              submission_id: "09c50108-93de-4859-983b-a4dbe742e448",
-              grade: 63,
-              feedback:
-                "⭐⭐ Your work requires substantial improvement. Consider meeting with me during office hours.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "0e188b22-15cc-4273-a2d1-9b936e904f57",
-              rating: "1.5",
-            },
-            {
-              id: "cdfc6f66-6540-49f1-89a3-43fd4000ae84",
-              submission_id: "76ea5dc0-573a-41ea-8e1b-2682643cf20c",
-              grade: 96,
-              feedback:
-                "⭐⭐⭐⭐⭐ Outstanding work! Exceptional understanding and execution. This is exemplary work!",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "0e188b22-15cc-4273-a2d1-9b936e904f57",
-              rating: "5.0",
-            },
-            {
-              id: "c46f71e5-bf52-462f-a4cb-a3d53bf14951",
-              submission_id: "30d4aeeb-c082-4f99-be73-35717fe858c4",
-              grade: 78,
-              feedback:
-                "⭐⭐⭐ Satisfactory work. Your submission meets requirements with room for improvement.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "6d1fd06f-44d9-4e9e-bbc6-15783782e581",
-              rating: "3.0",
-            },
-            {
-              id: "4e582bec-d30d-4496-b99a-de265e8e17f6",
-              submission_id: "9e463bdb-e20f-4c19-adc0-0999928e5eac",
-              grade: 99,
-              feedback:
-                "⭐⭐⭐⭐⭐ Perfect submission! Your analysis is brilliant and demonstrates mastery of the subject.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "e9195524-6f28-4857-8626-c2cd98d5804d",
-              rating: "5.0",
-            },
-            {
-              id: "dc77fc9d-e41e-4164-85f4-fd10fcbd5c2d",
-              submission_id: "446c8557-42d3-4d7f-92eb-49e8e4ea0735",
-              grade: 80,
-              feedback:
-                "⭐⭐⭐ Satisfactory work. Your submission meets requirements with room for improvement.",
-              rated_at: "2025-07-27 11:32:09.122273",
-              rated_by: "b12953f2-7c6a-404f-819d-161a1af413e7",
-              rating: "3.0",
-            },
-          ];
-
-          setReportData((prev) => ({ ...prev, gradeDetails: gradesData }));
+          // Fetch real grades and map to student names via submissions
+          const teacherGrades = await getGradesByTeacher(user.id);
+          const submissionIds = (teacherGrades || []).map((g) => g.submission_id).filter(Boolean);
+          const submissionsWithStudents = await getSubmissionsWithStudentsByIds(submissionIds);
+          const subMap = new Map(
+            (submissionsWithStudents || []).map((s) => [s.id, s.student])
+          );
+          const enriched = (teacherGrades || []).map((g) => ({
+            ...g,
+            student: subMap.get(g.submission_id) || null,
+          }));
+          setReportData((prev) => ({ ...prev, gradeDetails: enriched }));
           break;
 
         case "attendance":
@@ -1009,7 +917,9 @@ const TeacherMainDashboard = () => {
                           >
                             <div className="flex justify-between items-center mb-2">
                               <h4 className="font-medium text-gray-800">
-                                Grade #{grade.id.slice(-8)}
+                                {grade?.student
+                                  ? `${grade.student.first_name || ""} ${grade.student.last_name || ""}`.trim() || grade.student.email || "Student"
+                                  : "Student"}
                               </h4>
                               <div className="flex items-center space-x-2">
                                 <span className="text-yellow-500 text-lg">
@@ -1176,6 +1086,8 @@ const TeacherMainDashboard = () => {
         <Modal
           title="Grade Assignments"
           onClose={() => setShowGradeModal(false)}
+          size="xl"
+          bodyClassName="max-h-[75vh]"
         >
           <GradeAssignmentsModal
             user={user}
