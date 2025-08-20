@@ -691,7 +691,7 @@ const Assignments = () => {
                     ✓ Submitted
                   </span>
                   <div className="text-sm text-gray-600">
-                    <strong>Status:</strong> Assignment has been submitted successfully
+                    <strong>Status:</strong> Assignment has been submitted successfully!
                   </div>
                 </div>
               ) : isOverdue(viewModal) ? (
