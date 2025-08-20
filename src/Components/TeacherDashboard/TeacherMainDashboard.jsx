@@ -36,7 +36,7 @@ import {
 } from "recharts";
 import { AssignmentForm } from "../Forms/AssignmentForm";
 import AttendanceForm from "./AttendanceForm";
-import GradeAssignmentsModal from "../Forms/GradeAssignmentsModal";
+import { GradeAssignmentsModal } from "../Forms/GradeAssignmentsModal.jsx";
 import Modal from "../Modal";
 import Loader from "../Loader";
 

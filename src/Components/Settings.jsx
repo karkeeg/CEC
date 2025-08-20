@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useUser } from "../contexts/UserContext";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
 import supabase from "../supabaseConfig/supabaseClient";
-import { updateStudentProfile, updateTeacherProfile } from "../supabaseConfig/supabaseApi";
+import { updateStudentProfile, updateTeacherProfile, updateStudentPassword, updateTeacherPassword, updateAdminPassword } from "../supabaseConfig/supabaseApi";
 
 const Settings = () => {
   const { user, profile, signOut, role } = useUser();
@@ -94,22 +94,35 @@ const Settings = () => {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordForm.new_password,
-      });
+      // Determine table by role
+      const table = role === "teacher" ? "teachers" : role === "student" ? "students" : "admins";
 
-      if (error) throw error;
+      // Verify current password by checking hashed_password in respective table
+      const { data: rows, error: fetchErr } = await supabase
+        .from(table)
+        .select("id, hashed_password")
+        .eq("id", user.id);
+      if (fetchErr) throw fetchErr;
+      const row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) throw new Error("User not found");
+      if (String(row.hashed_password || "") !== String(passwordForm.current_password)) {
+        setMessage({ type: "error", text: "Current password is incorrect" });
+        setLoading(false);
+        return;
+      }
 
-      setPasswordForm({
-        current_password: "",
-        new_password: "",
-        confirm_password: "",
-      });
+      // Update via API helper
+      let updateError = null;
+      if (table === "teachers") updateError = await updateTeacherPassword(user.id, passwordForm.new_password);
+      else if (table === "students") updateError = await updateStudentPassword(user.id, passwordForm.new_password);
+      else updateError = await updateAdminPassword(user.id, passwordForm.new_password);
+      if (updateError) throw updateError;
 
+      setPasswordForm({ current_password: "", new_password: "", confirm_password: "" });
       setMessage({ type: "success", text: "Password updated successfully!" });
     } catch (error) {
       console.error("Error updating password:", error);
-      setMessage({ type: "error", text: "Failed to update password" });
+      setMessage({ type: "error", text: error.message || "Failed to update password" });
     } finally {
       setLoading(false);
     }
@@ -172,12 +185,12 @@ const Settings = () => {
               label="Password"
               isActive={activeTab === "password"}
             />
-            <TabButton
+            {/* <TabButton
               id="notifications"
               icon={<FaBell />}
               label="Notifications"
               isActive={activeTab === "notifications"}
-            />
+            /> */}
           </nav>
         </div>
 
@@ -337,7 +350,7 @@ const Settings = () => {
           )}
 
           {/* Notifications Tab */}
-          {activeTab === "notifications" && (
+          {/* {activeTab === "notifications" && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-800 mb-4">
@@ -449,7 +462,7 @@ const Settings = () => {
                 </button>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>

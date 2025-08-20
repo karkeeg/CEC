@@ -25,9 +25,15 @@ import Loader from "../Loader";
 
 const StudentDashboard = () => {
   const [students, setStudents] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(5);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFilter, setYearFilter] = useState("all");
+  // Debounced search term to avoid filtering on every keystroke
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
   const [yearChartData, setYearChartData] = useState([]);
   const [genderChartData, setGenderChartData] = useState([]);
   const [viewStudent, setViewStudent] = useState(null);
@@ -35,6 +41,9 @@ const StudentDashboard = () => {
   const [editForm, setEditForm] = useState({});
   const [editLoading, setEditLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     fetchStudents();
@@ -120,7 +129,7 @@ const StudentDashboard = () => {
       .replace(/\s+/g, " "); // Replace multiple spaces with single space
 
     // Clean search term
-    const cleanSearchTerm = searchTerm
+    const cleanSearchTerm = debouncedSearchTerm
       .toLowerCase()
       .trim()
       .replace(/\s+/g, " ");
@@ -153,6 +162,18 @@ const StudentDashboard = () => {
 
     return nameMatch && yearMatch;
   });
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, yearFilter]);
+
+  // Pagination calculations
+  const totalItems = filteredStudents.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
   const exportToPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -235,7 +256,6 @@ const StudentDashboard = () => {
               onClick={() => {
                 setSearchTerm("");
                 setYearFilter("all");
-                setVisibleCount(5);
               }}
               className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm"
             >
@@ -261,13 +281,7 @@ const StudentDashboard = () => {
                 {filteredStudents.length}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-700">Showing:</span>
-              <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded font-semibold">
-                {Math.min(visibleCount, filteredStudents.length)} of{" "}
-                {filteredStudents.length}
-              </span>
-            </div>
+
           </div>
 
           {/* Year Distribution Summary */}
@@ -306,11 +320,11 @@ const StudentDashboard = () => {
 
       {/* Student Table */}
       <div
-        className="overflow-x-auto shadow rounded border mb-8 min-w-0"
+        className="overflow-x-auto overflow-y-auto max-h-[400px] shadow rounded border mb-4 min-w-0"
         id="students-table"
       >
         <table className="min-w-full border-collapse text-left text-sm md:text-base">
-          <thead className="bg-[#1E6C7B] text-white">
+          <thead className="bg-[#1E6C7B] text-white sticky top-0 z-10">
             <tr>
               <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Email</th>
@@ -327,7 +341,7 @@ const StudentDashboard = () => {
                 </td>
               </tr>
             ) : (
-              filteredStudents.slice(0, visibleCount).map((student) => (
+              paginatedStudents.map((student) => (
                 <tr key={student.reg_no} className="border-b hover:bg-blue-50">
                   <td className="px-4 py-3">
                     {student.first_name} {student.middle_name ?? ""}{" "}
@@ -361,57 +375,44 @@ const StudentDashboard = () => {
             )}
           </tbody>
         </table>
-        {/* Pagination Controls */}
-        <div className="text-center mt-4 mb-4">
-          <div className="flex justify-center gap-3">
-            {/* Show Less Button */}
-            {visibleCount > 5 && (
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
-                onClick={() => setVisibleCount((prev) => Math.max(5, prev - 5))}
-              >
-                Show Less
-              </button>
-            )}
+      </div>
 
-            {/* Show More Button */}
-            {visibleCount < filteredStudents.length && (
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-                onClick={() => setVisibleCount((prev) => prev + 5)}
-              >
-                Show More
-              </button>
-            )}
-
-            {/* Show All Button */}
-            {visibleCount < filteredStudents.length && (
-              <button
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-                onClick={() => setVisibleCount(filteredStudents.length)}
-              >
-                Show All
-              </button>
-            )}
-
-            {/* Collapse All Button */}
-            {visibleCount > 5 && visibleCount === filteredStudents.length && (
-              <button
-                className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors"
-                onClick={() => setVisibleCount(5)}
-              >
-                Collapse All
-              </button>
-            )}
-          </div>
-
-          {/* Pagination Info */}
-          {filteredStudents.length > 5 && (
-            <div className="mt-2 text-sm text-gray-600">
-              Showing {Math.min(visibleCount, filteredStudents.length)} of{" "}
-              {filteredStudents.length} students
-            </div>
-          )}
+      {/* Pagination Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-8">
+        <div className="text-sm text-gray-600">
+          Showing <span className="font-semibold">{totalItems === 0 ? 0 : startIndex + 1}</span> -
+          <span className="font-semibold"> {endIndex}</span> of
+          <span className="font-semibold"> {totalItems}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <span className="text-sm">Page {currentPage} of {totalPages}</span>
+          <button
+            className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </button>
+          <select
+            className="ml-2 border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={(e) => {
+              const newSize = Number(e.target.value) || 10;
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          >
+            {[10, 20, 50, 100].map((size) => (
+              <option key={size} value={size}>{size} / page</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -582,7 +583,7 @@ const StudentDashboard = () => {
           </h3>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={yearChartData}>
-              <XAxis dataKey="year" />
+              <XAxis dataKey="year" label={{ value: 'Year', position: 'insideBottom', offset: 0 }} />
               <YAxis
                 domain={[
                   0,
@@ -595,6 +596,7 @@ const StudentDashboard = () => {
                   ) + 1
                 }
                 interval={0}
+                label={{ value: 'Number of Students', angle: -90, position: 'insideLeft' }}
               />
               <Tooltip />
               <Bar dataKey="count" fill="#3182CE" />
@@ -602,7 +604,7 @@ const StudentDashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="w-full h-72 bg-pink-50 rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
+        <div className="w-full h-72 bg-pink-50 rounded-lg p-3 sm:p-4 min-w-0">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Gender Distribution
           </h3>
@@ -615,7 +617,7 @@ const StudentDashboard = () => {
                 cx="50%"
                 cy="50%"
                 outerRadius={60}
-                label
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               >
                 <Cell fill="#63b3ed" />
                 <Cell fill="#f687b3" />

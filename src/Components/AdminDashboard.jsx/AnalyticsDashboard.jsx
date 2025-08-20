@@ -30,6 +30,8 @@ import {
   Legend,
   ComposedChart,
   Line,
+  ReferenceLine,
+  Label,
 } from "recharts";
 import Loader from "../Loader";
 
@@ -296,13 +298,22 @@ const AnalyticsDashboard = () => {
         ]);
         // Fee collection vs. due by year (composed)
         const yearMap = {};
+        const currentYear = new Date().getFullYear();
         for (const fee of feesData) {
-          const year = fee.year || "Unknown";
+          // Prefer fee.year when it's a valid number-like value; otherwise use current year
+          const y = (fee && fee.year != null && `${fee.year}`.trim() !== "" && !isNaN(Number(fee.year)))
+            ? Number(fee.year)
+            : currentYear;
+          const year = y; // keep numeric for proper sorting and axis ticks
           if (!yearMap[year]) yearMap[year] = { year, due: 0, collected: 0 };
           yearMap[year].due += Number(fee.amount || 0);
           yearMap[year].collected += Number(fee.paid_amount || 0);
         }
-        setFeeBar(Object.values(yearMap));
+        // Sort by year (numeric if possible, otherwise string with numeric comparison)
+        const sortedFeeData = Object.values(yearMap).sort((a, b) =>
+          String(a.year).localeCompare(String(b.year), undefined, { numeric: true })
+        );
+        setFeeBar(sortedFeeData);
         // Top 5 students by performance (bar)
         const studentGradeMap = {};
         for (const assignment of assignmentsWithSubs) {
@@ -629,14 +640,20 @@ const AnalyticsDashboard = () => {
               </div>
             </div>
           </div>
+          {/* Precompute midpoints for centered axes */}
+          {(() => {
+            // no-op IIFE to keep JSX tidy; variables scoped per render
+            return null;
+          })()}
           {/* Main Analytics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
             {/* Area Chart: Grade Trend */}
+           {/* Area Chart: Grade Trend */}
             <ChartCard title="Average Grade Trend (Monthly)">
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart
                   data={gradeTrend}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                  margin={{ top: 10, right: 20, left: 50, bottom: 20 }}
                 >
                   <defs>
                     <linearGradient id="colorGrade" x1="0" y1="0" x2="0" y2="1">
@@ -644,10 +661,22 @@ const AnalyticsDashboard = () => {
                       <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis
+                    dataKey="month"
+                    tick={false}
+                    axisLine={false}
+                    label={{ value: 'Months', position: 'insideBottom', offset: 0 }}
+                  />
+                  <YAxis tick={{ fontSize: 12 }}>
+                    <Label value="Average Grade (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <Tooltip />
+                  {/* Centered axes */}
+                  <ReferenceLine y={50} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  {gradeTrend && gradeTrend.length > 0 && (
+                    <ReferenceLine x={gradeTrend[Math.floor(gradeTrend.length / 2)]?.month} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  )}
+                  <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
                   <Area
                     type="monotone"
                     dataKey="avg"
@@ -658,23 +687,9 @@ const AnalyticsDashboard = () => {
                 </AreaChart>
               </ResponsiveContainer>
             </ChartCard>
-            {/* Bar Chart: Assignment Completion by Class */}
-            <ChartCard title="Assignment Completion Rate by Class">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={assignmentCompletion}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="class" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar
-                    dataKey="completion"
-                    fill="#10B981"
-                    name="Completion %"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
+
+           
+
             {/* Pie Chart: Attendance Breakdown */}
             <ChartCard title="Attendance Breakdown">
               <ResponsiveContainer width="100%" height={220}>
@@ -696,43 +711,73 @@ const AnalyticsDashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
             </ChartCard>
+
             {/* Composed Chart: Fee Collection vs Due by Year */}
             <ChartCard title="Fee Collection vs. Due by Year">
               <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={feeBar}>
+                <ComposedChart
+                  data={feeBar}
+                  margin={{ top: 10, right: 20, left: 80, bottom: 20 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} axisLine={false} label={{ value: 'Year', position: 'insideBottom', offset: 0 }} />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => {
+                    const n = Number(value) || 0;
+                    const m = n / 1_000_000;
+                    return `${parseFloat(m.toFixed(2))}M`;
+                  }}>
+                    <Label value="Amount (Rs., millions)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
+                  {/* Centered axes */}
+                  {(() => {
+                    const maxVal = Math.max(
+                      0,
+                      ...feeBar.map((b) => Math.max(Number(b.due || 0), Number(b.collected || 0)))
+                    );
+                    const mid = maxVal / 2;
+                    return <ReferenceLine y={mid} stroke="#CBD5E1" strokeDasharray="4 4" />;
+                  })()}
+                  {feeBar && feeBar.length > 0 && (
+                    <ReferenceLine x={feeBar[Math.floor(feeBar.length / 2)]?.year} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  )}
+                  <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
                   <Legend />
-                  <Bar dataKey="due" fill="#f59e42" name="Total Due" />
-                  <Bar
-                    dataKey="collected"
-                    fill="#10b981"
-                    name="Total Collected"
-                  />
+                  <Bar dataKey="due" fill="#f59e42" name="Total Due" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="collected" fill="#10b981" name="Total Collected" radius={[6, 6, 0, 0]} />
                 </ComposedChart>
               </ResponsiveContainer>
             </ChartCard>
+
             {/* Bar Chart: Top 5 Students by Performance */}
             <ChartCard title="Top 5 Students by Performance">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={topStudents}>
+                <BarChart
+                  data={topStudents}
+                  margin={{ top: 10, right: 20, left: 60, bottom: 20 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
+                  <XAxis dataKey="name" tick={false} axisLine={false} label={{ value: 'Students', position: 'insideBottom', offset: 0 }} />
+                  <YAxis tick={{ fontSize: 12 }}>
+                    <Label value="Average Grade (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
+                  {/* Centered axes */}
+                  <ReferenceLine y={50} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  {topStudents && topStudents.length > 0 && (
+                    <ReferenceLine x={topStudents[Math.floor(topStudents.length / 2)]?.name} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  )}
+                  <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
                   <Legend />
-                  <Bar dataKey="avg" fill="#6366F1" name="Avg Grade" />
+                  <Bar dataKey="avg" fill="#6366F1" name="Avg Grade" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
+
             {/* Pie Chart: Department Distribution */}
-            <ChartCard title="Department Distribution">
+            {/* <ChartCard title="Department Distribution">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
@@ -752,23 +797,39 @@ const AnalyticsDashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
-            </ChartCard>
+            </ChartCard> */}
+
             {/* Bar Chart: Subject Distribution */}
             <ChartCard title="Subject Distribution">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={subjectBar}>
+                <BarChart
+                  data={subjectBar}
+                  margin={{ top: 10, right: 20, left: 80, bottom: 20 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
+                  <XAxis dataKey="name" tick={false} axisLine={false} label={{ value: 'Subjects', position: 'insideBottom', offset: 0 }} />
+                  <YAxis tick={{ fontSize: 12 }}>
+                    <Label value="Number of Assignments" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
+                  {/* Centered axes */}
+                  {(() => {
+                    const maxVal = Math.max(0, ...subjectBar.map((b) => Number(b.value || 0)));
+                    const mid = maxVal / 2;
+                    return <ReferenceLine y={mid} stroke="#CBD5E1" strokeDasharray="4 4" />;
+                  })()}
+                  {subjectBar && subjectBar.length > 0 && (
+                    <ReferenceLine x={subjectBar[Math.floor(subjectBar.length / 2)]?.name} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  )}
+                  <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
                   <Legend />
-                  <Bar dataKey="value" fill="#00C49F" name="Assignments" />
+                  <Bar dataKey="value" fill="#00C49F" name="Assignments" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
+
             {/* Pie Chart: Gender Distribution */}
             <ChartCard title="Gender Distribution">
               <ResponsiveContainer width="100%" height={220}>
@@ -790,7 +851,7 @@ const AnalyticsDashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
             </ChartCard>

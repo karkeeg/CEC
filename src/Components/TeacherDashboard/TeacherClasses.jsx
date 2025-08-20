@@ -98,9 +98,21 @@ const TeacherClasses = () => {
       console.error("Error saving classes cache:", error);
     }
   };
+
+  // Clear cache to force fresh data fetch
+  const clearCache = () => {
+    try {
+      localStorage.removeItem(CACHE_KEYS.CLASSES);
+      localStorage.removeItem(CACHE_KEYS.CHART_DATA);
+      localStorage.removeItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    } catch (error) {
+      console.error("Error clearing classes cache:", error);
+    }
+  };
   const [detailsModalLoading, setDetailsModalLoading] = useState(false);
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [editCapacity, setEditCapacity] = useState(null);
+  const [editDate, setEditDate] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [departments, setDepartments] = useState([]);
 
@@ -144,6 +156,10 @@ const TeacherClasses = () => {
         name: cls.name || cls.class_name,
         students: cls.studentCount,
         capacity: cls.max_students || cls.capacity || 30,
+        size: cls.studentCount, // Fix: Add 'size' dataKey for AreaChart
+        fillRate: Math.round(
+          (cls.studentCount / (cls.max_students || cls.capacity || 30)) * 100
+        ), // Add fillRate for combined chart
       }));
       setClassSizeTrend(sizeTrend);
 
@@ -152,6 +168,9 @@ const TeacherClasses = () => {
         fillPercentage: Math.round(
           (cls.studentCount / (cls.max_students || cls.capacity || 30)) * 100
         ),
+        fill: Math.round(
+          (cls.studentCount / (cls.max_students || cls.capacity || 30)) * 100
+        ), // Fix: Add 'fill' dataKey for Line chart
       }));
       setClassFillStatus(fillStatus);
 
@@ -449,7 +468,8 @@ const TeacherClasses = () => {
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors"
                         onClick={async () => {
                           setDetailsModalClass(cls);
-                          setEditCapacity(cls.capacity);
+                          setEditCapacity(null);
+                          setEditDate(null);
                           setDetailsModalLoading(true);
                           const students = await getStudentsByClass(
                             cls.class_id || cls.id
@@ -480,91 +500,79 @@ const TeacherClasses = () => {
           )}
         </div>
       </div>
-      {/* Charts Section: Class Size Trend, Fill Status */}
+      {/* Combined Chart Section: Complete Class Analytics */}
       <div className="mb-8 min-w-0">
-        {/* Class Size Trend Area Chart */}
         <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Class Size Trend (Mountain Chart)
+            Complete Class Analytics Dashboard
           </h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart
-              data={classSizeTrend}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="colorSize" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="name"
-                label={{
-                  value: "Classes ->",
-                  position: "bottom",
-                  offset: -20,
-                }}
-                tick={false}
-              />
-              <YAxis
-                label={{
-                  value: "Class size (no of Students)",
-                  angle: -90,
-                  position: "insideLeft",
-                  style: { textAnchor: "middle" },
-                }}
-              />
-              <Tooltip />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="size"
-                stroke="#10B981"
-                fillOpacity={1}
-                fill="url(#colorSize)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Class Fill Status Ladder Chart */}
-        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Class Fill Status (Ladder Chart)
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={400}>
             <ComposedChart
-              data={classFillStatus}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              data={classSizeTrend}
+              margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
             >
-              <XAxis
-                dataKey="name"
-                label={{
-                  value: "Classes ->",
-                  position: "bottom",
-                  offset: -20,
-                }}
+              <XAxis 
+                dataKey="name" 
                 tick={false}
-              />
-              <YAxis
+                axisLine={false}
                 label={{
-                  value: "Class Capacity",
+                  value: "Classes",
+                  position: "insideBottom",
+                  offset: -10,
+                  style: { textAnchor: "middle", fontSize: "14px", fontWeight: "600" }
+                }}
+              />
+              <YAxis 
+                yAxisId="left"
+                label={{
+                  value: "Number of Students",
                   angle: -90,
                   position: "insideLeft",
                   style: { textAnchor: "middle" },
                 }}
               />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="stepAfter"
-                dataKey="fill"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={false}
+              <Tooltip 
+                formatter={(value, name) => {
+                  if (name === 'students') return [value, 'Enrolled Students'];
+                  if (name === 'capacity') return [value, 'Max Capacity'];
+                  return [value, name];
+                }}
+                labelFormatter={(label) => `Class: ${label}`}
               />
+              <Legend />
+              
+              {/* Background capacity bars */}
+              <Bar 
+                yAxisId="left"
+                dataKey="capacity" 
+                fill="#9CA3AF" 
+                name="Max Capacity"
+                radius={[4, 4, 0, 0]}
+              />
+              
+              {/* Enrolled students bars */}
+              <Bar 
+                yAxisId="left"
+                dataKey="students" 
+                fill="#1E3A8A" 
+                name="Enrolled Students"
+                radius={[4, 4, 0, 0]}
+              />
+              
             </ComposedChart>
           </ResponsiveContainer>
+          
+          {/* Legend explanation */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-gray-400 rounded"></div>
+              <span>Max Capacity</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-800 rounded"></div>
+              <span>Enrolled Students</span>
+            </div>
+          </div>
         </div>
       </div>
       {/* Enrollment Modal */}
@@ -646,12 +654,26 @@ const TeacherClasses = () => {
                   <button
                     className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
                     onClick={async () => {
-                      await updateClass(
-                        detailsModalClass.class_id || detailsModalClass.id,
-                        { capacity: Number(editCapacity) }
-                      );
-                      setEditCapacity(null);
-                      setRefresh((r) => !r);
+                      try {
+                        console.log('Updating capacity for class:', detailsModalClass.class_id || detailsModalClass.id, 'to:', Number(editCapacity));
+                        const result = await updateClass(
+                          detailsModalClass.class_id || detailsModalClass.id,
+                          { capacity: Number(editCapacity) }
+                        );
+                        console.log('Update result:', result);
+                        // Clear cache to ensure fresh data on next load
+                        clearCache();
+                        // Update the modal state immediately
+                        setDetailsModalClass({
+                          ...detailsModalClass,
+                          capacity: Number(editCapacity)
+                        });
+                        setEditCapacity(null);
+                        setRefresh((r) => !r);
+                      } catch (error) {
+                        console.error('Failed to update capacity:', error);
+                        alert('Failed to update capacity. Please try again.');
+                      }
                     }}
                   >
                     Save
@@ -680,7 +702,60 @@ const TeacherClasses = () => {
               {getSubjectName(detailsModalClass.subject_id)}
             </div>
             <div>
-              <strong>Schedule:</strong> {detailsModalClass.schedule}
+              <strong>Schedule:</strong>{" "}
+              {editDate !== null ? (
+                <>
+                  <input
+                    type="datetime-local"
+                    className="border px-2 py-1 rounded mr-2"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                  />
+                  <button
+                    className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                    onClick={async () => {
+                      try {
+                        console.log('Updating schedule for class:', detailsModalClass.class_id || detailsModalClass.id, 'to:', editDate);
+                        const result = await updateClass(
+                          detailsModalClass.class_id || detailsModalClass.id,
+                          { schedule: editDate }
+                        );
+                        console.log('Update result:', result);
+                        // Clear cache to ensure fresh data on next load
+                        clearCache();
+                        // Update the modal state immediately
+                        setDetailsModalClass({
+                          ...detailsModalClass,
+                          schedule: editDate
+                        });
+                        setEditDate(null);
+                        setRefresh((r) => !r);
+                      } catch (error) {
+                        console.error('Failed to update schedule:', error);
+                        alert('Failed to update schedule. Please try again.');
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="ml-2 text-xs text-gray-500 hover:text-gray-800"
+                    onClick={() => setEditDate(null)}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {detailsModalClass.schedule}
+                  <button
+                    className="ml-2 text-xs text-blue-600 underline"
+                    onClick={() => setEditDate(detailsModalClass.schedule)}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
             </div>
             <div>
               <strong>Description:</strong> {detailsModalClass.description}

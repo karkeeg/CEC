@@ -5,7 +5,7 @@ import autoTable from "jspdf-autotable";
 import {
   fetchClasses,
   fetchStudents,
-  getAttendanceByDateRange,
+  getAllAttendance,
 } from "../../supabaseConfig/supabaseApi";
 import {
   ResponsiveContainer,
@@ -24,17 +24,7 @@ import {
 import Loader from "../Loader";
 
 const AdminAttandancePage = () => {
-  const [fromDate, setFromDate] = useState(() => {
-    const today = new Date();
-    const oneMonthAgo = new Date(today);
-    oneMonthAgo.setMonth(today.getMonth() - 1);
-    return oneMonthAgo.toISOString().slice(0, 10);
-  });
-  const [toDate, setToDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().slice(0, 10);
-  });
+
 
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
@@ -42,6 +32,8 @@ const AdminAttandancePage = () => {
   const [selectedClass, setSelectedClass] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Class filter for main table
+  const [classFilterId, setClassFilterId] = useState("all");
 
   useEffect(() => {
     fetchClasses().then(setClasses);
@@ -50,10 +42,10 @@ const AdminAttandancePage = () => {
 
   useEffect(() => {
     setLoading(true);
-    getAttendanceByDateRange(fromDate, toDate)
+    getAllAttendance()
       .then(setAttendance)
       .finally(() => setLoading(false));
-  }, [fromDate, toDate]);
+  }, []);
 
   const exportToPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -63,10 +55,10 @@ const AdminAttandancePage = () => {
     doc.setTextColor(30, 68, 157); // Blue color
     doc.text("Attendance Report", 40, 40);
     
-    // Add date range
+    // Add date range (now showing all dates)
     doc.setFontSize(12);
     doc.setTextColor(107, 114, 128); // Gray color
-    doc.text(`Date Range: ${new Date(fromDate).toLocaleDateString()} - ${new Date(toDate).toLocaleDateString()}`, 40, 60);
+    doc.text(`Date Range: All Dates`, 40, 60);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, 75);
     
     let startY = 100;
@@ -201,6 +193,10 @@ const AdminAttandancePage = () => {
     return acc;
   }, {});
   const classTableData = Object.values(groupedByClass);
+  const filteredClassTableData =
+    classFilterId === "all"
+      ? classTableData
+      : classTableData.filter((row) => row.class_id === classFilterId);
 
   // Analytics: Daily attendance % (all classes)
   const attendanceByDate = attendance.reduce((acc, row) => {
@@ -265,38 +261,6 @@ const AdminAttandancePage = () => {
           </button>
         </div>
 
-        {/* Enhanced Date Range Filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Date Range Filter</h3>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                From Date
-              </label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="border px-4 py-2 rounded bg-white text-gray-800 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="border px-4 py-2 rounded bg-white text-gray-800 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="text-sm text-gray-600">
-              <p>Showing data from <span className="font-medium">{new Date(fromDate).toLocaleDateString()}</span></p>
-              <p>to <span className="font-medium">{new Date(toDate).toLocaleDateString()}</span></p>
-            </div>
-          </div>
-        </div>
 
         {/* Overall Statistics Card */}
         <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
@@ -330,10 +294,26 @@ const AdminAttandancePage = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800">Class-wise Attendance Report</h3>
             <p className="text-sm text-gray-600 mt-1">Overall Attendance: {overallAttendance}%</p>
+            {/* Class Filter */}
+            <div className="mt-3 flex items-center gap-3">
+              <label className="text-sm text-gray-700">Class:</label>
+              <select
+                className="border px-3 py-2 rounded text-sm"
+                value={classFilterId}
+                onChange={(e) => setClassFilterId(e.target.value)}
+              >
+                <option value="all">All Classes</option>
+                {classes.map((c) => (
+                  <option key={c.class_id} value={c.class_id}>
+                    {c.name || c.class_id}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="overflow-x-auto" id="attendance-table">
+          <div className="overflow-x-auto overflow-y-auto max-h-[400px]" id="attendance-table">
             <table className="min-w-full">
-              <thead className="bg-blue-900 border-b border-blue-800">
+              <thead className="bg-blue-900 border-b border-blue-800 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Class
@@ -359,7 +339,7 @@ const AdminAttandancePage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {classTableData.length === 0 ? (
+                {filteredClassTableData.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                       <div className="flex flex-col items-center">
@@ -373,7 +353,7 @@ const AdminAttandancePage = () => {
                     </td>
                   </tr>
                 ) : (
-                  classTableData.map((row, idx) => {
+                  filteredClassTableData.map((row, idx) => {
                     const percent = row.total > 0 ? Math.round((row.present / row.total) * 100) : 0;
                     const getAttendanceColor = (percentage) => {
                       if (percentage >= 90) return 'bg-green-100 text-green-800 border-green-200';

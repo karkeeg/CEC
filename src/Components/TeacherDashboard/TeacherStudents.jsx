@@ -35,7 +35,7 @@ const TeacherStudents = () => {
   const [loading, setLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [performanceLoading, setPerformanceLoading] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [visibleCount, setVisibleCount] = useState(8);
   const [viewStudent, setViewStudent] = useState(null);
   const [performanceStats, setPerformanceStats] = useState({
     totalStudents: 0,
@@ -175,8 +175,8 @@ const TeacherStudents = () => {
     return matchesName && matchesYear;
   });
 
-  // Only show up to visibleCount students
-  const visibleStudents = filteredStudents.slice(0, visibleCount);
+  // Show all filtered students for scrollable table
+  const visibleStudents = filteredStudents;
 
 
   if (loading) {
@@ -471,77 +471,69 @@ const TeacherStudents = () => {
           </span>
         </div>
         <div className="overflow-x-auto shadow rounded border mb-8 min-w-0">
-          <table className="min-w-full border-collapse text-left text-sm md:text-base">
-            <thead className="bg-[#1E6C7B] text-white">
-              <tr>
-                <th className="py-3 px-4">Name</th>
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Gender</th>
-                <th className="py-3 px-4">Year</th>
-                <th className="py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="max-h-96 overflow-y-auto">
+            <table className="min-w-full border-collapse text-left text-sm md:text-base">
+              <thead className="bg-[#1E6C7B] text-white sticky top-0 z-10">
                 <tr>
-                  <td colSpan="5" className="text-center py-4 text-gray-500">
-                    Loading...
-                  </td>
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4">Gender</th>
+                  <th className="py-3 px-4">Year</th>
+                  <th className="py-3 px-4">Actions</th>
                 </tr>
-              ) : visibleStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="text-center py-4 text-gray-500">
-                    No student found.
-                  </td>
-                </tr>
-              ) : (
-                visibleStudents.map((student) => (
-                  <tr key={student.id} className="border-b hover:bg-blue-50">
-                    <td className="px-4 py-3">
-                      {student.first_name} {student.middle_name ?? ""}{" "}
-                      {student.last_name}
-                    </td>
-                    <td className="px-4 py-3">{student.email}</td>
-                    <td className="px-4 py-3">{student.gender}</td>
-                    <td className="px-4 py-3">{student.year}</td>
-                    <td className="px-4 py-3 flex gap-2">
-                      <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                        onClick={() => setViewStudent(student)}
-                      >
-                        View
-                      </button>
-                      <button
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                        onClick={() => handleDelete(student.id)}
-                      >
-                        Delete
-                      </button>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-4 text-gray-500">
+                      Loading...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {/* Show More / Show Less Buttons */}
-          <div className="flex justify-center gap-4 my-4">
-            {visibleCount < filteredStudents.length && (
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                onClick={() => setVisibleCount((prev) => prev + 5)}
-              >
-                Show More
-              </button>
-            )}
-            {visibleCount > 5 && (
-              <button
-                className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-                onClick={() => setVisibleCount((prev) => Math.max(5, prev - 5))}
-              >
-                Show Less
-              </button>
-            )}
+                ) : visibleStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-4 text-gray-500">
+                      No student found.
+                    </td>
+                  </tr>
+                ) : (
+                  visibleStudents.map((student, index) => (
+                    <tr
+                      key={student.id}
+                      className={`border-b hover:bg-blue-50 ${index >= 8 ? 'bg-gray-50' : ''}`}
+                    >
+                      <td className="px-4 py-3">
+                        {student.first_name} {student.middle_name ?? ""}{" "}
+                        {student.last_name}
+                      </td>
+                      <td className="px-4 py-3">{student.email}</td>
+                      <td className="px-4 py-3">{student.gender}</td>
+                      <td className="px-4 py-3">{student.year}</td>
+                      <td className="px-4 py-3 flex gap-2">
+                        <button
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                          onClick={() => setViewStudent(student)}
+                        >
+                          View
+                        </button>
+                        <button
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                          onClick={() => handleDelete(student.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
+          {/* Scroll indicator */}
+          {visibleStudents.length > 8 && (
+            <div className="text-center py-2 text-sm text-gray-500 bg-gray-100">
+              Showing {Math.min(8, visibleStudents.length)} of {visibleStudents.length} students - Scroll down to see more
+            </div>
+          )}
         </div>
       </div>
 

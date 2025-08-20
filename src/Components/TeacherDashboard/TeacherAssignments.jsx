@@ -5,10 +5,8 @@ import {
   getClassesByTeacher,
   getSubjects,
   createAssignment,
-  deleteAssignment,
-  getAssignmentSubmissions,
   updateAssignment,
-  getStudentsByClass,
+  deleteAssignment,
 } from "../../supabaseConfig/supabaseApi";
 import { AssignmentForm } from "../Forms/AssignmentForm";
 import supabase from "../../supabaseConfig/supabaseClient";
@@ -18,17 +16,8 @@ import {
   FaTrash,
   FaEye,
   FaCalendarAlt,
-  FaUsers,
 } from "react-icons/fa";
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  Line,
-} from "recharts";
+ 
 import Modal from "../Modal";
 import Loader from "../Loader";
 
@@ -102,11 +91,11 @@ const TeacherAssignments = () => {
       console.error("Error saving assignments cache:", error);
     }
   };
-  const [submissionProgress, setSubmissionProgress] = useState([]); // For StepLine chart
+  
   const [viewAssignment, setViewAssignment] = useState(null);
   const [editAssignment, setEditAssignment] = useState(null);
   const [editForm, setEditForm] = useState(null);
-  const [chartLoading, setChartLoading] = useState(false);
+  
 
   useEffect(() => {
     if (!user?.id) return;
@@ -142,6 +131,7 @@ const TeacherAssignments = () => {
     };
     fetchData();
   }, [user?.id]);
+ 
 
   console.log("Assignments in table:", assignments);
 
@@ -369,210 +359,179 @@ const TeacherAssignments = () => {
       {/* Assignments List Section */}
       <div className="bg-blue-100 rounded-xl shadow overflow-hidden min-w-0">
         <div className="overflow-x-auto min-w-0">
-          <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Assignment
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Subject
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Class
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Due Date
-                </th>
-
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Files
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAssignments.length === 0 ? (
+          <div className="max-h-96 overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm md:text-base">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="px-6 py-4 text-center text-gray-500"
-                  >
-                    No assignments found
-                  </td>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assignment
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Subject
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Class
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Due Date
+                  </th>
+
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Files
+                  </th>
                 </tr>
-              ) : (
-                filteredAssignments.map((assignment, index) => {
-                  const statusColor = getStatusColor(assignment.due_date);
-                  const dueDate = new Date(assignment.due_date);
-                  const today = new Date();
-                  const diffTime = dueDate - today;
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAssignments.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
+                      No assignments found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAssignments.map((assignment, index) => {
+                    const statusColor = getStatusColor(assignment.due_date);
+                    const dueDate = new Date(assignment.due_date);
+                    const today = new Date();
+                    const diffTime = dueDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                  let statusText = "Upcoming";
-                  if (diffDays < 0) statusText = "Overdue";
-                  else if (diffDays <= 3) statusText = "Due Soon";
+                    let statusText = "Upcoming";
+                    if (diffDays < 0) statusText = "Overdue";
+                    else if (diffDays <= 3) statusText = "Due Soon";
 
-                  return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {assignment.title}
+                    return (
+                      <tr
+                        key={index}
+                        className={`hover:bg-gray-50 ${
+                          index >= 8 ? "bg-gray-50" : ""
+                        }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {assignment.title}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {assignment.description?.substring(0, 40)}...
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {assignment.description?.substring(0, 40)}...
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            {getCurrentSubjectName(assignment)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {(() => {
+                              const cls = classes.find(
+                                (c) =>
+                                  c.id === assignment.class_id ||
+                                  c.class_id === assignment.class_id
+                              );
+                              return cls ? cls.name : assignment.class_id;
+                            })()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex items-center">
+                            <FaCalendarAlt className="mr-2 text-gray-400" />
+                            {dueDate.toLocaleDateString()}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          {getCurrentSubjectName(assignment)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        </td>
+
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}
+                          >
+                            {statusText}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button
+                              className="text-blue-600 hover:text-blue-900"
+                              onClick={() => handleViewAssignment(assignment)}
+                            >
+                              <FaEye className="text-lg" />
+                            </button>
+                            <button
+                              className="text-green-600 hover:text-green-900"
+                              onClick={() => handleEditAssignment(assignment)}
+                            >
+                              <FaEdit className="text-lg" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDeleteAssignment(assignment.id)
+                              }
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <FaTrash className="text-lg" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {(() => {
-                            const cls = classes.find(
-                              (c) =>
-                                c.id === assignment.class_id ||
-                                c.class_id === assignment.class_id
-                            );
-                            return cls ? cls.name : assignment.class_id;
-                          })()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center">
-                          <FaCalendarAlt className="mr-2 text-gray-400" />
-                          {dueDate.toLocaleDateString()}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}
-                        >
-                          {statusText}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => handleViewAssignment(assignment)}
-                          >
-                            <FaEye className="text-lg" />
-                          </button>
-                          <button
-                            className="text-green-600 hover:text-green-900"
-                            onClick={() => handleEditAssignment(assignment)}
-                          >
-                            <FaEdit className="text-lg" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleDeleteAssignment(assignment.id)
+                            let files = assignment.files;
+                            if (typeof files === "string") {
+                              try {
+                                files = JSON.parse(files);
+                              } catch {
+                                files = files ? [files] : [];
+                              }
                             }
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <FaTrash className="text-lg" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(() => {
-                          let files = assignment.files;
-                          if (typeof files === "string") {
-                            try {
-                              files = JSON.parse(files);
-                            } catch {
+                            if (!Array.isArray(files))
                               files = files ? [files] : [];
-                            }
-                          }
-                          if (!Array.isArray(files))
-                            files = files ? [files] : [];
-                          return files.length > 0 ? (
-                            <ul>
-                              {files.map((file, idx) => (
-                                <li key={idx}>
-                                  <a
-                                    href={file}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 underline"
-                                  >
-                                    File {idx + 1}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <span className="text-gray-400">No files</span>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {/* Charts Section: Assignment Submission Progress */}
-      <div className="my-8 min-w-0">
-        {/* Assignment Submission Progress Ladder Chart */}
-        <div className="bg-blue-100 p-3 sm:p-6 rounded-xl shadow mb-8 min-w-0 overflow-x-auto">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Assignment Submission Progress (Ladder Chart)
-          </h2>
-          {chartLoading ? (
-            <div className="flex items-center justify-center min-h-[150px]">
-              <Loader message="Loading chart data..." />
+                            return files.length > 0 ? (
+                              <ul>
+                                {files.map((file, idx) => (
+                                  <li key={idx}>
+                                    <a
+                                      href={file}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 underline"
+                                    >
+                                      File {idx + 1}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-gray-400">No files</span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {/* Scroll indicator */}
+          {filteredAssignments.length > 8 && (
+            <div className="text-center py-2 text-sm text-gray-500 bg-gray-100">
+              Showing {Math.min(8, filteredAssignments.length)} of{" "}
+              {filteredAssignments.length} assignments - Scroll down to see more
             </div>
-          ) : (
-          <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart
-              data={submissionProgress}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-                <XAxis
-                  dataKey="name"
-                  label={{
-                    value: "Assignment Name ->",
-                    position: "bottom",
-                    offset: -20,
-                  }}
-                  tick={false}
-                />
-                <YAxis
-                  label={{
-                    value: "Submission  Rate (%)",
-                    angle: -90,
-                    position: "insideLeft",
-                    style: { textAnchor: "middle" },
-                  }}
-                />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="stepAfter"
-                dataKey="submissionRate"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                  // dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
           )}
         </div>
       </div>
+
+      
+
       {/* Create Assignment Modal */}
       {showCreateModal && (
         <Modal

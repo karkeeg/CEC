@@ -27,6 +27,7 @@ import {
   addGalleryItems,
   logActivity,
   fetchGalleryItems,
+  fetchArticles,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { StudentForm } from "../Forms/StudentForm";
@@ -92,10 +93,14 @@ const MainDashboard = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
+  const [articles, setArticles] = useState([]);
+  const [editArticle, setEditArticle] = useState(null);
+  const [visibleArticlesCount, setVisibleArticlesCount] = useState(8);
   const [notices, setNotices] = useState([]);
   const [editNotice, setEditNotice] = useState(null);
-  const [visibleNoticesCount, setVisibleNoticesCount] = useState(3);
+  const [visibleNoticesCount, setVisibleNoticesCount] = useState(8);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [visibleGalleryCount, setVisibleGalleryCount] = useState(8);
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [galleryTitle, setGalleryTitle] = useState("");
   const [galleryDescription, setGalleryDescription] = useState("");
@@ -188,6 +193,15 @@ const MainDashboard = () => {
     // Fetch all notices for management
     const allNotices = await getAllNotices();
     setNotices(allNotices || []);
+
+    // Fetch all articles for management
+    try {
+      const allArticles = await fetchArticles();
+      setArticles(allArticles || []);
+    } catch (e) {
+      console.error('Failed to fetch articles', e);
+      setArticles([]);
+    }
   };
 
   useEffect(() => {
@@ -658,7 +672,7 @@ const MainDashboard = () => {
         {notices.length === 0 ? (
           <p className="text-gray-500">No notices found.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
             <table className="min-w-full text-left border">
               <thead className="bg-blue-100">
                 <tr>
@@ -715,10 +729,84 @@ const MainDashboard = () => {
                   See More
                 </button>
               )}
-              {visibleNoticesCount > 3 && (
+              {visibleNoticesCount > 8 && (
                 <button
                   className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-                  onClick={() => setVisibleNoticesCount(3)}
+                  onClick={() => setVisibleNoticesCount(8)}
+                >
+                  See Less
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Articles Management Table */}
+      <div className="bg-white rounded shadow p-4 my-8">
+        <h2 className="text-xl font-bold mb-4">Manage Articles</h2>
+        {articles.length === 0 ? (
+          <p className="text-gray-500">No articles found.</p>
+        ) : (
+          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+            <table className="min-w-full text-left border">
+              <thead className="bg-orange-100 sticky top-0 z-10">
+                <tr>
+                  <th className="p-2">Title</th>
+                  <th className="p-2">Summary</th>
+                  <th className="p-2">Date</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {articles.slice(0, visibleArticlesCount).map((a) => (
+                  <tr key={a.id}>
+                    <td className="p-2 font-semibold">{a.title}</td>
+                    <td className="p-2 max-w-md truncate">{a.summary}</td>
+                    <td className="p-2">{new Date(a.created_at).toLocaleString()}</td>
+                    <td className="p-2 flex gap-2">
+                      <button
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => setEditArticle(a)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={async () => {
+                          if (!window.confirm('Are you sure you want to delete this article?')) return;
+                          try {
+                            const { error } = await supabase
+                              .from('articles')
+                              .delete()
+                              .eq('id', a.id);
+                            if (error) throw error;
+                            await fetchStats();
+                          } catch (err) {
+                            alert('Failed to delete article: ' + (err.message || err));
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-2 flex gap-2">
+              {visibleArticlesCount < articles.length && (
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  onClick={() => setVisibleArticlesCount((prev) => prev + 5)}
+                >
+                  See More
+                </button>
+              )}
+              {visibleArticlesCount > 8 && (
+                <button
+                  className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                  onClick={() => setVisibleArticlesCount(8)}
                 >
                   See Less
                 </button>
@@ -734,7 +822,7 @@ const MainDashboard = () => {
         {galleries.length === 0 ? (
           <p className="text-gray-500">No gallery items found.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
             <table className="min-w-full text-left border">
               <thead className="bg-indigo-100">
                 <tr>
@@ -747,7 +835,7 @@ const MainDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {galleries.map((gallery) => (
+                {galleries.slice(0, visibleGalleryCount).map((gallery) => (
                   <tr key={gallery.id}>
                     <td className="p-2">
                       {getPreviewImage(gallery) ? (
@@ -789,6 +877,24 @@ const MainDashboard = () => {
                 ))}
               </tbody>
             </table>
+            <div className="mt-2 flex gap-2">
+              {visibleGalleryCount < galleries.length && (
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  onClick={() => setVisibleGalleryCount((prev) => prev + 8)}
+                >
+                  See More
+                </button>
+              )}
+              {visibleGalleryCount > 8 && (
+                <button
+                  className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                  onClick={() => setVisibleGalleryCount(8)}
+                >
+                  See Less
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -845,14 +951,29 @@ const MainDashboard = () => {
           />
         </Modal>
       )}
-      {/* Article Modal */}
+      {/* Article Add Modal */}
       {showArticleModal && (
         <Modal title="Add New Article" onClose={() => setShowArticleModal(false)}>
           <ArticleForm
-            onSuccess={() => {
-              setShowArticleModal(false);
-              fetchStats();
+            onSuccess={fetchStats}
+            onClose={() => setShowArticleModal(false)}
+          />
+        </Modal>
+      )}
+      {/* Article Edit Modal */}
+      {editArticle && (
+        <Modal title="Edit Article" onClose={() => setEditArticle(null)}>
+          <ArticleForm
+            article={editArticle}
+            onSuccess={async () => {
+              setEditArticle(null);
+              await fetchStats();
             }}
+            onDelete={async () => {
+              setEditArticle(null);
+              await fetchStats();
+            }}
+            onClose={() => setEditArticle(null)}
           />
         </Modal>
       )}

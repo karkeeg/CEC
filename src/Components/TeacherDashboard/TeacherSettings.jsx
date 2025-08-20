@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
+import supabase from "../../supabaseConfig/supabaseClient";
 import {
   updateTeacherProfile,
   updateTeacherPassword,
@@ -94,10 +95,21 @@ const TeacherSettings = () => {
       return;
     }
     try {
-      const error = await updateTeacherPassword(
-        user.id,
-        passwordForm.new_password
-      );
+      // Verify current password from teachers table
+      const { data: rows, error: fetchErr } = await supabase
+        .from("teachers")
+        .select("id, hashed_password")
+        .eq("id", user.id);
+      if (fetchErr) throw fetchErr;
+      const row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) throw new Error("User not found");
+      if (String(row.hashed_password || "") !== String(passwordForm.current_password)) {
+        setMessage({ type: "error", text: "Current password is incorrect" });
+        setLoading(false);
+        return;
+      }
+
+      const error = await updateTeacherPassword(user.id, passwordForm.new_password);
       if (error) throw error;
       setPasswordForm({
         current_password: "",
@@ -170,12 +182,12 @@ const TeacherSettings = () => {
               label="Password"
               isActive={activeTab === "password"}
             />
-            <TabButton
+            {/* <TabButton
               id="notifications"
               icon={<FaBell />}
               label="Notifications"
               isActive={activeTab === "notifications"}
-            />
+            /> */}
           </nav>
         </div>
 

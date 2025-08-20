@@ -23,7 +23,7 @@ const COLORS = [
 
 const DepartmentsPage = () => {
   const [departments, setDepartments] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(5);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -101,7 +101,7 @@ const DepartmentsPage = () => {
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto min-w-0" id="departments-table">
+      <div className="mt-6 overflow-x-auto overflow-y-auto max-h-[400px] min-w-0" id="departments-table">
         {loading ? (
           <div className="flex justify-center items-center h-32">
             <div className="loader" />
@@ -118,7 +118,7 @@ const DepartmentsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, visibleCount).map((dept) => (
+              {filtered.map((dept) => (
                 <tr
                   key={dept.id}
                   className="text-center border-t hover:bg-blue-50 transition"
@@ -145,16 +145,7 @@ const DepartmentsPage = () => {
           </table>
         )}
 
-        {filtered.length > visibleCount && (
-          <div className="text-center mb-4 mt-4">
-            <button
-              onClick={() => setVisibleCount((prev) => prev + 5)}
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Show More
-            </button>
-          </div>
-        )}
+
       </div>
 
       <div className="flex mt-8 bg-gray-100 flex-col md:flex-row gap-4 sm:gap-8 items-center rounded-lg p-4 min-w-0">
@@ -209,6 +200,7 @@ const DepartmentsPage = () => {
           </ul>
         </div>
       </div>
+      
 
       {/* Add Department Modal */}
       {showAddModal && (

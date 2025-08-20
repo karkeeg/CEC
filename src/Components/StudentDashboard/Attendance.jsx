@@ -14,6 +14,7 @@ import {
   Cell,
   BarChart,
   Bar,
+  Label,
 } from "recharts";
 import { useUser } from "../../contexts/UserContext";
 import {
@@ -281,6 +282,11 @@ const Attendance = () => {
     { week: "Week 4", present: 4, absent: 3 },
   ];
 
+  // Ensure weekly chart shows only ~5–8 items by default and scrolls for more
+  const visibleWeeklyCount = 7; // adjust to 5–8 range as needed
+  const weeklyPointWidth = 110; // px per week for a comfortable view
+  const weeklyChartMinWidth = Math.max(weeklyStats.length, visibleWeeklyCount) * weeklyPointWidth;
+
   return (
     <div className="min-h-screen text-white p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">
@@ -380,50 +386,52 @@ const Attendance = () => {
             </div>
           </>
         ) : (
-          <table className="min-w-full border-collapse text-sm md:text-base">
-            <thead>
-              <tr className="bg-[#327ea4] text-white text-sm">
-                <th className="p-2 text-center border">Date</th>
-                <th className="p-2 text-center border">Status</th>
-                <th className="p-2 text-center border">Subject</th>
-                <th className="p-2 text-center border">Class</th>
-                <th className="p-2 text-center border">Teacher</th>
-                <th className="p-2 text-center border">Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {attendance.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="py-4 text-gray-500 text-center">
-                    No attendance records found.
-                  </td>
+          <div className="max-h-80 overflow-y-auto rounded border">
+            <table className="min-w-full border-collapse text-sm md:text-base">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#327ea4] text-white text-sm">
+                  <th className="p-2 text-center border">Date</th>
+                  <th className="p-2 text-center border">Status</th>
+                  <th className="p-2 text-center border">Subject</th>
+                  <th className="p-2 text-center border">Class</th>
+                  <th className="p-2 text-center border">Teacher</th>
+                  <th className="p-2 text-center border">Note</th>
                 </tr>
-              ) : (
-                attendance.map((rec) => (
-                  <tr key={rec.id}>
-                    <td className="p-2 border text-center text-gray-800 font-semibold">
-                      {rec.date}
-                    </td>
-                    <td className="p-2 border text-center capitalize text-gray-700">
-                      {rec.status}
-                    </td>
-                    <td className="p-2 border text-center text-gray-700">
-                      {subjectMap[rec.subject_id] || rec.subject_id}
-                    </td>
-                    <td className="p-2 border text-center text-gray-700">
-                      {classMap[rec.class_id] || rec.class_id}
-                    </td>
-                    <td className="p-2 border text-center text-gray-700">
-                      {teacherMap[rec.teacher_id] || rec.teacher_id}
-                    </td>
-                    <td className="p-2 border text-center text-gray-700">
-                      {rec.note}
+              </thead>
+              <tbody>
+                {attendance.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="py-4 text-gray-500 text-center">
+                      No attendance records found.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  attendance.map((rec) => (
+                    <tr key={rec.id}>
+                      <td className="p-2 border text-center text-gray-800 font-semibold">
+                        {rec.date}
+                      </td>
+                      <td className="p-2 border text-center capitalize text-gray-700">
+                        {rec.status}
+                      </td>
+                      <td className="p-2 border text-center text-gray-700">
+                        {subjectMap[rec.subject_id] || rec.subject_id}
+                      </td>
+                      <td className="p-2 border text-center text-gray-700">
+                        {classMap[rec.class_id] || rec.class_id}
+                      </td>
+                      <td className="p-2 border text-center text-gray-700">
+                        {teacherMap[rec.teacher_id] || rec.teacher_id}
+                      </td>
+                      <td className="p-2 border text-center text-gray-700">
+                        {rec.note}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Statistics Section */}
@@ -439,7 +447,9 @@ const Attendance = () => {
 
           {/* Attendance Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Weekly Attendance Line Chart */}
+            {/* Weekly Attendance Line Chart */
+            // Scrollable horizontally with fixed visible range
+            }
             <div className="bg-white rounded-lg p-3 sm:p-4 min-w-0 overflow-x-auto">
               <h3 className="text-lg font-bold text-gray-700 mb-2">
                 Weekly Attendance
@@ -447,42 +457,46 @@ const Attendance = () => {
               {loadingStats ? (
                 <div className="text-gray-500 text-base">Loading...</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart
-                    data={weeklyStats}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="present"
-                      stroke="#22c55e"
-                      strokeWidth={3}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="absent"
-                      stroke="#ef4444"
-                      strokeWidth={3}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="late"
-                      stroke="#facc15"
-                      strokeWidth={3}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="holiday"
-                      stroke="#3b82f6"
-                      strokeWidth={3}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="w-full" style={{ minWidth: weeklyChartMinWidth }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart
+                      data={weeklyStats}
+                      margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" interval={0} />
+                      <YAxis>
+                        <Label value="Days" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                      </YAxis>
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="present"
+                        stroke="#22c55e"
+                        strokeWidth={3}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="absent"
+                        stroke="#ef4444"
+                        strokeWidth={3}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="late"
+                        stroke="#facc15"
+                        strokeWidth={3}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="holiday"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
             {/* Attendance Breakdown Pie Chart */}
@@ -532,7 +546,9 @@ const Attendance = () => {
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis />
+                    <YAxis>
+                      <Label value="Attandences" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                    </YAxis>
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="present" fill="#22c55e" name="Present" />
@@ -558,7 +574,9 @@ const Attendance = () => {
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="subject" />
-                    <YAxis />
+                    <YAxis>
+                      <Label value="Days" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                    </YAxis>
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="present" fill="#22c55e" name="Present" />

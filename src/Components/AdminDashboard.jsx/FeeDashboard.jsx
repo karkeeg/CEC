@@ -17,6 +17,7 @@ import {
   YAxis,
   ResponsiveContainer,
   CartesianGrid,
+  Label,
 } from "recharts";
 import {
   FaGraduationCap,
@@ -699,18 +700,6 @@ const FeeDashboard = () => {
     [form, editIndex, fees, calculateStatus, studentMap]
   );
 
-  const exportToPDF = useCallback(() => {
-    const element = document.getElementById("fee-dashboard");
-    const opt = {
-      margin: 1,
-      filename: "fee-report.pdf",
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-    };
-    html2pdf().set(opt).from(element).save();
-  }, []);
-
   const handleDelete = useCallback(
     async (idx) => {
       if (window.confirm("Are you sure you want to delete this fee?")) {
@@ -806,12 +795,7 @@ const FeeDashboard = () => {
           >
             Add Fee
           </button>
-          <button
-            onClick={exportToPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Export PDF
-          </button>
+          
           <button
             onClick={exportToCSV}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -934,11 +918,17 @@ const FeeDashboard = () => {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={memoizedData.barData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} label={{ value: 'Category', position: 'insideBottom', offset: 0 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => {
+                const n = Number(value) || 0;
+                const m = n / 1_000_000;
+                return `${parseFloat(m.toFixed(2))}M`;
+              }}>
+                <Label value="Amount (Rs., millions)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+              </YAxis>
+              <Tooltip formatter={(value) => `Rs. ${Number(value).toLocaleString()}`} />
               <Legend />
-              <Bar dataKey="value" fill="#3B82F6" />
+              <Bar dataKey="value" fill="#3B82F6" name="Amount" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -95,17 +95,6 @@ const Footer = () => {
                   >
                     <FaYoutube className="text-xl cursor-pointer hover:text-red-500 transition" />
                   </Link>
-                  <Link
-                    to={{
-                      pathname:
-                        "https://www.instagram.com/centralengineeringcollege",
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Instagram"
-                  >
-                    <FaInstagram className="text-xl cursor-pointer hover:text-pink-500 transition" />
-                  </Link>
                 </div>
               </div>
             </div>

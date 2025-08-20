@@ -332,7 +332,7 @@ export const fetchClasses = async () => {
   const { data, error } = await supabase
     .from("classes")
     .select(
-      `class_id, name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
+      `class:class_id(name), name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
     )
     .limit(10000);
   if (error) throw error;
@@ -548,9 +548,30 @@ export const getStudentsByTeacher = async (teacherId) => {
   }
 };
 
+// Update teacher password directly in teachers table
 export const updateTeacherPassword = async (teacherId, newPassword) => {
-  // This assumes you use Supabase Auth for password
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const { error } = await supabase
+    .from("teachers")
+    .update({ hashed_password: newPassword })
+    .eq("id", teacherId);
+  return error;
+};
+
+// Update student password directly in students table
+export const updateStudentPassword = async (studentId, newPassword) => {
+  const { error } = await supabase
+    .from("students")
+    .update({ hashed_password: newPassword })
+    .eq("id", studentId);
+  return error;
+};
+
+// Update admin password directly in admins table
+export const updateAdminPassword = async (adminId, newPassword) => {
+  const { error } = await supabase
+    .from("admins")
+    .update({ hashed_password: newPassword })
+    .eq("id", adminId);
   return error;
 };
 export const deleteStudent = async (idOrRegNo) => {
@@ -678,12 +699,33 @@ export const createClass = async (classData) => {
 };
 
 export const updateClass = async (classId, updates) => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("classes")
     .update(updates)
     .eq("class_id", classId)
     .select();
-  return error;
+  
+  if (error) {
+    console.error("Error updating class:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getClassById = async (classId) => {
+  const { data, error } = await supabase
+    .from("classes")
+    .select("*")
+    .eq("class_id", classId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching class:", error);
+    return null;
+  }
+  
+  return data;
 };
 
 export const getStudentCountByClass = async (classId) => {

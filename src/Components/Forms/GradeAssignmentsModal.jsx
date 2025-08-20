@@ -204,18 +204,83 @@ const GradeAssignmentsModal = ({
 
   const stats = getGradeStats();
 
+  // Safely render student notes which may be JSON, Quill Delta, or plain text
+  const renderStudentNotes = (notes) => {
+    if (!notes) return <span className="text-gray-400">-</span>;
+
+    const tryParse = (val) => {
+      if (typeof val !== "string") return val;
+      const s = val.trim();
+      if (!(s.startsWith("{") || s.startsWith("["))) return null;
+      try {
+        return JSON.parse(s);
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const parsed = tryParse(notes);
+
+    // If Quill Delta format
+    if (parsed && parsed.ops && Array.isArray(parsed.ops)) {
+      const text = parsed.ops.map((op) => (typeof op.insert === "string" ? op.insert : "")).join("");
+      return (
+        <pre className="whitespace-pre-wrap text-sm text-gray-600 bg-gray-50 p-3 rounded-md">{text}</pre>
+      );
+    }
+
+    // If array of strings/objects
+    if (Array.isArray(parsed)) {
+      const items = parsed
+        .map((it) => {
+          if (typeof it === "string") return it;
+          if (it && typeof it === "object") {
+            if (typeof it.text === "string") return it.text;
+            return JSON.stringify(it);
+          }
+          return String(it);
+        })
+        .filter(Boolean);
+      return (
+        <ul className="list-disc pl-5 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+          {items.map((line, idx) => (
+            <li key={idx} className="whitespace-pre-wrap">{line}</li>
+          ))}
+        </ul>
+      );
+    }
+
+    // If object with a text field
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.text === "string") {
+        return (
+          <pre className="whitespace-pre-wrap text-sm text-gray-600 bg-gray-50 p-3 rounded-md">{parsed.text}</pre>
+        );
+      }
+      // Fallback pretty JSON view
+      return (
+        <pre className="whitespace-pre-wrap text-xs text-gray-600 bg-gray-50 p-3 rounded-md">{JSON.stringify(parsed, null, 2)}</pre>
+      );
+    }
+
+    // Plain text fallback
+    return (
+      <pre className="whitespace-pre-wrap text-sm text-gray-600 bg-gray-50 p-3 rounded-md">{String(notes)}</pre>
+    );
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-5xl md:max-w-6xl mx-auto">
       {/* Assignment Selector */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
           <label className="text-sm font-medium text-gray-700">
             Select Assignment:
           </label>
           <select
             value={selectedAssignment}
             onChange={(e) => setSelectedAssignment(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm"
+            className="w-full sm:w-72 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm"
           >
             <option value="">All Assignments</option>
             {assignments.map((assignment) => (
@@ -238,7 +303,7 @@ const GradeAssignmentsModal = ({
           </p>
         </div>
 
-        <div className="max-h-64 overflow-y-auto">
+        <div className="max-h-[34rem] overflow-y-auto">
           {filteredSubmissions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -266,44 +331,37 @@ const GradeAssignmentsModal = ({
               {filteredSubmissions.map((submission, index) => (
                 <div
                   key={index}
-                  className="p-6 hover:bg-gray-50 transition-colors duration-150"
+                  className="p-5 hover:bg-gray-50 transition-colors duration-150"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                     {/* Student Info */}
-                    <div className="flex items-center space-x-4 flex-1">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-lg font-semibold text-gray-900 truncate">
-                          {submission.student?.first_name}{" "}
-                          {submission.student?.middle_name || ""}{" "}
-                          {submission.student?.last_name}
-                        </h4>
-                        <p className="text-sm text-gray-500 truncate">
-                          {submission.student?.email}
-                        </p>
-                        <div className="flex items-center space-x-3 mt-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {assignments.find(
-                              (a) => a.id === submission.assignment_id
-                            )?.title || "-"}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            Submitted{" "}
-                            {submission.submitted_at
-                              ? new Date(
-                                  submission.submitted_at
-                                ).toLocaleDateString()
-                              : "Not submitted"}
-                          </span>
-                        </div>
+                    <div className="md:col-span-7 min-w-0">
+                      <h4 className="text-base md:text-lg font-semibold text-gray-900 truncate">
+                        {submission.student?.first_name} {submission.student?.middle_name || ""} {submission.student?.last_name}
+                      </h4>
+                      <p className="text-sm text-gray-500 truncate">
+                        {submission.student?.email}
+                      </p>
+                    </div>
+
+                    {/* Assignment & Submitted */}
+                    <div className="md:col-span-3">
+                      <div className="flex flex-wrap items-center gap-2 md:justify-start">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 max-w-full truncate">
+                          {assignments.find((a) => a.id === submission.assignment_id)?.title || "-"}
+                        </span>
+                        <span className="text-xs md:text-sm text-gray-500">
+                          {submission.submitted_at ? `Submitted ${new Date(submission.submitted_at).toLocaleDateString()}` : "Not submitted"}
+                        </span>
                       </div>
                     </div>
 
                     {/* Grade and Action */}
-                    <div className="flex items-center space-x-4 ml-4">
-                      {submission.grade?.grade && (
-                        <div className="text-right">
-                          <div
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                    <div className="md:col-span-2 flex md:flex-col items-center md:items-end justify-between gap-2 md:gap-3">
+                      {submission.grade?.grade ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                               submission.grade.grade >= 80
                                 ? "bg-green-100 text-green-800"
                                 : submission.grade.grade >= 60
@@ -312,17 +370,17 @@ const GradeAssignmentsModal = ({
                             }`}
                           >
                             {submission.grade.grade}%
-                          </div>
+                          </span>
                           {submission.grade.rating && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Rating: {submission.grade.rating}⭐
-                            </div>
+                            <span className="text-[11px] text-gray-500">{submission.grade.rating}⭐</span>
                           )}
                         </div>
+                      ) : (
+                        <div className="hidden md:block" />
                       )}
 
                       <button
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                           submission.grade?.grade
                             ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
                             : "bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md"
@@ -342,25 +400,17 @@ const GradeAssignmentsModal = ({
 
                   {/* Notes and Feedback */}
                   {(submission.notes || submission.grade?.feedback) && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                       {submission.notes && (
-                        <div className="mb-3">
-                          <h5 className="text-sm font-medium text-gray-700 mb-1">
-                            Student Notes:
-                          </h5>
-                          <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
-                            {submission.notes}
-                          </p>
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-700 mb-1">Student Notes:</h5>
+                          {renderStudentNotes(submission.notes)}
                         </div>
                       )}
                       {submission.grade?.feedback && (
                         <div>
-                          <h5 className="text-sm font-medium text-gray-700 mb-1">
-                            Your Feedback:
-                          </h5>
-                          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border-l-4 border-blue-200">
-                            {submission.grade.feedback}
-                          </p>
+                          <h5 className="text-sm font-medium text-gray-700 mb-1">Your Feedback:</h5>
+                          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border-l-4 border-blue-200">{submission.grade.feedback}</p>
                         </div>
                       )}
                     </div>
@@ -381,7 +431,8 @@ const GradeAssignmentsModal = ({
               {modalSubmission.student?.last_name}
             </div>
             <div className="mb-2">
-              <strong>Notes:</strong> {modalSubmission.notes || "-"}
+              <strong>Notes:</strong>
+              <div className="mt-1">{renderStudentNotes(modalSubmission.notes)}</div>
             </div>
             <div className="mb-2">
               <label className="block text-sm font-medium mb-1">Feedback</label>
@@ -442,4 +493,5 @@ const GradeAssignmentsModal = ({
   );
 };
 
+export { GradeAssignmentsModal };
 export default GradeAssignmentsModal;

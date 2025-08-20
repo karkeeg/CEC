@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import UpdateTeacherModal from "../Forms/UpdateTeacherModal";
 import {
   getAllTeachers,
   getAllDepartments,
@@ -21,45 +22,80 @@ const TeacherDashboard = () => {
   const [teachers, setTeachers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [visibleCount, setVisibleCount] = useState(10);
+
   const [loading, setLoading] = useState(true);
   // Stats state
   const [teacherCount, setTeacherCount] = useState(0);
   const [departmentCount, setDepartmentCount] = useState(0);
   const [subjectCount, setSubjectCount] = useState(0);
   const [assignmentCount, setAssignmentCount] = useState(0);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [currentTeacher, setCurrentTeacher] = useState(null);
+
+  const fetchTeachers = async () => {
+    setLoading(true);
+    const { data: teacherData, error } = await supabase
+      .from("teachers")
+      .select("id, first_name, middle_name, last_name, email, teacher_department, department:teacher_department(id, name)");
+    setTeachers(teacherData || []);
+    setLoading(false);
+  };
+
+  const handleDeleteTeacher = async (id) => {
+    if (window.confirm("Are you sure you want to delete this teacher?")) {
+      const { error } = await supabase.from("teachers").delete().eq("id", id);
+      if (error) {
+        console.error("Error deleting teacher:", error.message);
+        alert("Error deleting teacher: " + error.message);
+      } else {
+        alert("Teacher deleted successfully!");
+        fetchTeachers(); // Refresh the list
+      }
+    }
+  };
+
+  const handleUpdateTeacher = (teacher) => {
+    setCurrentTeacher(teacher);
+    setShowUpdateModal(true);
+  };
+
+  const handleSaveUpdate = async (updatedTeacher) => {
+    const { id, first_name, middle_name, last_name, email, teacher_department } = updatedTeacher;
+    const { error } = await supabase
+      .from("teachers")
+      .update({ first_name, middle_name, last_name, email, teacher_department })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error updating teacher:", error.message);
+      alert("Error updating teacher: " + error.message);
+    } else {
+      alert("Teacher updated successfully!");
+      setShowUpdateModal(false);
+      fetchTeachers(); // Refresh the list
+    }
+  };
 
   useEffect(() => {
     const fetchStatsAndTeachers = async () => {
-      setLoading(true);
-      // Fetch teachers for table/chart
-      const { data: teacherData, error } = await supabase
-        .from("teachers")
-        .select(
-          "id, first_name, middle_name, last_name, email, teacher_department, department:teacher_department(id, name)"
-        );
-      setTeachers(teacherData || []);
       // Fetch stats
-      const [teachersData, departmentsData, subjectsData, assignmentsData] =
-        await Promise.all([
-          getAllTeachers(),
-          getAllDepartments(),
-          getAllSubjects(),
-          getAllAssignments(),
-        ]);
+      const [teachersData, departmentsData, subjectsData, assignmentsData] = await Promise.all([
+        getAllTeachers(),
+        getAllDepartments(),
+        getAllSubjects(),
+        getAllAssignments(),
+      ]);
       setTeacherCount(teachersData?.length || 0);
       setDepartmentCount(departmentsData?.length || 0);
       setSubjectCount(subjectsData?.length || 0);
       setAssignmentCount(assignmentsData?.length || 0);
-      setLoading(false);
+      fetchTeachers(); // Initial fetch of teachers
     };
     fetchStatsAndTeachers();
   }, []);
 
   const filtered = teachers.filter((t) => {
-    const nameMatch = `${t.first_name ?? ""} ${t.middle_name ?? ""} ${
-      t.last_name ?? ""
-    }`
+    const nameMatch = `${t.first_name ?? ""} ${t.middle_name ?? ""} ${t.last_name ?? ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const departmentMatch =
@@ -200,17 +236,18 @@ const TeacherDashboard = () => {
         {filtered.length === 0 ? (
           <p className="text-gray-500 text-lg">No teachers found.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
             <table className="min-w-full bg-white border">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-4 py-2 border">Name</th>
                   <th className="px-4 py-2 border">Email</th>
                   <th className="px-4 py-2 border">Department</th>
+                  <th className="px-4 py-2 border">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.slice(0, visibleCount).map((t, idx) => (
+                {filtered.map((t, idx) => (
                   <tr key={idx} className="text-center border-t">
                     <td className="px-4 py-2">
                       {t.first_name} {t.middle_name ?? ""} {t.last_name}
@@ -218,6 +255,20 @@ const TeacherDashboard = () => {
                     <td className="px-4 py-2">{t.email}</td>
                     <td className="px-4 py-2">
                       {t.department?.name || "Unknown"}
+                    </td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => handleDeleteTeacher(t.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded mr-2 hover:bg-red-600 transition-colors"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => handleUpdateTeacher(t)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
+                      >
+                        Update
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -227,58 +278,7 @@ const TeacherDashboard = () => {
         )}
       </div>
 
-      {/* Pagination Controls */}
-      <div className="text-center mt-4 mb-8">
-        <div className="flex justify-center gap-3">
-          {/* Show Less Button */}
-          {visibleCount > 10 && (
-            <button
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
-              onClick={() => setVisibleCount((prev) => Math.max(10, prev - 5))}
-            >
-              Show Less
-            </button>
-          )}
 
-          {/* Show More Button */}
-          {visibleCount < filtered.length && (
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-              onClick={() => setVisibleCount((prev) => prev + 5)}
-            >
-              Show More
-            </button>
-          )}
-
-          {/* Show All Button */}
-          {visibleCount < filtered.length && (
-            <button
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-              onClick={() => setVisibleCount(filtered.length)}
-            >
-              Show All
-            </button>
-          )}
-
-          {/* Collapse All Button */}
-          {visibleCount > 10 && visibleCount === filtered.length && (
-            <button
-              className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors"
-              onClick={() => setVisibleCount(10)}
-            >
-              Collapse All
-            </button>
-          )}
-        </div>
-
-        {/* Pagination Info */}
-        {filtered.length > 10 && (
-          <div className="mt-2 text-sm text-gray-600">
-            Showing {Math.min(visibleCount, filtered.length)} of{" "}
-            {filtered.length} teachers
-          </div>
-        )}
-      </div>
 
       {/* Chart Section */}
       <div className="bg-white p-4 shadow rounded mb-10">
@@ -296,7 +296,7 @@ const TeacherDashboard = () => {
                   Math.max(
                     ...departmentChartData.map((item) => item.count),
                     10
-                  ) / 2
+                  )
                 ) + 1
               }
               interval={0}
@@ -324,6 +324,8 @@ const TeacherDashboard = () => {
           Departments
         </div>
       </div>
+
+ 
     </div>
   );
 };

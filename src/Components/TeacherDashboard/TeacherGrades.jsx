@@ -350,99 +350,111 @@ const TeacherGrades = () => {
             'All Assignments' to see all submissions.
           </div>
           <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
-            <table className="min-w-full border-collapse text-left text-sm md:text-base">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assignment
-                  </th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student
-                  </th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Submitted At
-                  </th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48 max-w-xs truncate">
-                    Notes
-                  </th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredSubmissions.length === 0 ? (
+            <div className="max-h-96 overflow-y-auto">
+              <table className="min-w-full border-collapse text-left text-sm md:text-base">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="px-2 py-4 text-center text-gray-500"
-                    >
-                      No submissions found
-                    </td>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assignment
+                    </th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submitted At
+                    </th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48 max-w-xs truncate">
+                      Notes
+                    </th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ) : (
-                  filteredSubmissions.map((submission, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {assignments.find(
-                            (a) => a.id === submission.assignment_id
-                          )?.title || "-"}
-                        </span>
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {submission.student?.first_name?.charAt(0) || "S"}
-                            </span>
-                          </div>
-                          <div className="ml-2">
-                            <div className="text-sm font-medium text-gray-900">
-                              {submission.student?.first_name}{" "}
-                              {submission.student?.middle_name || ""}{" "}
-                              {submission.student?.last_name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {submission.student?.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {submission.submitted_at
-                          ? new Date(
-                              submission.submitted_at
-                            ).toLocaleDateString()
-                          : "Not submitted"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-48 max-w-xs truncate overflow-hidden">
-                        {submission.notes || "-"}
-                      </td>
-                      <td className="px-2 py-4 whitespace-nowrap">
-                        <button
-                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                          onClick={() => {
-                            setShowGradeModal(true);
-                            setModalSubmission(submission);
-                            setModalFeedback(submission.grade?.feedback || "");
-                            setModalRating(submission.grade?.rating || "");
-                            setModalGrade(submission.grade?.grade || "");
-                          }}
-                        >
-                          Give Feedback & Grade
-                        </button>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredSubmissions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="px-2 py-4 text-center text-gray-500"
+                      >
+                        No submissions found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredSubmissions.map((submission, index) => (
+                      <tr
+                        key={index}
+                        className={`hover:bg-gray-50 ${index >= 8 ? 'bg-gray-50' : ''}`}
+                      >
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {assignments.find(
+                              (a) => a.id === submission.assignment_id
+                            )?.title || "-"}
+                          </span>
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-sm">
+                                {submission.student?.first_name?.charAt(0) || "S"}
+                              </span>
+                            </div>
+                            <div className="ml-2">
+                              <div className="text-sm font-medium text-gray-900">
+                                {submission.student?.first_name}{" "}
+                                {submission.student?.middle_name || ""}{" "}
+                                {submission.student?.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {submission.student?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {submission.submitted_at
+                            ? new Date(
+                                submission.submitted_at
+                              ).toLocaleDateString()
+                            : "Not submitted"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-48 max-w-xs truncate overflow-hidden">
+                          {submission.notes || "-"}
+                        </td>
+                        <td className="px-2 py-4 whitespace-nowrap">
+                          <button
+                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                            onClick={() => {
+                              setShowGradeModal(true);
+                              setModalSubmission(submission);
+                              setModalFeedback(submission.grade?.feedback || "");
+                              setModalRating(submission.grade?.rating || "");
+                              setModalGrade(submission.grade?.grade || "");
+                            }}
+                          >
+                            Give Feedback & Grade
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* Scroll indicator */}
+            {filteredSubmissions.length > 8 && (
+              <div className="text-center py-2 text-sm text-gray-500 bg-gray-100">
+                Showing {Math.min(8, filteredSubmissions.length)} of {filteredSubmissions.length} submissions - Scroll down to see more
+              </div>
+            )}
           </div>
           {/* Show message below table if no submissions found
           {filteredSubmissions.length === 0 && (
             <div className="text-center text-gray-500 py-4 text-sm">
               No submissions found for the selected assignment.
+{{ ... }}
             </div>
           )} */}
         </div>

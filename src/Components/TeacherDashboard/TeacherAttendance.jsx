@@ -58,6 +58,10 @@ const TeacherAttendance = () => {
   const [subjects, setSubjects] = useState([]);
   const [attendanceExists, setAttendanceExists] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // Month filter for charts (YYYY-MM)
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
 
   // Check if cached data is still valid
   const isCacheValid = () => {
@@ -236,6 +240,41 @@ const TeacherAttendance = () => {
       });
   }, [selectedClass, selectedDate, students.length]);
 
+  // Populate attendanceTrend for the selected class so the 'Attendance by Date' chart renders
+  useEffect(() => {
+    if (!user?.id) return;
+    // When a specific class is selected, compute its trend across dates
+    if (selectedClass && selectedClass !== "") {
+      import("../../supabaseConfig/supabaseApi").then((api) => {
+        api
+          .fetchAttendance({ teacher_id: user.id, class_id: selectedClass })
+          .then((records) => {
+            const trendMap = {};
+            (records || []).forEach((rec) => {
+              const date = rec.date?.slice(0, 10);
+              if (!date) return;
+              if (!trendMap[date])
+                trendMap[date] = { name: date, present: 0, absent: 0, late: 0 };
+              if (rec.status === "present") trendMap[date].present++;
+              if (rec.status === "absent") trendMap[date].absent++;
+              if (rec.status === "late") trendMap[date].late++;
+            });
+            const trend = Object.values(trendMap).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+            setAttendanceTrend(trend);
+          })
+          .catch((err) => {
+            console.error("Error fetching class attendance trend:", err);
+            setAttendanceTrend([]);
+          });
+      });
+    } else {
+      // No class selected: clear class-specific trend (overall trend computed on the fly)
+      setAttendanceTrend([]);
+    }
+  }, [user?.id, selectedClass]);
+
   // Update attendance state when students are loaded
   useEffect(() => {
     if (students.length > 0 && !attendanceExists) {
@@ -247,6 +286,13 @@ const TeacherAttendance = () => {
       setAttendance(att);
     }
   }, [students, attendanceExists]);
+
+  // Keep selectedMonth in sync with the chosen date
+  useEffect(() => {
+    if (selectedDate) {
+      setSelectedMonth(selectedDate.slice(0, 7));
+    }
+  }, [selectedDate]);
 
   // Fetch all attendance records for all classes for the teacher (for overall stats)
   useEffect(() => {
@@ -411,6 +457,26 @@ const TeacherAttendance = () => {
       ? studentAttendanceProgress
       : getOverallStudentProgress();
 
+  // Build monthly filtered bar data from trend (class-specific or overall)
+  const monthPrefix = selectedMonth + "-"; // e.g., 2025-08-
+  const monthTrend = attendanceTrendData.filter((d) => d.name.startsWith(monthPrefix));
+  const monthlyTotals = monthTrend.reduce(
+    (acc, d) => ({
+      present: acc.present + (d.present || 0),
+      absent: acc.absent + (d.absent || 0),
+      late: acc.late + (d.late || 0),
+    }),
+    { present: 0, absent: 0, late: 0 }
+  );
+  const barData = [
+    {
+      name: selectedMonth,
+      Present: monthlyTotals.present,
+      Absent: monthlyTotals.absent,
+      Late: monthlyTotals.late,
+    },
+  ];
+
   // Pie chart colors
   const ATTENDANCE_COLORS = ["#10B981", "#EF4444", "#F59E0B"];
 
@@ -420,17 +486,6 @@ const TeacherAttendance = () => {
     { name: "Absent", value: stats.absent },
     { name: "Late", value: stats.late },
   ];
-  // Bar chart data: attendance per date (for all or selected class)
-  const barData = (
-    selectedClass && selectedClass !== ""
-      ? attendanceTrend
-      : getOverallAttendanceTrend()
-  ).map((d) => ({
-    name: d.name,
-    Present: d.present,
-    Absent: d.absent,
-    Late: d.late,
-  }));
 
   if (loading) {
     return (
@@ -453,8 +508,8 @@ const TeacherAttendance = () => {
       {/* Only keep the boxed attendance form at the top */}
       <div className="bg-white border border-blue-200 rounded-2xl shadow-lg p-6 mb-10">
         <h2 className="text-2xl font-bold mb-4">Take Attendance</h2>
-        {/* Controls: class selection, date, save button */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Controls: class selection, date, month filter, save button */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Class
@@ -505,6 +560,20 @@ const TeacherAttendance = () => {
                 {availableDates.length !== 1 ? "s" : ""} with attendance records
               </p>
             )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Month (for chart)
+            </label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Aggregates daily attendance for {selectedMonth}
+            </p>
           </div>
           <div className="flex items-center justify-end">
             {/* Button logic: Save, Update, Save Update */}
@@ -805,11 +874,14 @@ const TeacherAttendance = () => {
             </PieChart>
           </ResponsiveContainer>
         </div>
-        {/* Bar Chart: Attendance per Date */}
+        {/* Bar Chart: Monthly Attendance Totals */}
         <div className="bg-blue-100 p-6 rounded-xl shadow flex flex-col items-center">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
-            Attendance by Date
+          <h2 className="text-xl font-semibold text-gray-800 mb-1 text-center">
+            Attendance of {selectedMonth}
           </h2>
+          <p className="text-xs text-gray-600 mb-3 text-center">
+            Monthly totals: Present {monthlyTotals.present} · Absent {monthlyTotals.absent} · Late {monthlyTotals.late}
+          </p>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart
               data={barData}

@@ -9,15 +9,14 @@ import { useUser } from "../../contexts/UserContext";
 import Loader from "../Loader";
 
 const AdminAssignmentsPage = () => {
+
   const { user, role } = useUser();
   const [assignments, setAssignments] = useState([]);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, [fromDate, toDate]);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -33,13 +32,6 @@ const AdminAssignmentsPage = () => {
           (a) => a.year === user.year || a.class_id === user.class_id
         );
       }
-    // Optional date filtering if provided
-    if (fromDate) {
-      filtered = filtered.filter((a) => new Date(a.due_date) >= new Date(fromDate));
-    }
-    if (toDate) {
-      filtered = filtered.filter((a) => new Date(a.due_date) <= new Date(toDate));
-    }
     // Compute submission stats per assignment
     const withRates = await Promise.all(
       filtered.map(async (assignment) => {
@@ -104,6 +96,36 @@ const AdminAssignmentsPage = () => {
         </h1>
         <div />
       </div>
+      {/* Filters removed: showing all assignments */}
+
+      {/* Summary */}
+      {assignments.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="text-sm text-gray-600">Total Assignments</div>
+            <div className="text-2xl font-semibold">{assignments.length}</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="text-sm text-gray-600">Total Submissions</div>
+            <div className="text-2xl font-semibold">{assignments.reduce((sum, a) => sum + (a.total_submissions || 0), 0)}</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="text-sm text-gray-600">Total Students</div>
+            <div className="text-2xl font-semibold">{assignments.reduce((sum, a) => sum + (a.total_students || 0), 0)}</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="text-sm text-gray-600">Avg Submission Rate</div>
+            <div className="text-2xl font-semibold">
+              {(() => {
+                const rates = assignments.map((a) => (typeof a.submission_rate === 'number' ? a.submission_rate : 0));
+                const avg = rates.length ? Math.round(rates.reduce((s, r) => s + r, 0) / rates.length) : 0;
+                return `${avg}%`;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-bold mb-4">Assignments Grouped by Year</h2>
       <div id="assignments-table" className="pdf-export">
         {Object.keys(groupedByYear).length === 0 ? (
@@ -112,9 +134,9 @@ const AdminAssignmentsPage = () => {
           Object.entries(groupedByYear).map(([year, yearAssignments]) => (
             <div key={year} className="mb-8">
               <h3 className="text-lg font-semibold mb-2">Year: {year}</h3>
-              <div className="overflow-x-auto border rounded">
+              <div className="overflow-x-auto overflow-y-auto max-h-[400px] border rounded">
                 <table className="min-w-full text-center border-collapse">
-                  <thead className="bg-cyan-900 text-white">
+                  <thead className="bg-cyan-900 text-white sticky top-0 z-10">
                     <tr>
                       <th className="p-3 border">Assignment</th>
                       <th className="p-3 border">Teacher</th>
@@ -141,6 +163,7 @@ const AdminAssignmentsPage = () => {
                   </tbody>
                 </table>
               </div>
+
             </div>
           ))
         )}

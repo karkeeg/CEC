@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { fetchNoticeTitles } from "../supabaseConfig/supabaseApi";
 import { Link } from "react-router-dom";
+import collegeVideo from "../assets/collegeVideo.mp4"
 
-import campusImage1 from "../assets/image1.png";
-import campusImage2 from "../assets/thumbnail.png";
-import campusImage3 from "../assets/image1.png";
+import { Play, Pause, Volume2, VolumeX, Maximize, PictureInPicture2 } from 'lucide-react';
+
+
 
 const NoticeBar = () => {
   const [notices, setNotices] = useState([]);
@@ -72,36 +73,249 @@ const NoticeBar = () => {
       {/* Campus Carousel */}
       <section className="relative w-full">
         <div className="w-full h-[720px] overflow-hidden">
-          <Carousel />
+          <VideoSection />
         </div>
       </section>
     </>
   );
 };
 
-function Carousel() {
-  const images = [campusImage1, campusImage2, campusImage3];
-  const [current, setCurrent] = useState(0);
+function VideoSection() {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Handle play/pause
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Handle mute/unmute
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Handle volume change
+  const handleVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+    }
+  };
+
+  // Handle picture-in-picture
+  const togglePiP = async () => {
+    if (videoRef.current) {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await videoRef.current.requestPictureInPicture();
+        }
+      } catch (error) {
+        console.log('Picture-in-Picture not supported or failed:', error);
+      }
+    }
+  };
+
+  // Handle fullscreen
+  const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        videoRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  // Handle progress
+  const handleProgressChange = (e) => {
+    const newTime = parseFloat(e.target.value);
+    setCurrentTime(newTime);
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    }
+  };
+
+  // Video event handlers
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  // Format time
+  const formatTime = (time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % images.length);
-    }, 5000);
-    return () => clearInterval(interval);
+    const video = videoRef.current;
+    if (video) {
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      
+      return () => {
+        video.removeEventListener('timeupdate', handleTimeUpdate);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      };
+    }
   }, []);
 
   return (
-    <div className="w-full h-full relative">
-      {images.map((img, index) => (
-        <img
-          key={index}
-          src={img}
-          alt={`Campus ${index + 1}`}
-          className={`w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-1000 ${
-            index === current ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      ))}
+    <div 
+      className="w-full h-full relative group bg-black rounded-lg overflow-hidden shadow-2xl"
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
+      {/* Video Element */}
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover"
+        autoPlay
+        loop
+        playsInline
+        onClick={togglePlay}
+      >
+        <source src={collegeVideo} type="video/mp4" />
+        {/* <source src="/path-to-your-video.webm" type="video/webm" /> */}
+        Your browser does not support the video tag.
+      </video>
+
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+      {/* Play/Pause Overlay */}
+      <div 
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+          showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <button
+          onClick={togglePlay}
+          className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 rounded-full p-4 transform hover:scale-110"
+        >
+          {isPlaying ? (
+            <Pause className="w-8 h-8 text-white" />
+          ) : (
+            <Play className="w-8 h-8 text-white ml-1" />
+          )}
+        </button>
+      </div>
+
+      {/* Bottom Controls */}
+      <div 
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
+          showControls ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Progress Bar */}
+        <div className="mb-4">
+          <input
+            type="range"
+            min="0"
+            max={duration || 100}
+            value={currentTime}
+            onChange={handleProgressChange}
+            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer progress-bar"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentTime / duration) * 100}%, rgba(255,255,255,0.3) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.3) 100%)`
+            }}
+          />
+        </div>
+
+        {/* Control Buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Play/Pause */}
+            <button
+              onClick={togglePlay}
+              className="text-white hover:text-blue-400 transition-colors duration-200"
+            >
+              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+            </button>
+
+            {/* Volume Controls */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={toggleMute}
+                className="text-white hover:text-blue-400 transition-colors duration-200"
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-5 h-5" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-20 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            {/* Time Display */}
+            <span className="text-white text-sm font-mono">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Picture in Picture */}
+            <button
+              onClick={togglePiP}
+              className="text-white hover:text-blue-400 transition-colors duration-200"
+              title="Picture in Picture"
+            >
+              <PictureInPicture2 className="w-5 h-5" />
+            </button>
+
+            {/* Fullscreen */}
+            <button
+              onClick={toggleFullscreen}
+              className="text-white hover:text-blue-400 transition-colors duration-200"
+              title="Fullscreen"
+            >
+              <Maximize className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading Indicator */}
+      {duration === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      )}
     </div>
   );
 }

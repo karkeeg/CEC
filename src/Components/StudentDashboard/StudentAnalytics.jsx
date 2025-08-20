@@ -17,6 +17,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  ReferenceLine,
+  Label,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
@@ -290,10 +292,14 @@ const StudentAnalytics = () => {
                         />
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="month" />
-                    <YAxis />
+                    <XAxis dataKey="month" tick={false} axisLine={false} label={{ value: 'Months', position: 'insideBottom', offset: 0 }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }}>
+                      <Label value="Average Grade (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                    </YAxis>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <Tooltip />
+                    <Tooltip wrapperStyle={{ borderRadius: 8, borderColor: '#e5e7eb' }} />
+                    <ReferenceLine y={50} stroke="#9CA3AF" strokeDasharray="3 3" />
+                    <ReferenceLine x="Jun" stroke="#9CA3AF" strokeDasharray="3 3" />
                     <Area
                       type="monotone"
                       dataKey="avg"
@@ -321,11 +327,14 @@ const StudentAnalytics = () => {
                   margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="subject" stroke="#000" />
-                  <YAxis stroke="#000" />
-                  <Tooltip />
+                  <XAxis dataKey="subject" tick={false} axisLine={false} label={{ value: 'Subjects', position: 'insideBottom', offset: 0 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }}>
+                    <Label value="Average Grade (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
+                  <Tooltip wrapperStyle={{ borderRadius: 8, borderColor: '#e5e7eb' }} />
                   <Legend />
-                  <Bar dataKey="avg" fill="#1de9b6" />
+                  <ReferenceLine y={50} stroke="#9CA3AF" strokeDasharray="3 3" />
+                  <Bar dataKey="avg" fill="#1de9b6" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -356,10 +365,14 @@ const StudentAnalytics = () => {
                       <stop offset="95%" stopColor="#1de9b6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="month" stroke="#000" />
-                  <YAxis stroke="#000" />
+                  <XAxis dataKey="month" tick={false} axisLine={false} label={{ value: 'Months', position: 'insideBottom', offset: 0 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }}>
+                    <Label value="Attendance (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                  </YAxis>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <Tooltip />
+                  <Tooltip wrapperStyle={{ borderRadius: 8, borderColor: '#e5e7eb' }} />
+                  <ReferenceLine y={50} stroke="#9CA3AF" strokeDasharray="3 3" />
+                  <ReferenceLine x="Jun" stroke="#9CA3AF" strokeDasharray="3 3" />
                   <Area
                     type="monotone"
                     dataKey="attendance"
@@ -541,12 +554,15 @@ const StudentAnalytics = () => {
                     margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="subject" stroke="#000" />
-                    <YAxis stroke="#000" />
-                    <Tooltip />
+                    <XAxis dataKey="subject" tick={false} axisLine={false} label={{ value: 'Subjects', position: 'insideBottom', offset: 0 }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }}>
+                      <Label value="Average Grade (%)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                    </YAxis>
+                    <Tooltip wrapperStyle={{ borderRadius: 8, borderColor: '#e5e7eb' }} />
                     <Legend />
-                    <Bar dataKey="student" fill="#1de9b6" name="You" />
-                    <Bar dataKey="average" fill="#3399ff" name="Class Avg" />
+                    <ReferenceLine y={50} stroke="#9CA3AF" strokeDasharray="3 3" />
+                    <Bar dataKey="student" fill="#1de9b6" name="You" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="average" fill="#3399ff" name="Class Avg" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}

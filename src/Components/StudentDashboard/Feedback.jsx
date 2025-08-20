@@ -187,7 +187,7 @@ const Feedback = () => {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200 min-w-0">
+      <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200 min-w-0 max-h-[400px] overflow-y-auto">
         {loading ? (
           <p className="p-4">Loading feedback...</p>
         ) : error ? (
