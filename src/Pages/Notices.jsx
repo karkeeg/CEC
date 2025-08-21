@@ -75,7 +75,7 @@ const Notices = () => {
                     </h2>
                     {isNew(notice.created_at) && (
                       <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-2">
-                        New
+                        New notice
                       </span>
                     )}
                   </div>
