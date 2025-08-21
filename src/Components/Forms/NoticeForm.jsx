@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Swal from 'sweetalert2';
 import {
   createNotice,
   updateNotice,
@@ -87,7 +88,12 @@ export const NoticeForm = ({
           "notice",
           currentUser || {}
         );
-        alert("Notice updated!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Notice Updated!',
+          text: 'Notice has been successfully updated.',
+          customClass: { container: 'swal-small' }
+        });
       } else {
         // Add mode
         const { error } = await createNotice({ ...form, files: fileUrls });
@@ -97,15 +103,22 @@ export const NoticeForm = ({
           "notice",
           currentUser || {}
         );
-        alert("Notice published!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Notice Published!',
+          text: 'Notice has been successfully published.',
+          customClass: { container: 'swal-small' }
+        });
       }
       if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
-      alert(
-        (notice ? "Failed to update notice: " : "Failed to publish notice: ") +
-          error.message
-      );
+      Swal.fire({
+        icon: 'error',
+        title: notice ? 'Update Failed' : 'Publish Failed',
+        text: (notice ? "Failed to update notice: " : "Failed to publish notice: ") + error.message,
+        customClass: { container: 'swal-small' }
+      });
     } finally {
       setLoading(false);
     }
@@ -113,7 +126,17 @@ export const NoticeForm = ({
 
   const handleDelete = async () => {
     if (!notice) return;
-    if (!window.confirm("Are you sure you want to delete this notice?")) return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!',
+      customClass: { container: 'swal-small' }
+    });
+    if (!result.isConfirmed) return;
     setLoading(true);
     try {
       const { error } = await deleteNotice(notice.notice_id);
@@ -123,12 +146,22 @@ export const NoticeForm = ({
         "notice",
         currentUser || {}
       );
-      alert("Notice deleted!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: 'Notice has been deleted.',
+        customClass: { container: 'swal-small' }
+      });
       if (onDelete) onDelete();
       if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
-      alert("Failed to delete notice: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete Failed',
+        text: 'Failed to delete notice: ' + error.message,
+        customClass: { container: 'swal-small' }
+      });
     } finally {
       setLoading(false);
     }

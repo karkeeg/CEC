@@ -36,6 +36,7 @@ import ManageEnrollmentForm from "../Forms/ManageEnrollmentForm";
 import ClassForm from "../Forms/ClassForm";
 import Modal from "../Modal";
 import Loader from "../Loader";
+import Swal from 'sweetalert2';
 
 // Cache keys for localStorage
 const CACHE_KEYS = {
@@ -528,7 +529,7 @@ const TeacherClasses = () => {
                   value: "Number of Students",
                   angle: -90,
                   position: "insideLeft",
-                  style: { textAnchor: "middle" },
+                  style: { textAnchor: "end" },
                 }}
               />
               <Tooltip 
@@ -672,7 +673,14 @@ const TeacherClasses = () => {
                         setRefresh((r) => !r);
                       } catch (error) {
                         console.error('Failed to update capacity:', error);
-                        alert('Failed to update capacity. Please try again.');
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Update Failed',
+                          text: 'Failed to update capacity. Please try again.',
+                          customClass: {
+                            popup: 'swal-small'
+                          }
+                        });
                       }
                     }}
                   >
@@ -732,7 +740,14 @@ const TeacherClasses = () => {
                         setRefresh((r) => !r);
                       } catch (error) {
                         console.error('Failed to update schedule:', error);
-                        alert('Failed to update schedule. Please try again.');
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Update Failed',
+                          text: 'Failed to update schedule. Please try again.',
+                          customClass: {
+                            popup: 'swal-small'
+                          }
+                        });
                       }
                     }}
                   >

@@ -41,26 +41,26 @@ const AssociationsSection = () => {
 
             return (
               <div
-                key={index}
-                onClick={() => setActiveIndex(index)}
-                className={`flex flex-col items-center justify-center text-center transition-all duration-300 ease-in-out rounded-[24px] border cursor-pointer transform
-                  ${
-                    isActive
-                      ? "bg-blue-900 text-white border-transparent"
-                      : "bg-white text-black border-gray-300"
-                  }
-                  hover:scale-105 hover:shadow-xl hover:border-blue-600
-                  p-6 sm:p-8 w-full h-[240px] md:h-[260px] lg:h-[282px]`}
-              >
-                <div
-                  className={`mb-4 ${
-                    isActive ? "text-white" : "text-blue-800"
-                  }`}
-                >
-                  {item.icon}
-                </div>
-                <p className="text-lg font-semibold">{item.name}</p>
-              </div>
+  key={index}
+  onClick={() => setActiveIndex(index)}
+  className={`group flex flex-col items-center justify-center text-center transition-all duration-300 ease-in-out rounded-[24px] border cursor-pointer transform
+    ${
+      isActive
+        ? "bg-white text-black border-transparent"
+        : "bg-white text-black border-gray-300"
+    }
+    hover:bg-blue-900 hover:text-white hover:scale-105 hover:shadow-xl hover:border-transparent
+    p-6 sm:p-8 w-full h-[240px] md:h-[260px] lg:h-[282px]`}
+>
+  <div
+    className={`mb-4 transition-colors duration-300 ${
+      isActive ? "text-dark" : "text-blue-00 group-hover:text-white"
+    }`}
+  >
+    {item.icon}
+  </div>
+  <p className="text-lg font-semibold">{item.name}</p>
+</div>
             );
           })}
         </div>

@@ -430,21 +430,39 @@ const AdminAttandancePage = () => {
             <h3 className="text-md font-semibold mb-2 text-blue-800">
               Daily Attendance %
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={attendanceBarData}
-                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-              >
-                <XAxis dataKey="date" fontSize={12} />
-                <YAxis
-                  domain={[0, 100]}
-                  tickFormatter={(v) => v + "%"}
-                  fontSize={12}
-                />
-                <Tooltip formatter={(v) => v + "%"} />
-                <Bar dataKey="percent" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ width: '100%', overflowX: 'auto' }}>
+  <ResponsiveContainer width={Math.max(attendanceBarData.length * 60, 400)} height={220}>
+    <BarChart
+      data={attendanceBarData}
+      margin={{ top: 10, right: 20, left: 60, bottom: 0 }}
+    >
+      <XAxis 
+        dataKey="date"
+        label={{ value: "Date", angle: 0, position: "insideBottom", style: { textAnchor: "middle" } }}
+        fontSize={12}
+      />
+      <YAxis
+        domain={[0, 100]}
+        tickFormatter={(v) => v + "%"}
+        fontSize={12}
+        label={{
+          value: "Attendance %",
+          angle: -90,
+          position: "insideLeft",
+          style: { textAnchor: "middle" },
+          dx: -30
+        }}
+      />
+      <Tooltip formatter={(v) => v + "%"} />
+      <Bar 
+        dataKey="percent" 
+        fill="#2563eb" 
+        radius={[4, 4, 0, 0]}
+        maxBarSize={50}
+      />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
           </div>
           {/* Pie Chart: Present/Absent/Late */}
           <div className="bg-blue-50 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center min-w-0 overflow-x-auto">

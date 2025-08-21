@@ -32,9 +32,13 @@ import Notices from "./Pages/Notices";
 import NoticeDetail from "./Pages/NoticeDetail";
 import DownloadPage from "./Pages/DownloadPage";
 import AdministrationPage from "./Pages/AdministrationPage";
+import ExamCategory from "./Pages/ExamCategory";
 import Profile from "./Components/StudentDashboard/Profile";
 import ForgotPassword from "./Pages/ForgotPassword";
 import ChangePassword from "./Pages/ChangePassword";
+import AdminExamSchedules from "./Components/AdminDashboard.jsx/AdminExamSchedules";
+import AdminExamForms from "./Components/AdminDashboard.jsx/AdminExamForms";
+import AdminExamResults from "./Components/AdminDashboard.jsx/AdminExamResults";
 
 // Teacher Dashboard Components
 import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
@@ -65,11 +69,14 @@ const MyRoutes = () => {
             path="/staff/administration"
             element={<AdministrationPage />}
           />
+           <Route path="/exam/:id" element={<ExamCategory />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        {/* Public Exam category route */}
+       
 
         {/* Student Routes - Protected */}
         <Route
@@ -105,6 +112,9 @@ const MyRoutes = () => {
           <Route path="department" element={<DepartmentsPage />} />
           <Route path="attendance" element={<AdminAttandancePage />} />
           <Route path="assignment" element={<AdminAssignmentsPage />} />
+          <Route path="exam-schedules" element={<AdminExamSchedules />} />
+          <Route path="exam-forms" element={<AdminExamForms />} />
+          <Route path="exam-results" element={<AdminExamResults />} />
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="fee" element={<FeeDashboard />} />
 

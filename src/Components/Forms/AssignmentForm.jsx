@@ -6,6 +6,7 @@ import {
   logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
+import Swal from 'sweetalert2';
 
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
@@ -32,26 +33,44 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
     description: "",
     subject_id: "",
     due_date: "",
-    teacher_id: "",
+    teacher_id: currentUser?.id || "", // Set teacher_id from currentUser
     year: "",
   });
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [currentTeacherName, setCurrentTeacherName] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
-      const data = await getAllSubjects();
-      if (data) setSubjects(data);
+      try {
+        const data = await getAllSubjects();
+        if (data) setSubjects(data);
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
     };
     const fetchTeachers = async () => {
-      const data = await getAllTeachers();
-      if (data) setTeachers(data);
+      try {
+        const data = await getAllTeachers();
+        if (data) {
+          setTeachers(data);
+          // Set current teacher's name if currentUser is available
+          if (currentUser?.id) {
+            const loggedInTeacher = data.find(t => t.id === currentUser.id);
+            if (loggedInTeacher) {
+              setCurrentTeacherName(`${loggedInTeacher.first_name} ${loggedInTeacher.last_name}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching teachers:", error);
+      }
     };
     fetchSubjects();
     fetchTeachers();
-  }, []);
+  }, [currentUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -69,11 +88,29 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
       "description",
       "subject_id",
       "due_date",
-      "teacher_id",
       "year",
     ];
+    // teacher_id is automatically set from currentUser, so it's not required in the form check
+    if (!form.teacher_id) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Teacher information is missing. Please log in again.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
+      return;
+    }
     if (required.some((f) => !form[f])) {
-      alert("Please fill all required fields.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Fields',
+        text: 'Please fill all required fields.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     setLoading(true);
@@ -89,11 +126,25 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
         "assignment",
         currentUser || {}
       );
-      alert("Assignment added successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Assignment added successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
-      alert("Failed to add assignment: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to add assignment: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -136,19 +187,33 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
         value={form.due_date}
         onChange={handleChange}
       />
-      <select
-        name="teacher_id"
-        className={inputStyle}
-        value={form.teacher_id}
-        onChange={handleChange}
-      >
-        <option value="">Select Teacher*</option>
-        {teachers.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.first_name} {t.last_name}
-          </option>
-        ))}
-      </select>
+      {currentUser?.role === 'teacher' ? (
+        <input
+          name="teacher_id"
+          className={inputStyle}
+          value={currentTeacherName || "Loading Teacher..."}
+          disabled // Disable the input
+        />
+      ) : (
+        <select
+          name="teacher_id"
+          className={inputStyle}
+          value={form.teacher_id}
+          onChange={handleChange}
+
+
+          
+        >
+          {/* if user is teacher, show their name and disable the input */}
+      
+          <option value="">Select Teacher*</option>
+          {teachers.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.first_name} {t.last_name}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         name="year"
         className={inputStyle}

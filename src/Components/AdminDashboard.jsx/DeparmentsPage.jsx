@@ -4,6 +4,7 @@ import {
   createDepartment,
   updateDepartment,
 } from "../../supabaseConfig/supabaseApi";
+import { deleteDepartment } from "../../supabaseConfig/supabaseApi";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import html2pdf from "html2pdf.js";
 import jsPDF from "jspdf";
@@ -11,6 +12,8 @@ import autoTable from "jspdf-autotable";
 import supabase from "../../supabaseConfig/supabaseClient";
 import DepartmentForm from "../Forms/DepartmentForm";
 import Loader from "../Loader";
+import { FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import Swal from 'sweetalert2';
 
 const COLORS = [
   "#0088FE",
@@ -91,14 +94,17 @@ const DepartmentsPage = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="p-2 border rounded-md w-full sm:w-64 text-base"
         />
-        <div className="flex flex-row items-center gap-2 w-full sm:w-auto justify-end mt-2 sm:mt-0">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto"
-          >
-            Add New Department
-          </button>
-        </div>
+<div className="flex flex-row items-center gap-2 w-full sm:w-auto justify-end mt-2 sm:mt-0">
+  <button
+    onClick={() => setShowAddModal(true)}
+    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center justify-center gap-2"
+    title="Add Department"
+    aria-label="Add Department"
+  >
+    <FaPlus />
+    <span>Add Department</span>
+  </button>
+</div>
       </div>
 
       <div className="mt-6 overflow-x-auto overflow-y-auto max-h-[400px] min-w-0" id="departments-table">
@@ -127,16 +133,57 @@ const DepartmentsPage = () => {
                   <td className="px-4 py-2">{dept.faculty.name}</td>
                   <td className="px-4 py-2 flex gap-2 justify-center">
                     <button
-                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm w-9 h-9 flex items-center justify-center"
                       onClick={() => {
                         setEditDepartment(dept);
                         setShowEditModal(true);
                       }}
+                      title="Edit"
+                      aria-label="Edit Department"
                     >
-                      Update
+                      <FaEdit />
                     </button>
-                    <button className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
-                      Delete
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm w-9 h-9 flex items-center justify-center"
+                      onClick={async () => {
+                        Swal.fire({
+                          title: 'Are you sure?',
+                          text: 'You will not be able to recover this department!',
+                          icon: 'warning',
+                          showCancelButton: true,
+                          confirmButtonText: 'Yes, delete it!',
+                          cancelButtonText: 'No, keep it'
+                        }).then(async (result) => {
+                          if (result.isConfirmed) {
+                            const error = await deleteDepartment(dept.id);
+                            if (error) {
+                              Swal.fire({
+                                title: 'Error!',
+                                text: 'Failed to delete department: ' + (error.message || error),
+                                icon: 'error',
+                                customClass: {
+                                  popup: 'swal-small'
+                                }
+                              });
+                            } else {
+                              Swal.fire({
+                                title: 'Deleted!',
+                                text: 'Department has been deleted.',
+                                icon: 'success',
+                                customClass: {
+                                  popup: 'swal-small'
+                                }
+                              });
+                              const data = await getAllDepartments();
+                              setDepartments(data);
+                            }
+                          }
+                        });
+                      }}
+                      title="Delete"
+                      aria-label="Delete Department"
+                    >
+                      <FaTrash />
                     </button>
                   </td>
                 </tr>

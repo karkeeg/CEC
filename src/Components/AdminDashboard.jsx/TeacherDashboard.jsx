@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Swal from 'sweetalert2';
 import UpdateTeacherModal from "../Forms/UpdateTeacherModal";
 import {
   getAllTeachers,
@@ -17,6 +18,7 @@ import {
   Cell,
 } from "recharts";
 import Loader from "../Loader";
+import { FaTrash, FaEdit } from "react-icons/fa";
 
 const TeacherDashboard = () => {
   const [teachers, setTeachers] = useState([]);
@@ -46,9 +48,23 @@ const TeacherDashboard = () => {
       const { error } = await supabase.from("teachers").delete().eq("id", id);
       if (error) {
         console.error("Error deleting teacher:", error.message);
-        alert("Error deleting teacher: " + error.message);
+        Swal.fire({
+        icon: 'error',
+        title: 'Deletion Failed',
+        text: 'Error deleting teacher: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       } else {
-        alert("Teacher deleted successfully!");
+        Swal.fire({
+        icon: 'success',
+        title: 'Deletion Successful!',
+        text: 'Teacher deleted successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
         fetchTeachers(); // Refresh the list
       }
     }
@@ -68,9 +84,23 @@ const TeacherDashboard = () => {
 
     if (error) {
       console.error("Error updating teacher:", error.message);
-      alert("Error updating teacher: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Error updating teacher: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } else {
-      alert("Teacher updated successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Update Successful!',
+        text: 'Teacher updated successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setShowUpdateModal(false);
       fetchTeachers(); // Refresh the list
     }
@@ -259,15 +289,19 @@ const TeacherDashboard = () => {
                     <td className="px-4 py-2">
                       <button
                         onClick={() => handleDeleteTeacher(t.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded mr-2 hover:bg-red-600 transition-colors"
+                        className="bg-red-500 text-white px-3 py-2 rounded mr-2 hover:bg-red-600 transition-colors w-9 h-9 inline-flex items-center justify-center"
+                        title="Delete"
+                        aria-label="Delete Teacher"
                       >
-                        Delete
+                        <FaTrash />
                       </button>
                       <button
                         onClick={() => handleUpdateTeacher(t)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
+                        className="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 transition-colors w-9 h-9 inline-flex items-center justify-center"
+                        title="Edit"
+                        aria-label="Edit Teacher"
                       >
-                        Update
+                        <FaEdit />
                       </button>
                     </td>
                   </tr>
@@ -277,6 +311,15 @@ const TeacherDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Update Teacher Modal */}
+      {showUpdateModal && currentTeacher && (
+        <UpdateTeacherModal
+          teacher={currentTeacher}
+          onClose={() => setShowUpdateModal(false)}
+          onSave={handleSaveUpdate}
+        />
+      )}
 
 
 
@@ -304,6 +347,7 @@ const TeacherDashboard = () => {
                 value: "Number of Teachers",
                 angle: -90,
                 position: "insideLeft",
+                style:{textAnchor: "middle"}
               }}
             />
             <Tooltip

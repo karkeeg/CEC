@@ -49,7 +49,7 @@ const IntroSection = () => {
       const { data, error } = await supabase
         .from("articles")
         .select("*")
-        .eq("slug", "chairmans-message")
+        .eq("slug", "Chairman Message")
         .maybeSingle();
       if (error) {
         setError(error.message);
@@ -94,10 +94,10 @@ const IntroSection = () => {
                   {chairman.title}
                 </h3>
                 <p className="mt-2 text-lg leading-relaxed text-gray-800 mb-6">
-                  {chairman.summary.slice(0, 450)}...
+                  {chairman.full_content.slice(0, 450)}...
                 </p>
                 <a
-                  href="/articles/chairmans-message"
+                  href="/articles/Chairman Message"
                   className="inline-block px-6 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded-full font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
                 >
                   Read More

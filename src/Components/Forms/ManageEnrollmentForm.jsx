@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import Swal from 'sweetalert2';
 import {
   fetchStudents,
   enrollStudentsInClass,
@@ -58,9 +59,14 @@ const ManageEnrollmentForm = ({
         (!selectedStudents.includes(studentId) ? 1 : 0) >
         classCapacity
     ) {
-      alert(
-        "Student capacity is full. Please increase the class capacity to add more students."
-      );
+      Swal.fire({
+        icon: 'warning',
+        title: 'Capacity Full',
+        text: 'Student capacity is full. Please increase the class capacity to add more students.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     setSelectedStudents((prev) => {
@@ -82,7 +88,14 @@ const ManageEnrollmentForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudents.length || !classId) {
-      alert("Please select at least one student.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Student Selected',
+        text: 'Please select at least one student.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     if (
@@ -98,7 +111,14 @@ const ManageEnrollmentForm = ({
     setLoading(true);
     const error = await enrollStudentsInClass(selectedStudents, classId);
     if (error) {
-      alert("Error enrolling students: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Enrollment Error',
+        text: 'Error enrolling students: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setLoading(false);
       return;
     }

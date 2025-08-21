@@ -684,6 +684,7 @@ const TeacherMainDashboard = () => {
           <AssignmentForm
             onClose={() => setShowAssignmentModal(false)}
             onSuccess={() => setShowAssignmentModal(false)}
+            currentUser={user}
           />
         </Modal>
       )}

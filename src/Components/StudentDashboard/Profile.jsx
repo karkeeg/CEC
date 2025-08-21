@@ -3,6 +3,7 @@ import { useUser } from "../../contexts/UserContext";
 import { fetchStudents, fetchTeachers } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import Modal from "../Modal";
+import Swal from 'sweetalert2';
 
 const Profile = () => {
   const { user, role, setProfile, fetchUserProfile, profile } = useUser();
@@ -65,7 +66,14 @@ const Profile = () => {
       .from("profile")
       .upload(filePath, file, { upsert: true });
     if (error) {
-      alert("Upload failed: " + error.message);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Upload failed: ' + error.message,
+        icon: 'error',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setProfileUploading(false);
       setCoverUploading(false);
       return;

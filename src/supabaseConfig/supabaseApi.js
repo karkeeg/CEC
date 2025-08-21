@@ -122,6 +122,15 @@ export const updateDepartment = async (id, updates) => {
   return data;
 };
 
+// Delete a department by id
+export const deleteDepartment = async (id) => {
+  const { error } = await supabase
+    .from("departments")
+    .delete()
+    .eq("id", id);
+  return error;
+};
+
 // ------------------- STUDENTS -------------------
 export const updateStudentProfile = async (studentId, updates) => {
   const { data, error } = await supabase
@@ -165,6 +174,13 @@ export const fetchStudentProfileById = async (studentId) => {
   return data;
 };
 
+export const updateAdminProfile = async (adminId, updates) => {
+  const { data, error } = await supabase
+    .from("teachers")
+    .update(updates)
+    .eq("id", adminId);
+  return { data, error };
+};
 // ------------------- TEACHERS -------------------
 export const updateTeacherProfile = async (teacherId, updates) => {
   const { data, error } = await supabase
@@ -575,14 +591,37 @@ export const updateAdminPassword = async (adminId, newPassword) => {
   return error;
 };
 export const deleteStudent = async (idOrRegNo) => {
-  // Try both id and reg_no for compatibility
-  let { error } = await supabase.from("students").delete().eq("id", idOrRegNo);
-  if (error) {
-    // Try reg_no if id fails
-    error = (await supabase.from("students").delete().eq("reg_no", idOrRegNo))
-      .error;
+  // First, delete related records in the 'fees' table
+  const { error: feesError } = await supabase
+    .from("fees")
+    .delete()
+    .eq("student_id", idOrRegNo);
+
+  if (feesError) {
+    console.error("Error deleting associated fees records:", feesError);
+    throw feesError;
   }
-  return error;
+
+  // Then, try delete student by id or reg_no
+  let resp = await supabase
+    .from("students")
+    .delete()
+    .eq("id", idOrRegNo)
+    .select("id, reg_no");
+
+  if (resp.error) return resp.error;
+
+  if (!resp.data || resp.data.length === 0) {
+    // No rows deleted by id; try reg_no
+    resp = await supabase
+      .from("students")
+      .delete()
+      .eq("reg_no", idOrRegNo)
+      .select("id, reg_no");
+    return resp.error || null;
+  }
+
+  return null;
 };
 export const updateStudent = async (reg_no, updates) => {
   const { error } = await supabase
@@ -1287,4 +1326,59 @@ export const getTeacherStudentPerformanceStats = async (teacherId) => {
     highPerformerNames: sortedHighPerformerNames,
     needsAttentionNames: sortedNeedsAttentionNames,
   };
+};
+
+// ------------------- EXAMS -------------------
+// Note: Using generic selects to avoid coupling to specific column names.
+// Tables: `exam_category` and `exam` where `exam.category` references `exam_category.id`.
+
+// Fetch all exam categories
+export const fetchExamCategories = async () => {
+  const { data, error } = await supabase
+    .from("exam_category")
+    .select("*")
+    .order("id", { ascending: true });
+  if (error) throw error;
+  return data;
+};
+
+// Fetch exam items, optionally by category id
+export const fetchExamItems = async (filters = {}) => {
+  let query = supabase.from("exam").select("*");
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.limit) query = query.limit(filters.limit);
+  query = query.order("created_at", { ascending: false });
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
+
+export const getExamItemsByCategory = async (categoryId, limit) => {
+  return await fetchExamItems({ category: categoryId, limit });
+};
+
+// Create a new exam item
+// exam: { details, files, category, created_at? }
+export const createExamItem = async (exam) => {
+  const { data, error } = await supabase.from("exam").insert([exam]);
+  return { data, error };
+};
+
+// Update an exam item by id
+export const updateExamItem = async (id, updates) => {
+  const { data, error } = await supabase
+    .from("exam")
+    .update(updates)
+    .eq("id", id)
+    .select();
+  return { data, error };
+};
+
+// Delete an exam item by id
+export const deleteExamItem = async (id) => {
+  const { data, error } = await supabase
+    .from("exam")
+    .delete()
+    .eq("id", id);
+  return { data, error };
 };

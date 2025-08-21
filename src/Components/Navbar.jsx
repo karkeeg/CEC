@@ -93,6 +93,9 @@ const Navbar = () => {
   // New state for download categories
   const [downloadCategories, setDownloadCategories] = useState([]);
   const [loadingDownloads, setLoadingDownloads] = useState(true);
+  // New state for exam categories
+  const [examCategories, setExamCategories] = useState([]);
+  const [loadingExams, setLoadingExams] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -162,7 +165,25 @@ const Navbar = () => {
     fetchDownloadCategories();
   }, []);
 
-  // Replace navItems with dynamic Download dropdown (with id)
+  // Fetch exam categories from Supabase
+  useEffect(() => {
+    const fetchExamCats = async () => {
+      setLoadingExams(true);
+      const { data, error } = await supabase
+        .from("exam_category")
+        .select("id, category_name");
+      if (error) {
+        setExamCategories([]);
+        setLoadingExams(false);
+        return;
+      }
+      setExamCategories(data || []);
+      setLoadingExams(false);
+    };
+    fetchExamCats();
+  }, []);
+
+  // Replace navItems with dynamic Download and Exam dropdowns (with id)
   const dynamicNavItems = navItems.map((item) => {
     if (item.label === "Download") {
       return {
@@ -170,6 +191,15 @@ const Navbar = () => {
         dropdown: downloadCategories.map((cat) => ({
           id: cat.id,
           name: cat.name,
+        })),
+      };
+    }
+    if (item.label === "Exam") {
+      return {
+        ...item,
+        dropdown: examCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.category_name,
         })),
       };
     }
@@ -240,7 +270,7 @@ const Navbar = () => {
                   Central Engineering
                 </span>
                 <span className="text-xs md:text-sm xl:text-base font-medium text-white/80 tracking-wide">
-                  College
+                  College / Nepal Technical Institute
                 </span>
               </div>
             </Link>
@@ -326,10 +356,20 @@ const Navbar = () => {
                           onMouseLeave={() => setOpenDropdown(null)}
                         >
                           {item.label === "Download"
-                            ? item.dropdown.map((sub, subIdx) => (
+                            ? item.dropdown.map((sub) => (
                                 <Link
                                   to={`/downloads/${sub.id}`}
-                                  key={sub.id}
+                                  key={`dl-${sub.id}`}
+                                  className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))
+                            : item.label === "Exam"
+                            ? item.dropdown.map((sub) => (
+                                <Link
+                                  to={`/exam/${sub.id}`}
+                                  key={`exam-${sub.id}`}
                                   className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
                                 >
                                   {sub.name}
@@ -595,7 +635,7 @@ const Navbar = () => {
             )}
 
             <ul className="flex flex-col gap-2">
-              {navItems.map((item, idx) => (
+              {dynamicNavItems.map((item, idx) => (
                 <li key={item.label} className="relative">
                   {item.label === "Departments" ? (
                     <>
@@ -657,20 +697,42 @@ const Navbar = () => {
                       </button>
                       {openDropdown === idx && (
                         <div className="pl-4 py-1">
-                          {item.dropdown.map((sub, subIdx) => (
-                            <Link
-                              to={`/${item.label
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}/${sub
-                                .toLowerCase()
-                                .replace(/\s/g, "-")}`}
-                              key={subIdx}
-                              className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
-                              onClick={() => setMobileMenu(false)}
-                            >
-                              {sub}
-                            </Link>
-                          ))}
+                          {item.label === "Download"
+                            ? item.dropdown.map((sub) => (
+                                <Link
+                                  to={`/downloads/${sub.id}`}
+                                  key={`mob-dl-${sub.id}`}
+                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
+                                  onClick={() => setMobileMenu(false)}
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))
+                            : item.label === "Exam"
+                            ? item.dropdown.map((sub) => (
+                                <Link
+                                  to={`/exam/${sub.id}`}
+                                  key={`mob-exam-${sub.id}`}
+                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
+                                  onClick={() => setMobileMenu(false)}
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))
+                            : item.dropdown.map((sub, subIdx) => (
+                                <Link
+                                  to={`/${item.label
+                                    .toLowerCase()
+                                    .replace(/\s/g, "-")}/${sub
+                                    .toLowerCase()
+                                    .replace(/\s/g, "-")}`}
+                                  key={subIdx}
+                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
+                                  onClick={() => setMobileMenu(false)}
+                                >
+                                  {sub}
+                                </Link>
+                              ))}
                         </div>
                       )}
                     </>

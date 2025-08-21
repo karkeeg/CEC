@@ -3,6 +3,7 @@ import {
   getAllStudents,
   deleteStudent,
   updateStudent,
+  getAllDepartments,
 } from "../../supabaseConfig/supabaseApi";
 import {
   BarChart,
@@ -25,6 +26,7 @@ import Loader from "../Loader";
 
 const StudentDashboard = () => {
   const [students, setStudents] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFilter, setYearFilter] = useState("all");
@@ -47,6 +49,15 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     fetchStudents();
+    // Load departments for assignment in edit modal
+    (async () => {
+      try {
+        const deps = await getAllDepartments();
+        setDepartments(deps || []);
+      } catch (e) {
+        console.error("Failed to load departments", e);
+      }
+    })();
   }, []);
 
   const fetchStudents = async () => {
@@ -84,18 +95,41 @@ const StudentDashboard = () => {
     ]);
   };
 
-  const handleDelete = async (reg_no) => {
-    const error = await deleteStudent(reg_no);
-    if (!error) {
-      const updated = students.filter((s) => s.reg_no !== reg_no);
-      setStudents(updated);
-      prepareCharts(updated);
+  const handleDelete = async (id, reg_no) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You are about to delete this student and all related data (e.g., fees). This action cannot be undone.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      const error = await deleteStudent(id || reg_no);
+      if (!error) {
+        const updated = students.filter((s) => s.id !== id && s.reg_no !== reg_no);
+        setStudents(updated);
+        prepareCharts(updated);
+        Swal.fire(
+          'Deleted!',
+          'Student has been deleted.',
+          'success'
+        );
+      } else {
+        Swal.fire(
+          'Failed!',
+          'Failed to delete student: ' + (error.message || JSON.stringify(error)),
+          'error'
+        );
+      }
     }
   };
 
   const handleEdit = (student) => {
     setEditStudent(student);
-    setEditForm({ ...student });
+    setEditForm({ ...student, department_id: student.department_id || "" });
   };
 
   const handleEditChange = (e) => {
@@ -115,8 +149,10 @@ const StudentDashboard = () => {
       );
       setEditStudent(null);
     } else {
-      alert(
-        "Failed to update student: " + (error.message || JSON.stringify(error))
+      Swal.fire(
+        'Failed!',
+        'Failed to update student: ' + (error.message || JSON.stringify(error)),
+        'error'
       );
     }
   };
@@ -365,7 +401,7 @@ const StudentDashboard = () => {
                     </button>
                     <button
                       className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                      onClick={() => handleDelete(student.reg_no)}
+                      onClick={() => handleDelete(student.id, student.reg_no)}
                     >
                       <FaTrash />
                     </button>
@@ -432,6 +468,14 @@ const StudentDashboard = () => {
             </div>
             <div>
               <strong>Year:</strong> {viewStudent.year}
+            </div>
+            <div>
+              <strong>Department:</strong>{" "}
+              {(
+                departments.find((d) => d.id === viewStudent.department_id)?.name ||
+                viewStudent.department_id ||
+                "-"
+              )}
             </div>
             <div>
               <strong>Phone:</strong> {viewStudent.phone}
@@ -522,6 +566,22 @@ const StudentDashboard = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1">Department</label>
+                <select
+                  name="department_id"
+                  value={editForm.department_id || ""}
+                  onChange={handleEditChange}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Phone</label>
                 <input
                   name="phone"
@@ -596,7 +656,7 @@ const StudentDashboard = () => {
                   ) + 1
                 }
                 interval={0}
-                label={{ value: 'Number of Students', angle: -90, position: 'insideLeft' }}
+                label={{ value: 'Number of Students', angle: -90, position: 'insideLeft', style:{textAnchor: "middle"} }}
               />
               <Tooltip />
               <Bar dataKey="count" fill="#3182CE" />

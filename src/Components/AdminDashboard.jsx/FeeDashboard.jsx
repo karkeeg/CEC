@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import Swal from 'sweetalert2';
 import {
   PieChart,
   Pie,
@@ -624,7 +625,12 @@ const FeeDashboard = () => {
     async (e) => {
       e.preventDefault();
       if (!form.student_id || !form.amount || !form.due_date) {
-        alert("Student, amount, and due date are required.");
+        Swal.fire({
+          icon: 'warning',
+          title: 'Required Fields',
+          text: 'Student, amount, and due date are required.',
+          customClass: { container: 'swal-small' }
+        });
         return;
       }
 
@@ -652,7 +658,12 @@ const FeeDashboard = () => {
         const feeId = fees[editIndex].id;
         const { error } = await updateFee(feeId, feeData);
         if (error) {
-          alert("Failed to update fee: " + error.message);
+          Swal.fire({
+            icon: 'error',
+            title: 'Update Failed',
+            text: 'Failed to update fee: ' + error.message,
+            customClass: { container: 'swal-small' }
+          });
           return;
         }
         const prevPaid = fees[editIndex].paid_amount || 0;
@@ -662,7 +673,12 @@ const FeeDashboard = () => {
       } else {
         const { error } = await createFee(feeData);
         if (error) {
-          alert("Failed to add fee: " + error.message);
+          Swal.fire({
+            icon: 'error',
+            title: 'Add Failed',
+            text: 'Failed to add fee: ' + error.message,
+            customClass: { container: 'swal-small' }
+          });
           return;
         }
         if (feeData.paid_amount && Number(feeData.paid_amount) > 0) {
@@ -702,19 +718,42 @@ const FeeDashboard = () => {
 
   const handleDelete = useCallback(
     async (idx) => {
-      if (window.confirm("Are you sure you want to delete this fee?")) {
-        const feeId = fees[idx].id;
-        const { error } = await updateFee(feeId, { status: "deleted" });
-        if (error) {
-          alert("Failed to delete fee: " + error.message);
-          return;
+      Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!',
+        customClass: { container: 'swal-small' }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const feeId = fees[idx].id;
+          const { error } = await updateFee(feeId, { status: "deleted" });
+          if (error) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Delete Failed',
+              text: 'Failed to delete fee: ' + error.message,
+              customClass: { container: 'swal-small' }
+            });
+            return;
+          }
+          const updatedFees = fees.filter((_, i) => i !== idx);
+          setFees(updatedFees);
+          Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'Fee has been deleted.',
+            customClass: { container: 'swal-small' }
+          });
         }
-        const updatedFees = fees.filter((_, i) => i !== idx);
-        setFees(updatedFees);
-      }
+      });
     },
     [fees]
   );
+  
 
   const exportToCSV = useCallback(() => {
     const headers = [

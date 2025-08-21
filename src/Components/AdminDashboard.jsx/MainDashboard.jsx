@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import Swal from 'sweetalert2';
 import {
   FaUserGraduate,
   FaChalkboardTeacher,
@@ -28,6 +29,11 @@ import {
   logActivity,
   fetchGalleryItems,
   fetchArticles,
+  fetchExamCategories,
+  fetchExamItems,
+  createExamItem,
+  updateExamItem,
+  deleteExamItem,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import { StudentForm } from "../Forms/StudentForm";
@@ -36,6 +42,7 @@ import { NoticeForm } from "../Forms/NoticeForm";
 import { AssignmentForm } from "../Forms/AssignmentForm";
 import ArticleForm from "../Forms/ArticleForm";
 import { sendConfirmationEmail } from "../../utils/emailService";
+import { useUser } from "../../contexts/UserContext";
 
 const Modal = ({ title, children, onClose }) => (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -61,17 +68,17 @@ const Modal = ({ title, children, onClose }) => (
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
 // Helper to upload multiple files to Supabase Storage and return their public URLs
-async function uploadFilesToStorage(files, folder = "notices") {
-  const bucket = "public-files";
+// bucketName e.g., 'exam', folder e.g., 'category-slug'
+async function uploadFilesToStorage(files, bucketName = "exam", folder = "misc") {
   const urls = [];
   for (const file of files) {
     const filePath = `${folder}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage
-      .from(bucket)
+      .from(bucketName)
       .upload(filePath, file);
     if (error) throw error;
     // Get public URL
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
     urls.push(data.publicUrl);
   }
   return urls;
@@ -79,6 +86,7 @@ async function uploadFilesToStorage(files, folder = "notices") {
 
 // Main Component
 const MainDashboard = () => {
+  const { user: currentUser } = useUser();
   const [studentCount, setStudentCount] = useState(0);
   const [teacherCount, setTeacherCount] = useState(0);
   const [paidFee, setPaidFee] = useState(0);
@@ -93,6 +101,7 @@ const MainDashboard = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
+  const [showExamModal, setShowExamModal] = useState(false);
   const [articles, setArticles] = useState([]);
   const [editArticle, setEditArticle] = useState(null);
   const [visibleArticlesCount, setVisibleArticlesCount] = useState(8);
@@ -111,6 +120,14 @@ const MainDashboard = () => {
   const [galleries, setGalleries] = useState([]);
   const [editGallery, setEditGallery] = useState(null);
   const [showEditGalleryModal, setShowEditGalleryModal] = useState(false);
+
+  // Exams state
+  const [examCategories, setExamCategories] = useState([]);
+  const [selectedExamCategory, setSelectedExamCategory] = useState("");
+  const [examItems, setExamItems] = useState([]);
+  const [examForm, setExamForm] = useState({ details: "", files: [] });
+  const [examLoading, setExamLoading] = useState(false);
+  const [editExam, setEditExam] = useState(null);
 
   // Fetch unique categories from gallery items
   useEffect(() => {
@@ -207,6 +224,19 @@ const MainDashboard = () => {
   useEffect(() => {
     fetchStats();
     fetchGalleries();
+    // Exams bootstrapping
+    const initExams = async () => {
+      try {
+        const cats = await fetchExamCategories();
+        setExamCategories(cats || []);
+        // Do not auto-select a category; start with placeholder
+        setSelectedExamCategory("");
+        setExamItems([]);
+      } catch (e) {
+        console.error("Failed to init exams", e);
+      }
+    };
+    initExams();
     // Fetch recent activities
     const fetchActivities = async () => {
       const [subs, assigns, notices] = await Promise.all([
@@ -249,6 +279,21 @@ const MainDashboard = () => {
     fetchActivities();
   }, []);
 
+  // Ensure categories are loaded when opening the Exam modal
+  useEffect(() => {
+    const ensureCats = async () => {
+      if (showExamModal && examCategories.length === 0) {
+        try {
+          const cats = await fetchExamCategories();
+          setExamCategories(cats || []);
+        } catch (e) {
+          console.error("Failed to fetch exam categories on modal open", e);
+        }
+      }
+    };
+    ensureCats();
+  }, [showExamModal]);
+
   const StatCard = ({ icon, label, value, highlight }) => (
     <div
       className={`bg-white shadow-md border-l-4 p-4 rounded-md ${highlight}`}
@@ -279,12 +324,26 @@ const MainDashboard = () => {
   const handleGallerySubmit = async (e) => {
     e.preventDefault();
     if (!galleryTitle || galleryFiles.length === 0) {
-      alert("Title and at least one image/video are required.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Title and at least one image/video are required.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     const category = galleryCategoryInput.trim();
     if (!category) {
-      alert("Please select or enter a category.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Category',
+        text: 'Please select or enter a category.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     try {
@@ -319,7 +378,14 @@ const MainDashboard = () => {
         "gallery",
         typeof currentUser !== "undefined" ? currentUser : {}
       );
-      alert("Gallery topic and media uploaded!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Upload Successful!',
+        text: 'Gallery topic and media uploaded!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setShowGalleryModal(false);
       setGalleryFiles([]);
       setGalleryTitle("");
@@ -327,7 +393,14 @@ const MainDashboard = () => {
       setGalleryCategoryInput("");
       // Optionally: refresh gallery images here
     } catch (error) {
-      alert("Failed to upload gallery: " + (error.message || error));
+      Swal.fire({
+        icon: 'error',
+        title: 'Upload Failed',
+        text: 'Failed to upload gallery: ' + (error.message || error),
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     }
   };
 
@@ -336,13 +409,25 @@ const MainDashboard = () => {
     await fetchStats();
     if (student && student.name && student.email) {
       try {
-        alert(`Confirmation email sent to ${student.email}`);
+        Swal.fire({
+        icon: 'success',
+        title: 'Email Sent',
+        text: `Confirmation email sent to ${student.email}`,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       } catch (error) {
-        alert(
-          `Failed to send confirmation email to ${student.email}: ${
+        Swal.fire({
+          icon: 'error',
+          title: 'Email Failed',
+          text: `Failed to send confirmation email to ${student.email}: ${
             error?.text || error?.message || error
-          }`
-        );
+          }`,
+          customClass: {
+            popup: 'swal-small'
+          }
+        });
         console.error("EmailJS send error (student):", error);
       }
     } else {
@@ -360,13 +445,25 @@ const MainDashboard = () => {
           to_email: teacher.email,
           role: "teacher",
         });
-        alert(`Confirmation email sent to ${teacher.email}`);
+        Swal.fire({
+          icon: 'success',
+          title: 'Email Sent',
+          text: `Confirmation email sent to ${teacher.email}`,
+          customClass: {
+            popup: 'swal-small'
+          }
+        });
       } catch (error) {
-        alert(
-          `Failed to send confirmation email to ${teacher.email}: ${
+        Swal.fire({
+          icon: 'error',
+          title: 'Email Failed',
+          text: `Failed to send confirmation email to ${teacher.email}: ${
             error?.text || error?.message || error
-          }`
-        );
+          }`,
+          customClass: {
+            popup: 'swal-small'
+          }
+        });
         console.error("EmailJS send error (teacher):", error);
       }
     }
@@ -452,12 +549,26 @@ const MainDashboard = () => {
   const handleEditGallerySubmit = async (e) => {
     e.preventDefault();
     if (!editGalleryTitle) {
-      alert("Title is required.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Title',
+        text: 'Title is required.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     const category = editGalleryCategoryInput.trim();
     if (!category) {
-      alert("Please select or enter a category.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Category',
+        text: 'Please select or enter a category.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     try {
@@ -497,12 +608,26 @@ const MainDashboard = () => {
         })
         .eq("id", editGallery.id);
       if (updateError) throw updateError;
-      alert("Gallery updated!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Update Successful!',
+        text: 'Gallery updated!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setShowEditGalleryModal(false);
       setEditGallery(null);
       await fetchGalleries();
     } catch (error) {
-      alert("Failed to update gallery: " + (error.message || error));
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Failed to update gallery: ' + (error.message || error),
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     }
   };
 
@@ -515,10 +640,135 @@ const MainDashboard = () => {
         .delete()
         .eq("id", gallery.id);
       if (error) throw error;
-      alert("Gallery deleted!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Deletion Successful!',
+        text: 'Gallery deleted!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       await fetchGalleries();
     } catch (error) {
-      alert("Failed to delete gallery: " + (error.message || error));
+      Swal.fire({
+        icon: 'error',
+        title: 'Deletion Failed',
+        text: 'Failed to delete gallery: ' + (error.message || error),
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
+    }
+  };
+
+  // =================== Exams: Handlers ===================
+  const loadExamCategories = async () => {
+    try {
+      const cats = await fetchExamCategories();
+      setExamCategories(cats || []);
+      // Keep selection empty until user chooses
+      if (!selectedExamCategory) setSelectedExamCategory("");
+    } catch (e) {
+      console.error("Failed to fetch exam categories", e);
+      Swal.fire({ icon: 'error', title: 'Failed to load categories', text: e?.message || String(e) });
+    }
+  };
+  const refreshExamItems = async (categoryId) => {
+    if (!categoryId) return;
+    try {
+      const items = await fetchExamItems({ category: categoryId, limit: 1000 });
+      setExamItems(items || []);
+    } catch (e) {
+      console.error("Failed to fetch exam items", e);
+    }
+  };
+
+  const handleExamCategoryChange = async (e) => {
+    const cat = e.target.value;
+    setSelectedExamCategory(cat);
+    setExamForm({ details: "", files: [] });
+    setEditExam(null);
+    await refreshExamItems(cat);
+  };
+
+  const handleExamFileChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+    setExamForm((prev) => ({ ...prev, files: [...(prev.files || []), ...picked] }));
+    // allow selecting the same files again by resetting input value
+    e.target.value = '';
+  };
+
+  const resetExamForm = () => {
+    setExamForm({ details: "", files: [] });
+    setEditExam(null);
+    if (document?.getElementById("exam-files-input")) {
+      document.getElementById("exam-files-input").value = "";
+    }
+  };
+
+  const handleExamSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedExamCategory) {
+      Swal.fire({ icon: 'warning', title: 'Select Category', text: 'Please select an exam category.' });
+      return;
+    }
+    if (!examForm.details.trim()) {
+      Swal.fire({ icon: 'warning', title: 'Missing Details', text: 'Please enter details.' });
+      return;
+    }
+    setExamLoading(true);
+    try {
+      let fileUrls = [];
+      if (examForm.files && examForm.files.length > 0) {
+        const catObj = examCategories.find((c) => String(c.id) === String(selectedExamCategory));
+        const folderName = (catObj?.category_name || selectedExamCategory)
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        // Upload to 'exam' bucket under a folder per category
+        fileUrls = await uploadFilesToStorage(examForm.files, "exam", folderName);
+      }
+
+      if (editExam) {
+        const updates = { details: examForm.details, files: fileUrls.length ? fileUrls : editExam.files };
+        const { error } = await updateExamItem(editExam.id, updates);
+        if (error) throw error;
+        Swal.fire({ icon: 'success', title: 'Updated', text: 'Exam item updated.' });
+      } else {
+        const { error } = await createExamItem({
+          details: examForm.details,
+          files: fileUrls,
+          category: selectedExamCategory,
+          created_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+        Swal.fire({ icon: 'success', title: 'Created', text: 'Exam item created.' });
+      }
+      await refreshExamItems(selectedExamCategory);
+      resetExamForm();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Failed', text: err?.message || String(err) });
+    } finally {
+      setExamLoading(false);
+    }
+  };
+
+  const handleEditExam = (item) => {
+    setEditExam(item);
+    setExamForm({ details: item.details || "", files: [] });
+  };
+
+  const handleDeleteExam = async (item) => {
+    if (!window.confirm('Delete this exam item?')) return;
+    try {
+      const { error } = await deleteExamItem(item.id);
+      if (error) throw error;
+      await refreshExamItems(selectedExamCategory);
+      Swal.fire({ icon: 'success', title: 'Deleted', text: 'Exam item deleted.' });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Failed', text: err?.message || String(err) });
     }
   };
 
@@ -598,6 +848,12 @@ const MainDashboard = () => {
           className="bg-indigo-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-indigo-700"
         >
           <FaPlus /> Add Image
+        </button>
+        <button
+          onClick={() => setShowExamModal(true)}
+          className="bg-teal-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-teal-700"
+        >
+          <FaPlus /> Add Exam
         </button>
       </div>
 
@@ -783,7 +1039,14 @@ const MainDashboard = () => {
                             if (error) throw error;
                             await fetchStats();
                           } catch (err) {
-                            alert('Failed to delete article: ' + (err.message || err));
+                            Swal.fire({
+        icon: 'error',
+        title: 'Deletion Failed',
+        text: 'Failed to delete article: ' + (err.message || err),
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
                           }
                         }}
                       >
@@ -900,6 +1163,61 @@ const MainDashboard = () => {
       </div>
 
       {/* Modals */}
+      {showExamModal && (
+        <Modal title="Add Exam" onClose={() => { setShowExamModal(false); resetExamForm(); }}>
+          <form onSubmit={async (e) => { await handleExamSubmit(e); setShowExamModal(false); }} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold mb-1">Category*</label>
+              {examCategories.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded p-3 text-sm flex items-center justify-between">
+                  <span>No categories found. Please create exam categories in the database.</span>
+                  <button type="button" onClick={loadExamCategories} className="ml-3 px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700">Reload</button>
+                </div>
+              ) : (
+                <select
+                  className={inputStyle}
+                  value={selectedExamCategory}
+                  onChange={handleExamCategoryChange}
+                  required
+                >
+                  <option value="">Select Category</option>
+                  {examCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.category_name || c.id}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Details*</label>
+              <textarea
+                className={inputStyle}
+                placeholder="Enter exam schedule/result/form details"
+                rows={3}
+                value={examForm.details}
+                onChange={(e) => setExamForm((p) => ({ ...p, details: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Files</label>
+              <input id="exam-files-input" type="file" multiple onChange={handleExamFileChange} className={inputStyle} />
+              <div className="flex gap-2 flex-wrap text-xs mt-2">
+                {examForm.files.map((f, i) => (
+                  <span key={i} className="bg-gray-100 px-2 py-1 rounded">{f.name}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" className="bg-gray-300 px-4 py-2 rounded" onClick={() => { setShowExamModal(false); resetExamForm(); }} disabled={examLoading}>
+                Cancel
+              </button>
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded" disabled={examLoading || !selectedExamCategory}>
+                {examLoading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
       {showStudentModal && (
         <Modal title="Add Student" onClose={() => setShowStudentModal(false)}>
           <StudentForm
@@ -948,6 +1266,7 @@ const MainDashboard = () => {
           <AssignmentForm
             onClose={() => setShowAssignmentModal(false)}
             onSuccess={fetchStats}
+            currentUser={currentUser}
           />
         </Modal>
       )}

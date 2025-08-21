@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { fetchNoticeTitles } from "../supabaseConfig/supabaseApi";
 import { Link } from "react-router-dom";
-import collegeVideo from "../assets/collegeVideo.mp4"
+import collegeVideo from "../assets/collegeHDVideo.mp4"
 
 import { Play, Pause, Volume2, VolumeX, Maximize, PictureInPicture2 } from 'lucide-react';
 
@@ -72,24 +72,18 @@ const NoticeBar = () => {
 
       {/* Campus Carousel */}
       <section className="relative w-full">
-        <div className="w-full h-[720px] overflow-hidden">
+        <div className="w-full h-[540px] overflow-hidden">
           <VideoSection />
         </div>
       </section>
     </>
   );
 };
-
 function VideoSection() {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
 
-  // Handle play/pause
+  // Handle play/pause when clicking anywhere on the video
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -101,221 +95,59 @@ function VideoSection() {
     }
   };
 
-  // Handle mute/unmute
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  // Handle volume change
-  const handleVolumeChange = (e) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-    }
-  };
-
-  // Handle picture-in-picture
-  const togglePiP = async () => {
-    if (videoRef.current) {
-      try {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else {
-          await videoRef.current.requestPictureInPicture();
-        }
-      } catch (error) {
-        console.log('Picture-in-Picture not supported or failed:', error);
-      }
-    }
-  };
-
-  // Handle fullscreen
-  const toggleFullscreen = () => {
-    if (videoRef.current) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        videoRef.current.requestFullscreen();
-      }
-    }
-  };
-
-  // Handle progress
-  const handleProgressChange = (e) => {
-    const newTime = parseFloat(e.target.value);
-    setCurrentTime(newTime);
-    if (videoRef.current) {
-      videoRef.current.currentTime = newTime;
-    }
-  };
-
-  // Video event handlers
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-    }
-  };
-
-  // Format time
-  const formatTime = (time) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.addEventListener('timeupdate', handleTimeUpdate);
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      
-      return () => {
-        video.removeEventListener('timeupdate', handleTimeUpdate);
-        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      };
-    }
-  }, []);
-
   return (
-    <div 
-      className="w-full h-full relative group bg-black rounded-lg overflow-hidden shadow-2xl"
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
-    >
-      {/* Video Element */}
+    <div className="w-full h-full relative bg-black rounded-lg overflow-hidden shadow-2xl cursor-pointer" onClick={togglePlay}>
+      {/* Video Element with reduced opacity */}
       <video
         ref={videoRef}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover opacity-60"
         autoPlay
         loop
         playsInline
-        onClick={togglePlay}
       >
         <source src={collegeVideo} type="video/mp4" />
-        {/* <source src="/path-to-your-video.webm" type="video/webm" /> */}
         Your browser does not support the video tag.
       </video>
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-
-      {/* Play/Pause Overlay */}
-      <div 
-        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
-          showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        <button
-          onClick={togglePlay}
-          className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 rounded-full p-4 transform hover:scale-110"
-        >
-          {isPlaying ? (
-            <Pause className="w-8 h-8 text-white" />
-          ) : (
-            <Play className="w-8 h-8 text-white ml-1" />
-          )}
-        </button>
-      </div>
-
-      {/* Bottom Controls */}
-      <div 
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
-          showControls ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        {/* Progress Bar */}
-        <div className="mb-4">
-          <input
-            type="range"
-            min="0"
-            max={duration || 100}
-            value={currentTime}
-            onChange={handleProgressChange}
-            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer progress-bar"
-            style={{
-              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentTime / duration) * 100}%, rgba(255,255,255,0.3) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.3) 100%)`
-            }}
-          />
-        </div>
-
-        {/* Control Buttons */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {/* Play/Pause */}
-            <button
-              onClick={togglePlay}
-              className="text-white hover:text-blue-400 transition-colors duration-200"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </button>
-
-            {/* Volume Controls */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={toggleMute}
-                className="text-white hover:text-blue-400 transition-colors duration-200"
-              >
-                {isMuted || volume === 0 ? (
-                  <VolumeX className="w-5 h-5" />
-                ) : (
-                  <Volume2 className="w-5 h-5" />
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="w-20 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer"
-              />
+      {/* Content Overlay */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 pointer-events-none">
+        {/* Welcome Text */}
+        <div className="space-y-4">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
+            Welcome to
+          </h1>
+          <div className="space-y-2">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-blue-300 leading-tight">
+              Central Engineering College
+            </h2>
+            <div className="flex items-center justify-center space-x-3">
+              <div className="h-px bg-gradient-to-r from-transparent via-white/50 to-transparent w-16"></div>
+              <span className="text-xl md:text-2xl text-gray-200 font-light tracking-wide">
+                Nepal Technical Institute
+              </span>
+              <div className="h-px bg-gradient-to-r from-transparent via-white/50 to-transparent w-16"></div>
             </div>
-
-            {/* Time Display */}
-            <span className="text-white text-sm font-mono">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
           </div>
+        </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Picture in Picture */}
-            <button
-              onClick={togglePiP}
-              className="text-white hover:text-blue-400 transition-colors duration-200"
-              title="Picture in Picture"
-            >
-              <PictureInPicture2 className="w-5 h-5" />
-            </button>
+        {/* Subtitle */}
+        <p className="mt-8 text-lg md:text-xl text-gray-300 font-light max-w-2xl leading-relaxed">
+          Building Tomorrow's Engineers Today
+        </p>
 
-            {/* Fullscreen */}
-            <button
-              onClick={toggleFullscreen}
-              className="text-white hover:text-blue-400 transition-colors duration-200"
-              title="Fullscreen"
-            >
-              <Maximize className="w-5 h-5" />
-            </button>
-          </div>
+        {/* Click hint */}
+        <div className="mt-6 opacity-70">
+          <p className="text-sm text-white/80 animate-pulse">
+            Click anywhere to {isPlaying ? 'pause' : 'play'}
+          </p>
         </div>
       </div>
 
-      {/* Loading Indicator */}
-      {duration === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-        </div>
-      )}
+      {/* Decorative Elements */}
+      <div className="absolute top-8 left-8 w-16 h-16 border-l-2 border-t-2 border-white/20"></div>
+      <div className="absolute top-8 right-8 w-16 h-16 border-r-2 border-t-2 border-white/20"></div>
+      <div className="absolute bottom-8 left-8 w-16 h-16 border-l-2 border-b-2 border-white/20"></div>
+      <div className="absolute bottom-8 right-8 w-16 h-16 border-r-2 border-b-2 border-white/20"></div>
     </div>
   );
 }

@@ -68,6 +68,7 @@ const AdminSidebar = (props) => {
           label="Assignments"
           to="/admin/assignment"
         />
+        {/* Exam links removed: integrated into Main Dashboard */}
         <NavItem
           icon={<IoAnalytics />}
           label="Analytics"

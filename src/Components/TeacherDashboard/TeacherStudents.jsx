@@ -155,16 +155,7 @@ const TeacherStudents = () => {
   };
 
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this student?"))
-      return;
-    const error = await deleteStudent(id);
-    if (!error) {
-      setStudents((prev) => prev.filter((s) => s.id !== id));
-    } else {
-      alert("Failed to delete student.");
-    }
-  };
+  
 
   const filteredStudents = students.filter((s) => {
     const matchesName = `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`
@@ -515,12 +506,7 @@ const TeacherStudents = () => {
                         >
                           View
                         </button>
-                        <button
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                          onClick={() => handleDelete(student.id)}
-                        >
-                          Delete
-                        </button>
+                        
                       </td>
                     </tr>
                   ))

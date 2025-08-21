@@ -6,25 +6,54 @@ import thumbnail from "../assets/thumbnail.png";
 
 const recommendations = [
   {
-    id: "2Vv-BfVoq4g",
-    thumbnail: "https://img.youtube.com/vi/2Vv-BfVoq4g/0.jpg",
+    id: "v=8RDua_bgnrU",
+    thumbnail: "https://www.youtube.com/watch?v=0TsMvE31Gb0",
   },
   {
-    id: "3JZ_D3ELwOQ",
-    thumbnail: "https://img.youtube.com/vi/3JZ_D3ELwOQ/0.jpg",
+    id: "v=UGDmXED-bSA",
+    thumbnail: "https://www.youtube.com/watch?v=UGDmXED-bSA",
   },
   {
     id: "l482T0yNkeo",
-    thumbnail: "https://img.youtube.com/vi/l482T0yNkeo/0.jpg",
+    thumbnail: "https://www.youtube.com/watch?v=dqFxbk3rw1w",
   },
   {
     id: "tgbNymZ7vqY",
-    thumbnail: "https://img.youtube.com/vi/tgbNymZ7vqY/0.jpg",
+    thumbnail: "https://www.youtube.com/watch?v=8RDua_bgnrU",
   },
 ];
 
 const CampusSection = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
+
+  // Extracts YouTube video ID from various URL formats
+  const extractYouTubeId = (urlOrId) => {
+    if (!urlOrId) return null;
+    // Handle raw query-like value e.g., "v=VIDEO_ID"
+    if (/^v=/.test(urlOrId)) {
+      return urlOrId.split("v=")[1];
+    }
+    // Already an ID (no slashes, no query, and not containing '=')
+    if (!urlOrId.includes("/") && !urlOrId.includes("?") && !urlOrId.includes("=")) return urlOrId;
+    try {
+      const url = new URL(urlOrId);
+      // https://www.youtube.com/watch?v=VIDEO_ID
+      const v = url.searchParams.get("v");
+      if (v) return v;
+      // https://youtu.be/VIDEO_ID
+      if (url.hostname.includes("youtu.be")) {
+        return url.pathname.replace("/", "");
+      }
+      // https://www.youtube.com/embed/VIDEO_ID
+      if (url.pathname.startsWith("/embed/")) {
+        return url.pathname.split("/")[2];
+      }
+    } catch (e) {
+      // Not a URL, fallback
+      return urlOrId;
+    }
+    return null;
+  };
 
   return (
     <div
@@ -76,14 +105,19 @@ const CampusSection = () => {
       <div className="mt-12 max-w-7xl mx-auto">
         <h4 className="font-semibold text-lg mb-4">Recommendation</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {recommendations.map((video, i) => (
+          {recommendations.map((rec, i) => {
+            const vid = extractYouTubeId(rec.id) || extractYouTubeId(rec.thumbnail);
+            const thumbUrl = rec.thumbnail && rec.thumbnail.includes("youtube.com")
+              ? `https://img.youtube.com/vi/${extractYouTubeId(rec.thumbnail)}/hqdefault.jpg`
+              : rec.thumbnail;
+            return (
             <div
               key={i}
-              onClick={() => setSelectedVideo(video.id)}
+              onClick={() => vid && setSelectedVideo(vid)}
               className="relative rounded-xl overflow-hidden cursor-pointer group"
             >
               <img
-                src={video.thumbnail}
+                src={thumbUrl}
                 alt={`Recommendation ${i}`}
                 className="w-full h-36 md:h-40 object-cover group-hover:opacity-80"
               />
@@ -93,7 +127,8 @@ const CampusSection = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -109,7 +144,7 @@ const CampusSection = () => {
           >
             <iframe
               className="w-full h-full rounded-lg"
-              src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1`}
+              src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&mute=1`}
               title="Selected Video"
               frameBorder="0"
               poster={thumbnail}

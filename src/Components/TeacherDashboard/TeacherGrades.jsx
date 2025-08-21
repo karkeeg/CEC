@@ -18,6 +18,7 @@ import {
   FaTimes,
   FaGraduationCap,
 } from "react-icons/fa";
+import Swal from 'sweetalert2';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -265,10 +266,24 @@ const TeacherGrades = () => {
           console.log("[DEBUG] createGrade response:", data, error);
         }
       }
-      alert("Grades saved successfully!");
+      Swal.fire({
+        title: 'Success!',
+        text: 'Grades saved successfully!',
+        icon: 'success',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } catch (error) {
       console.error("[DEBUG] Error saving grades:", error);
-      alert("Failed to save grades");
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to save grades',
+        icon: 'error',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } finally {
       setSaving(false);
     }
@@ -325,9 +340,14 @@ const TeacherGrades = () => {
   // Modal save handler (to be connected to new grades table)
   const handleSaveGrade = async () => {
     // TODO: Save to grades table (API call)
-    alert(
-      `Saved!\nFeedback: ${modalFeedback}\nRating: ${modalRating}\nGrade: ${modalGrade}`
-    );
+    Swal.fire({
+      title: 'Saved!',
+      html: `Feedback: ${modalFeedback}<br>Rating: ${modalRating}<br>Grade: ${modalGrade}`,
+      icon: 'success',
+      customClass: {
+        popup: 'swal-small'
+      }
+    });
     setShowGradeModal(false);
     setModalSubmission(null);
     setModalFeedback("");

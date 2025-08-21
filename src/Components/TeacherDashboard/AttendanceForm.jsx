@@ -127,7 +127,7 @@ const AttendanceForm = ({ user, onSuccess, onClose }) => {
   if (loading) return <div className="p-4">Loading...</div>;
 
   return (
-    <div className="w-full p-4">
+    <div className="w-full ">
       {error && <div className="text-red-500 mb-2">{error}</div>}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
@@ -177,8 +177,8 @@ const AttendanceForm = ({ user, onSuccess, onClose }) => {
         </div>
       </div>
       {selectedClass && students.length > 0 && (
-        <div className="bg-blue-100 p-6 rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="bg-blue-100 p-2 rounded-xl shadow overflow-hidden">
+          <div className=" py-2 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800">
               Student Attendance
             </h2>

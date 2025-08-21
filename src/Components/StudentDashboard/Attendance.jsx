@@ -440,9 +440,7 @@ const Attendance = () => {
             <h2 className="text-lg font-semibold text-gray-300">
               Your statistics
             </h2>
-            <button className="bg-cyan-500 px-4 py-1 rounded-md flex items-center gap-2 text-sm">
-              Present Days <MdExpandMore />
-            </button>
+            
           </div>
 
           {/* Attendance Charts */}
@@ -507,28 +505,53 @@ const Attendance = () => {
               {loadingStats ? (
                 <div className="text-gray-500 text-base">Loading...</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={attendancePie}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label
-                    >
-                      {attendancePie.map((entry, idx) => (
-                        <Cell
-                          key={`cell-${idx}`}
-                          fill={pieColors[idx % pieColors.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Legend />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+               
+ <ResponsiveContainer width="100%" height={350}>
+  <PieChart margin={{ top: 20, right: 60, bottom: 20, left: 60 }}>
+    <Pie
+      data={attendancePie}
+      dataKey="value"
+      nameKey="name"
+      cx="50%"
+      cy="45%"
+      outerRadius={100}
+      innerRadius={0}
+      label={({ name, percent, value }) => {
+        // Only show label if percentage is above 5% to avoid overlap
+        if (percent > 0.005) {
+          return `${name}: ${(percent * 100).toFixed(1)}%`;
+        }
+        return '';
+      }}
+      labelLine={true}
+      minAngle={5}
+    >
+      {attendancePie.map((entry, idx) => (
+        <Cell
+          key={`cell-${idx}`}
+          fill={pieColors[idx % pieColors.length]}
+        />
+      ))}
+    </Pie>
+    <Legend 
+      verticalAlign="bottom" 
+      height={36}
+      iconType="circle"
+      wrapperStyle={{ paddingTop: '20px' }}
+    />
+    <Tooltip 
+      formatter={(value, name) => [`${value} (${((value / attendancePie.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`, name]}
+      labelStyle={{ color: '#374151' }}
+      contentStyle={{ 
+        backgroundColor: '#f9fafb', 
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      }}
+    />
+  </PieChart>
+</ResponsiveContainer>
+
               )}
             </div>
             {/* Monthly Attendance Bar Chart */}
@@ -567,24 +590,30 @@ const Attendance = () => {
               {loadingStats ? (
                 <div className="text-gray-500 text-base">Loading...</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={subjectBar}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="subject" />
-                    <YAxis>
-                      <Label value="Days" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
-                    </YAxis>
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="present" fill="#22c55e" name="Present" />
-                    <Bar dataKey="absent" fill="#ef4444" name="Absent" />
-                    <Bar dataKey="late" fill="#facc15" name="Late" />
-                    <Bar dataKey="holiday" fill="#3b82f6" name="Holiday" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ width: '100%', overflowX: 'auto' }}>
+ 
+  <ResponsiveContainer width={Math.max(subjectBar.length * 250, 600)} height={300}>
+    <BarChart
+      data={subjectBar}
+      margin={{ top: 20, right: 20, left: 20, bottom: 5 }}
+    >
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="subject" 
+      label={{ value: 'Subject', position: 'insideBottom', offset: -5 }}
+      />
+      <YAxis>
+        <Label value="Days" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+      </YAxis>
+      <Tooltip />
+      <Legend />
+      <Bar dataKey="present" fill="#22c55e" name="Present" maxBarSize={60} />
+      <Bar dataKey="absent" fill="#ef4444" name="Absent" maxBarSize={60} />
+      <Bar dataKey="late" fill="#facc15" name="Late" maxBarSize={60} />
+      <Bar dataKey="holiday" fill="#3b82f6" name="Holiday" maxBarSize={60} />
+    </BarChart>
+  </ResponsiveContainer>
+
+</div>
               )}
             </div>
           </div>

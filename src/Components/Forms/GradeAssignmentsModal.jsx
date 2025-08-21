@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Swal from 'sweetalert2';
 import {
   getAssignmentsByTeacher,
   getAssignmentSubmissions,
@@ -164,7 +165,12 @@ const GradeAssignmentsModal = ({
       setModalGrade("");
 
       // Show success message
-      alert("Grade saved successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Grade Saved!',
+        text: 'Grade has been saved successfully.',
+        customClass: { container: 'swal-small' }
+      });
 
       // Notify parent component about the grade update
       if (onGradeUpdate) {
@@ -172,7 +178,12 @@ const GradeAssignmentsModal = ({
       }
     } catch (error) {
       console.error("Error saving grade:", error);
-      alert(`Failed to save grade: ${error.message}`);
+      Swal.fire({
+        icon: 'error',
+        title: 'Save Failed',
+        text: `Failed to save grade: ${error.message}`,
+        customClass: { container: 'swal-small' }
+      });
     } finally {
       setSaving(false);
     }

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Swal from 'sweetalert2';
 import { createStudent, logActivity } from "../../supabaseConfig/supabaseApi";
 
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
@@ -41,15 +42,36 @@ export const StudentForm = ({ onClose, onSuccess, currentUser }) => {
       "hashed_password",
     ];
     if (required.some((field) => !form[field])) {
-      alert("Please fill all required fields.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Fields',
+        text: 'Please fill all required fields.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     if (form.hashed_password !== confirmPassword) {
-      alert("Passwords do not match.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Password Mismatch',
+        text: 'Passwords do not match.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     if (form.hashed_password.length < 6) {
-      alert("Password must be at least 6 characters long.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Password Too Short',
+        text: 'Password must be at least 6 characters long.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
     setLoading(true);
@@ -61,7 +83,14 @@ export const StudentForm = ({ onClose, onSuccess, currentUser }) => {
         "student",
         currentUser || {}
       );
-      alert("Student added successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Student Added!',
+        text: 'Student added successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       const studentName = `${form.first_name} ${form.last_name}`;
       const studentEmail = form.email;
       if (onSuccess) {
@@ -69,7 +98,14 @@ export const StudentForm = ({ onClose, onSuccess, currentUser }) => {
       }
       onClose();
     } catch (error) {
-      alert("Failed to add student: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Add Student',
+        text: 'Failed to add student: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } finally {
       setLoading(false);
     }

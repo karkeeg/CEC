@@ -3,6 +3,7 @@ import { FaFacebookF, FaYoutube, FaInstagram } from "react-icons/fa";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
 import emailjs from "emailjs-com";
+import Swal from 'sweetalert2';
 
 const Footer = () => {
   const [formData, setFormData] = useState({
@@ -29,12 +30,26 @@ const Footer = () => {
         "oyORtlfQbRmDt0zE5"
       )
       .then(() => {
-        alert("Message sent successfully!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Message sent successfully!',
+          customClass: {
+            popup: 'swal-small'
+          }
+        });
         setFormData({ name: "", email: "", message: "" });
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
-        alert("Failed to send message.");
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Failed to send message.',
+          customClass: {
+            popup: 'swal-small'
+          }
+        });
       })
       .finally(() => {
         setSubmitting(false);
@@ -74,27 +89,24 @@ const Footer = () => {
               <div>
                 <p className="font-semibold text-sm mb-2">Stay Connected</p>
                 <div className="flex gap-4">
-                  <Link
-                    to={{
-                      pathname: "https://www.facebook.com/cecjanakpurdham/",
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Facebook"
-                  >
-                    <FaFacebookF className="text-xl cursor-pointer hover:text-blue-500 transition" />
-                  </Link>
-                  <Link
-                    to={{
-                      pathname:
-                        "https://www.youtube.com/@centralengineeringcollege",
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="YouTube"
-                  >
-                    <FaYoutube className="text-xl cursor-pointer hover:text-red-500 transition" />
-                  </Link>
+                  
+  <a
+    href="https://www.facebook.com/cecjanakpurdham/"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Facebook"
+  >
+    <FaFacebookF className="text-xl cursor-pointer hover:text-blue-500 transition" />
+  </a>
+  <a
+    href="https://www.youtube.com/@centralengineeringcollege"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="YouTube"
+  >
+    <FaYoutube className="text-xl cursor-pointer hover:text-red-500 transition" />
+  </a>
+
                 </div>
               </div>
             </div>

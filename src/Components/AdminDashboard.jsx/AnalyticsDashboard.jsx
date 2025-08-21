@@ -754,7 +754,7 @@ const AnalyticsDashboard = () => {
 
             {/* Bar Chart: Top 5 Students by Performance */}
             <ChartCard title="Top 5 Students by Performance">
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart
                   data={topStudents}
                   margin={{ top: 10, right: 20, left: 60, bottom: 20 }}
@@ -776,63 +776,51 @@ const AnalyticsDashboard = () => {
               </ResponsiveContainer>
             </ChartCard>
 
-            {/* Pie Chart: Department Distribution */}
-            {/* <ChartCard title="Department Distribution">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={departmentPie}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {departmentPie.map((entry, idx) => (
-                      <Cell
-                        key={`cell-${idx}`}
-                        fill={COLORS[idx % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard> */}
 
             {/* Bar Chart: Subject Distribution */}
             <ChartCard title="Subject Distribution">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart
-                  data={subjectBar}
-                  margin={{ top: 10, right: 20, left: 80, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={false} axisLine={false} label={{ value: 'Subjects', position: 'insideBottom', offset: 0 }} />
-                  <YAxis tick={{ fontSize: 12 }}>
-                    <Label value="Number of Assignments" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
-                  </YAxis>
-                  {/* Centered axes */}
-                  {(() => {
-                    const maxVal = Math.max(0, ...subjectBar.map((b) => Number(b.value || 0)));
-                    const mid = maxVal / 2;
-                    return <ReferenceLine y={mid} stroke="#CBD5E1" strokeDasharray="4 4" />;
-                  })()}
-                  {subjectBar && subjectBar.length > 0 && (
-                    <ReferenceLine x={subjectBar[Math.floor(subjectBar.length / 2)]?.name} stroke="#CBD5E1" strokeDasharray="4 4" />
-                  )}
-                  <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
-                  <Legend />
-                  <Bar dataKey="value" fill="#00C49F" name="Assignments" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
+  <div style={{ width: '100%', overflowX: 'auto' }}>
+    <ResponsiveContainer width={Math.max(subjectBar.length * 80, 400)} height={300}>
+      <BarChart
+        data={subjectBar}
+        margin={{ top: 10, right: 20, left: 40, bottom: 10 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis 
+          dataKey="name" 
+          tick={false} 
+          axisLine={false} 
+          label={{ value: 'Subjects', position: 'insideBottom', offset: 0 }} 
+        />
+        <YAxis tick={{ fontSize: 12 }}>
+          <Label value="Number of Assignments" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+        </YAxis>
+        {/* Centered axes */}
+        {(() => {
+          const maxVal = Math.max(0, ...subjectBar.map((b) => Number(b.value || 0)));
+          const mid = maxVal / 2;
+          return <ReferenceLine y={mid} stroke="#CBD5E1" strokeDasharray="4 4" />;
+        })()}
+        {subjectBar && subjectBar.length > 0 && (
+          <ReferenceLine x={subjectBar[Math.floor(subjectBar.length / 2)]?.name} stroke="#CBD5E1" strokeDasharray="4 4" />
+        )}
+        <Tooltip contentStyle={{ borderRadius: 8, borderColor: '#E2E8F0' }} />
+        <Legend />
+        <Bar 
+          dataKey="value" 
+          fill="#00C49F" 
+          name="Assignments" 
+          radius={[6, 6, 0, 0]}
+          maxBarSize={60}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+</ChartCard>
 
             {/* Pie Chart: Gender Distribution */}
             <ChartCard title="Gender Distribution">
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={genderPie}

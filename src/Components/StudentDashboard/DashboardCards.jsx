@@ -77,11 +77,13 @@ const DashboardCards = () => {
   // Calculate attendance summary
   const attendanceSummary = useMemo(() => {
     if (attendanceData.length === 0) {
-      return { present: 0, absent: 0, total: 0 };
+      return { present: 0, absent: 0, late: 0, holiday: 0, total: 0 };
     }
     const present = attendanceData.filter((a) => a.status === "present").length;
     const absent = attendanceData.filter((a) => a.status === "absent").length;
-    return { present, absent, total: attendanceData.length };
+    const late = attendanceData.filter((a) => a.status === "late").length;
+    const holiday = attendanceData.filter((a) => a.status === "holiday").length;
+    return { present, absent, late, holiday, total: attendanceData.length };
   }, [attendanceData]);
 
   const formatDate = (isoDate) => {
@@ -249,8 +251,24 @@ const DashboardCards = () => {
                     }%`,
                   }}
                 />
+                <div
+                  className="bg-yellow-300 h-full"
+                  style={{
+                    width: `${
+                      (attendanceSummary.late / attendanceSummary.total) * 100
+                    }%`,
+                  }}
+                />
+                <div
+                  className="bg-blue-300 h-full rounded-r-full"
+                  style={{
+                    width: `${
+                      (attendanceSummary.holiday / attendanceSummary.total) * 100
+                    }%`,
+                  }}
+                />
               </div>
-              <div className="flex justify-between w-full text-sm font-medium mt-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full text-sm font-medium mt-1">
                 <span className="text-green-700">
                   Present:{" "}
                   {Math.round(
@@ -258,10 +276,24 @@ const DashboardCards = () => {
                   )}
                   %
                 </span>
-                <span className="text-red-500">
+                <span className="text-red-600">
                   Absent:{" "}
                   {Math.round(
                     (attendanceSummary.absent / attendanceSummary.total) * 100
+                  )}
+                  %
+                </span>
+                <span className="text-yellow-700">
+                  Late:{" "}
+                  {Math.round(
+                    (attendanceSummary.late / attendanceSummary.total) * 100
+                  )}
+                  %
+                </span>
+                <span className="text-blue-700">
+                  Holiday:{" "}
+                  {Math.round(
+                    (attendanceSummary.holiday / attendanceSummary.total) * 100
                   )}
                   %
                 </span>

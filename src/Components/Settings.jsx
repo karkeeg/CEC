@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useUser } from "../contexts/UserContext";
 import { FaUser, FaLock, FaBell, FaCog, FaSave } from "react-icons/fa";
 import supabase from "../supabaseConfig/supabaseClient";
-import { updateStudentProfile, updateTeacherProfile, updateStudentPassword, updateTeacherPassword, updateAdminPassword } from "../supabaseConfig/supabaseApi";
+import { updateStudentProfile, updateTeacherProfile, updateStudentPassword, updateTeacherPassword, updateAdminPassword, updateAdminProfile } from "../supabaseConfig/supabaseApi";
 
 const Settings = () => {
   const { user, profile, signOut, role } = useUser();
@@ -60,7 +60,14 @@ const Settings = () => {
           display_name: profileForm.display_name,
           phone: profileForm.phone,
         }));
-      } else {
+
+      }  else if (role === "admin") {
+        ({ error } = await updateAdminProfile(user.id, {
+          display_name: profileForm.display_name,
+          phone: profileForm.phone,
+        }));
+      }
+      else {
         // Fallback for other roles or if role is not set
         ({ error } = await supabase
           .from('profiles')

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Swal from 'sweetalert2';
 import { useUser } from "../../contexts/UserContext";
 import {
   FaCalendarAlt,
@@ -60,10 +61,7 @@ const TeacherAttendance = () => {
   const [isEditing, setIsEditing] = useState(false);
   // Keep raw records for class when selected (for "All Attendance Records" view)
   const [classAttendanceRecords, setClassAttendanceRecords] = useState([]);
-  // Month filter for charts (YYYY-MM)
-  const [selectedMonth, setSelectedMonth] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
+  // Removed month filter for charts
 
   // Check if cached data is still valid
   const isCacheValid = () => {
@@ -293,12 +291,7 @@ const TeacherAttendance = () => {
     }
   }, [students, attendanceExists]);
 
-  // Keep selectedMonth in sync with the chosen date
-  useEffect(() => {
-    if (selectedDate) {
-      setSelectedMonth(selectedDate.slice(0, 7));
-    }
-  }, [selectedDate]);
+  // Removed month filter sync
 
   // Fetch all attendance records for all classes for the teacher (for overall stats)
   useEffect(() => {
@@ -378,17 +371,38 @@ const TeacherAttendance = () => {
       if (toCreate.length > 0) {
         const error = await createAttendance(toCreate);
         if (error) {
-          alert("Failed to save attendance for new students: " + error.message);
+          Swal.fire({
+        icon: 'error',
+        title: 'Save Error',
+        text: 'Failed to save attendance for new students: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
           setSaving(false);
           return;
         }
       }
-      alert("Attendance saved/updated successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Attendance Saved!',
+        text: 'Attendance saved/updated successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       setAttendanceExists(true);
       setIsEditing(false);
     } catch (error) {
       console.error("Error saving attendance:", error);
-      alert("Failed to save attendance");
+      Swal.fire({
+        icon: 'error',
+        title: 'Save Error',
+        text: 'Failed to save attendance',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } finally {
       setSaving(false);
     }
@@ -463,72 +477,7 @@ const TeacherAttendance = () => {
       ? studentAttendanceProgress
       : getOverallStudentProgress();
 
-  // Build monthly filtered bar data from trend (class-specific or overall)
-  const monthPrefix = selectedMonth + "-"; // e.g., 2025-08-
-  const monthTrend = attendanceTrendData.filter((d) => d.name.startsWith(monthPrefix));
-  const monthlyTotals = monthTrend.reduce(
-    (acc, d) => ({
-      present: acc.present + (d.present || 0),
-      absent: acc.absent + (d.absent || 0),
-      late: acc.late + (d.late || 0),
-    }),
-    { present: 0, absent: 0, late: 0 }
-  );
-  const barData = [
-    {
-      name: selectedMonth,
-      Present: monthlyTotals.present,
-      Absent: monthlyTotals.absent,
-      Late: monthlyTotals.late,
-    },
-  ];
-
-  // New: Build bar data for all months of the selected year
-  const deriveYear = () => {
-    // Prefer year from selectedDate if available, else from first trend item, else current year
-    if (selectedDate) return selectedDate.slice(0, 4);
-    const firstName = attendanceTrendData[0]?.name;
-    if (firstName) return firstName.slice(0, 4);
-    return new Date().toISOString().slice(0, 4);
-  };
-  const selectedYear = deriveYear();
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const monthAgg = {};
-  for (let i = 1; i <= 12; i++) {
-    const mm = String(i).padStart(2, "0");
-    monthAgg[mm] = { present: 0, absent: 0, late: 0 };
-  }
-  attendanceTrendData.forEach((d) => {
-    // d.name expected format YYYY-MM-DD
-    const dateStr = d.name;
-    if (!dateStr || dateStr.length < 7) return;
-    const y = dateStr.slice(0, 4);
-    const m = dateStr.slice(5, 7);
-    if (y === selectedYear && monthAgg[m]) {
-      monthAgg[m].present += d.present || 0;
-      monthAgg[m].absent += d.absent || 0;
-      monthAgg[m].late += d.late || 0;
-    }
-  });
-  const barDataAllMonths = Object.keys(monthAgg).map((mm, idx) => ({
-    name: monthNames[idx],
-    Present: monthAgg[mm].present,
-    Absent: monthAgg[mm].absent,
-    Late: monthAgg[mm].late,
-  }));
+  // Removed monthly aggregation for charts
 
   // Records to display in the table: class-specific or all-class
   const recordsForTable =
@@ -589,8 +538,8 @@ const TeacherAttendance = () => {
       {/* Only keep the boxed attendance form at the top */}
       <div className="bg-white border border-blue-200 rounded-2xl shadow-lg p-6 mb-10">
         <h2 className="text-2xl font-bold mb-4">Take Attendance</h2>
-        {/* Controls: class selection, date, month filter, save button */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        {/* Controls: class selection, date, save button */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Class
@@ -642,20 +591,7 @@ const TeacherAttendance = () => {
               </p>
             )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Month (for chart)
-            </label>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Aggregates daily attendance for {selectedMonth}
-            </p>
-          </div>
+          {/* Removed month filter for charts */}
           <div className="flex items-center justify-end">
             {/* Button logic: Save, Update, Save Update */}
             {!attendanceExists && (
@@ -963,17 +899,20 @@ const TeacherAttendance = () => {
           <p className="text-xs text-gray-600 mb-3 text-center">
             Present, Absent and Late counts aggregated over all available records
           </p>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={barDataTotals} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="Present" fill="#10B981" />
-              <Bar dataKey="Absent" fill="#EF4444" />
-              <Bar dataKey="Late" fill="#F59E0B" />
-            </BarChart>
-          </ResponsiveContainer>
+   <ResponsiveContainer width="100%" height={300}>
+  <BarChart data={barDataTotals} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
+    <XAxis dataKey="name" />
+    <YAxis 
+      allowDecimals={false} 
+      label={{ value: 'No of Attendees', angle: -90, position: 'insideLeft',style:{textAnchor: "middle"},offset:10 }}
+    />
+    <Tooltip />
+    <Legend />
+    <Bar dataKey="Present" fill="#10B981" />
+    <Bar dataKey="Absent" fill="#EF4444" />
+    <Bar dataKey="Late" fill="#F59E0B" />
+  </BarChart>
+</ResponsiveContainer>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import supabase from "../../supabaseConfig/supabaseClient"; // adjust path
 import { FaLink, FaSearch, FaDownload, FaCheck, FaClock, FaChartBar } from "react-icons/fa";
+import Swal from 'sweetalert2';
 import { Doughnut, Line, Bar } from "react-chartjs-2";
 import { IoMdArrowDropdown } from "react-icons/io";
 import { BiReset } from "react-icons/bi";
@@ -225,172 +226,142 @@ const Assignments = () => {
     ],
   };
 
-  // Subject Performance Horizontal Bar Chart
-  const subjectBarData = {
-    labels: subjectData.map(s => s.subject),
-    datasets: [
-      {
-        label: "Completion Rate (%)",
-        data: subjectData.map(s => s.completionRate),
-        backgroundColor: subjectData.map((_, i) => {
-          const colors = [
-            "rgba(168, 85, 247, 0.8)",  // Purple
-            "rgba(34, 197, 94, 0.8)",   // Green
-            "rgba(59, 130, 246, 0.8)",  // Blue
-            "rgba(245, 158, 11, 0.8)",  // Amber
-            "rgba(239, 68, 68, 0.8)",   // Red
-            "rgba(20, 184, 166, 0.8)"   // Teal
-          ];
-          return colors[i % colors.length];
-        }),
-        borderColor: subjectData.map((_, i) => {
-          const colors = [
-            "rgba(168, 85, 247, 1)",
-            "rgba(34, 197, 94, 1)", 
-            "rgba(59, 130, 246, 1)",
-            "rgba(245, 158, 11, 1)",
-            "rgba(239, 68, 68, 1)",
-            "rgba(20, 184, 166, 1)"
-          ];
-          return colors[i % colors.length];
-        }),
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      },
-    ],
-  };
+// Subject Performance Horizontal Bar Chart
+const subjectBarData = {
+  labels: subjectData.map(s => s.subject),
+  datasets: [
+    {
+      label: "Completion Rate (%)",
+      data: subjectData.map(s => s.completionRate),
+      backgroundColor: subjectData.map((_, i) => {
+        const colors = [
+          "rgba(168, 85, 247, 0.8)",  // Purple
+          "rgba(34, 197, 94, 0.8)",   // Green
+          "rgba(59, 130, 246, 0.8)",  // Blue
+          "rgba(245, 158, 11, 0.8)",  // Amber
+          "rgba(239, 68, 68, 0.8)",   // Red
+          "rgba(20, 184, 166, 0.8)"   // Teal
+        ];
+        return colors[i % colors.length];
+      }),
+      borderColor: subjectData.map((_, i) => {
+        const colors = [
+          "rgba(168, 85, 247, 1)",
+          "rgba(34, 197, 94, 1)", 
+          "rgba(59, 130, 246, 1)",
+          "rgba(245, 158, 11, 1)",
+          "rgba(239, 68, 68, 1)",
+          "rgba(20, 184, 166, 1)"
+        ];
+        return colors[i % colors.length];
+      }),
+      borderWidth: 2,
+      borderRadius: 10,
+      borderSkipped: false,
+      barThickness: 30,
+      maxBarThickness: 35,
+    },
+  ],
+};
 
-  // Chart Options
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-          font: {
-            size: 12,
-            weight: '600'
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: true
-      }
-    },
-    elements: {
-      arc: {
-        borderWidth: 0
-      }
-    },
-    animation: {
-      animateRotate: true,
-      animateScale: true
+const barOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: 'y',
+  layout: {
+    padding: {
+      left: 20,
+      right: 20,
+      top: 20,
+      bottom: 20
     }
-  };
-
-  const lineOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
+  },
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      titleColor: '#ffffff',
+      bodyColor: '#ffffff',
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      borderWidth: 1,
+      cornerRadius: 12,
+      padding: 12,
+      titleFont: {
+        size: 14,
+        weight: 'bold'
+      },
+      bodyFont: {
+        size: 13
+      },
+      callbacks: {
+        label: function(context) {
+          return `Completion Rate: ${context.parsed.x}%`;
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      max: 100,
+      title: {
+        display: true,
+        text: 'Completion Rate (%)',
+        font: {
+          size: 14,
+          weight: 'bold'
+        },
+        color: '#374151'
+      },
+      grid: {
+        color: 'rgba(0, 0, 0, 0.08)',
+        lineWidth: 1
+      },
+      border: {
+        color: 'rgba(0, 0, 0, 0.1)'
+      },
+      ticks: {
+        callback: function(value) {
+          return value + '%';
+        },
+        font: {
+          size: 12
+        },
+        color: '#6B7280',
+        stepSize: 20
+      }
+    },
+    y: {
+      title: {
+        display: true,
+        text: 'Subjects',
+        font: {
+          size: 14,
+          weight: 'bold'
+        },
+        color: '#374151'
+      },
+      grid: {
         display: false
       },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        borderWidth: 1,
-        cornerRadius: 8,
-      }
-    },
-    scales: {
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          font: {
-            size: 12,
-            weight: '500'
-          }
-        }
+      border: {
+        color: 'rgba(0, 0, 0, 0.1)'
       },
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)'
+      ticks: {
+        font: {
+          size: 13,
+          weight: '600'
         },
-        ticks: {
-          font: {
-            size: 12
-          }
-        }
-      }
-    },
-    elements: {
-      point: {
-        hoverBackgroundColor: 'rgba(99, 102, 241, 1)'
+        color: '#374151',
+        padding: 10
       }
     }
-  };
+  }
+};
 
-  const barOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y',
-    plugins: {
-      legend: {
-        display: false
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        borderWidth: 1,
-        cornerRadius: 8,
-      }
-    },
-    scales: {
-      x: {
-        beginAtZero: true,
-        max: 100,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)'
-        },
-        ticks: {
-          callback: function(value) {
-            return value + '%';
-          },
-          font: {
-            size: 12
-          }
-        }
-      },
-      y: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          font: {
-            size: 12,
-            weight: '500'
-          }
-        }
-      }
-    }
-  };
+
 
   const handleSubmitAssignment = async (assignment) => {
     if (!file || !user?.id) return;
@@ -405,7 +376,14 @@ const Assignments = () => {
         .upload(filePath, file);
 
       if (uploadError) {
-        alert(uploadError.message || "Failed to upload file.");
+        Swal.fire({
+        icon: 'error',
+        title: 'Upload Failed',
+        text: 'File upload failed: ' + uploadError.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
         setSubmitting(false);
         return;
       }
@@ -450,9 +428,23 @@ const Assignments = () => {
         setSubmitModal(null);
         setFile(null);
         setSubmissionNotes("");
-        alert("Assignment submitted successfully!");
+        Swal.fire({
+        icon: 'success',
+        title: 'Submitted!',
+        text: 'Assignment submitted successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       } else {
-        alert(error.message || "Failed to submit assignment.");
+        Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: 'Submission failed: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       }
     } catch (err) {
       alert("Failed to submit assignment.");
@@ -646,25 +638,23 @@ const Assignments = () => {
         </div>
 
       
-
-            {/* Subject Performance - Horizontal Bar Chart */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <IoBookOutline className="text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Subject Performance
-                </h2>
-              </div>
-              <div className="h-64">
-                <Bar data={subjectBarData} options={barOptions} />
-              </div>
-            </div>
-          </div>
-
+        {/* Analytics Section */}
         
-      
+      <div className="bg-white rounded-xl shadow-lg p-6">
+  <div className="flex items-center gap-2 mb-6">
+    <div className="p-2 bg-green-100 rounded-lg">
+      <IoBookOutline className="text-green-600" />
+    </div>
+    <h2 className="text-xl font-bold text-gray-800">
+      Subject Performance
+    </h2>
+  </div>
+  <div className="h-80">
+    <Bar data={subjectBarData} options={barOptions} />
+  </div>
+</div>
+
+    </div>
 
       {/* View Modal */}
       {viewModal && (

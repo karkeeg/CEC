@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Swal from 'sweetalert2';
 import {
   createTeacher,
   getAllDepartments,
@@ -56,17 +57,38 @@ export const TeacherForm = ({ onClose, onSuccess, currentUser }) => {
           !form[f] || (f === "teacher_department" && !form.teacher_department)
       )
     ) {
-      alert("Please fill all required fields, including department.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Fields',
+        text: 'Please fill all required fields, including department.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
 
     if (form.password !== form.hashed_password) {
-      alert("Passwords do not match.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Password Mismatch',
+        text: 'Passwords do not match.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
 
     if (form.password.length < 6) {
-      alert("Password must be at least 6 characters long.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Password Too Short',
+        text: 'Password must be at least 6 characters long.',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       return;
     }
 
@@ -100,7 +122,14 @@ export const TeacherForm = ({ onClose, onSuccess, currentUser }) => {
         "teacher",
         currentUser || {}
       );
-      alert("Teacher added successfully!");
+      Swal.fire({
+        icon: 'success',
+        title: 'Teacher Added!',
+        text: 'Teacher added successfully!',
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
       const teacherName = `${form.first_name} ${form.last_name}`;
       const teacherEmail = form.email;
       if (onSuccess) {
@@ -108,7 +137,14 @@ export const TeacherForm = ({ onClose, onSuccess, currentUser }) => {
       }
       onClose();
     } catch (error) {
-      alert("Failed to add teacher: " + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Add Teacher',
+        text: 'Failed to add teacher: ' + error.message,
+        customClass: {
+          popup: 'swal-small'
+        }
+      });
     } finally {
       setLoading(false);
     }

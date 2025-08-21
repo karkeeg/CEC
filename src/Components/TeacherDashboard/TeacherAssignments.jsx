@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Swal from 'sweetalert2';
 import { useUser } from "../../contexts/UserContext";
 import {
   getAssignmentsByTeacher,
@@ -153,7 +154,12 @@ const TeacherAssignments = () => {
         "class_id", // now required
       ];
       if (required.some((f) => !newAssignment[f])) {
-        alert("Please fill all required fields.");
+        Swal.fire({
+          icon: 'warning',
+          title: 'Required Fields',
+          text: 'Please fill all required fields.',
+          customClass: { container: 'swal-small' }
+        });
         return;
       }
       const error = await createAssignment({
@@ -174,20 +180,39 @@ const TeacherAssignments = () => {
       });
     } catch (error) {
       console.error("Error creating assignment:", error);
-      alert("Failed to create assignment");
+      Swal.fire({
+        icon: 'error',
+        title: 'Creation Failed',
+        text: 'Failed to create assignment.',
+        customClass: { container: 'swal-small' }
+      });
     }
   };
 
   const handleDeleteAssignment = async (assignmentId) => {
-    if (!window.confirm("Are you sure you want to delete this assignment?"))
-      return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!',
+      customClass: { container: 'swal-small' }
+    });
+    if (!result.isConfirmed) return;
     try {
       const error = await deleteAssignment(assignmentId);
       if (error) throw error;
       setAssignments(assignments.filter((a) => a.id !== assignmentId));
     } catch (error) {
       console.error("Error deleting assignment:", error);
-      alert("Failed to delete assignment");
+      Swal.fire({
+        icon: 'error',
+        title: 'Deletion Failed',
+        text: 'Failed to delete assignment.',
+        customClass: { container: 'swal-small' }
+      });
     }
   };
 
@@ -539,6 +564,7 @@ const TeacherAssignments = () => {
           <AssignmentForm
             onClose={() => setShowCreateModal(false)}
             onSuccess={handleAssignmentCreated}
+            currentUser={user}
           />
         </Modal>
       )}
