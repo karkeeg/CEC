@@ -35,7 +35,9 @@ import {
   updateExamItem,
   deleteExamItem,
 } from "../../supabaseConfig/supabaseApi";
+import { fetchDownloadCategories } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
+import Modal from "../Modal";
 import { StudentForm } from "../Forms/StudentForm";
 import { TeacherForm } from "../Forms/TeacherForm";
 import { NoticeForm } from "../Forms/NoticeForm";
@@ -43,26 +45,6 @@ import { AssignmentForm } from "../Forms/AssignmentForm";
 import ArticleForm from "../Forms/ArticleForm";
 import { sendConfirmationEmail } from "../../utils/emailService";
 import { useUser } from "../../contexts/UserContext";
-
-const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-    <div className="bg-[#EEF0FD] rounded-lg w-full max-w-lg relative overflow-hidden shadow-lg">
-      {/* Modal Header */}
-      <div className="bg-[#2C7489] text-white text-lg font-semibold px-6 py-4 flex justify-between items-center">
-        <h2>{title}</h2>
-        <button
-          onClick={onClose}
-          className="text-white hover:text-red-200 text-xl"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Modal Body */}
-      <div className="px-6 py-4 bg-[#EEF0FD]">{children}</div>
-    </div>
-  </div>
-);
 
 // Common input style
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
@@ -102,6 +84,7 @@ const MainDashboard = () => {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [articles, setArticles] = useState([]);
   const [editArticle, setEditArticle] = useState(null);
   const [visibleArticlesCount, setVisibleArticlesCount] = useState(8);
@@ -120,6 +103,14 @@ const MainDashboard = () => {
   const [galleries, setGalleries] = useState([]);
   const [editGallery, setEditGallery] = useState(null);
   const [showEditGalleryModal, setShowEditGalleryModal] = useState(false);
+  
+
+  // Downloads state
+  const [dlCategories, setDlCategories] = useState([]);
+  const [dlSelectedCategory, setDlSelectedCategory] = useState("");
+  const [dlDescription, setDlDescription] = useState("");
+  const [dlFiles, setDlFiles] = useState([]);
+  const [dlLoading, setDlLoading] = useState(false);
 
   // Exams state
   const [examCategories, setExamCategories] = useState([]);
@@ -278,6 +269,24 @@ const MainDashboard = () => {
     };
     fetchActivities();
   }, []);
+
+  // Ensure download categories are loaded when opening the Download modal
+  useEffect(() => {
+    const ensureDlCats = async () => {
+      if (showDownloadModal) {
+        try {
+          const cats = await fetchDownloadCategories();
+          setDlCategories(cats || []);
+          if (!dlSelectedCategory && (cats || []).length > 0) {
+            setDlSelectedCategory(String(cats[0].id));
+          }
+        } catch (e) {
+          console.error("Failed to fetch download categories", e);
+        }
+      }
+    };
+    ensureDlCats();
+  }, [showDownloadModal, dlSelectedCategory]);
 
   // Ensure categories are loaded when opening the Exam modal
   useEffect(() => {
@@ -735,6 +744,11 @@ const MainDashboard = () => {
         const updates = { details: examForm.details, files: fileUrls.length ? fileUrls : editExam.files };
         const { error } = await updateExamItem(editExam.id, updates);
         if (error) throw error;
+        await logActivity(
+          `Updated exam item (id=${editExam.id}) with ${fileUrls.length || (editExam.files?.length || 0)} file(s).`,
+          'exam',
+          typeof currentUser !== 'undefined' ? currentUser : {}
+        );
         Swal.fire({ icon: 'success', title: 'Updated', text: 'Exam item updated.' });
       } else {
         const { error } = await createExamItem({
@@ -744,6 +758,11 @@ const MainDashboard = () => {
           created_at: new Date().toISOString(),
         });
         if (error) throw error;
+        await logActivity(
+          `Created exam item with ${fileUrls.length} file(s) in category ${selectedExamCategory}.`,
+          'exam',
+          typeof currentUser !== 'undefined' ? currentUser : {}
+        );
         Swal.fire({ icon: 'success', title: 'Created', text: 'Exam item created.' });
       }
       await refreshExamItems(selectedExamCategory);
@@ -811,51 +830,199 @@ const MainDashboard = () => {
         />
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <button
-          onClick={() => setShowStudentModal(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-green-700"
-        >
-          <FaPlus /> Add Student
-        </button>
-        <button
-          onClick={() => setShowTeacherModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-blue-700"
-        >
-          <FaPlus /> Add Teacher
-        </button>
-        <button
-          onClick={() => setShowNoticeModal(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-emerald-700"
-        >
-          <FaPlus /> Add Notice
-        </button>
-        <button
-            onClick={() => setShowAssignmentModal(true)}
-            className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700"
-          >
-            <FaPlus /> Add Assignment
-          </button>
-          <button
-            onClick={() => setShowArticleModal(true)}
-            className="bg-orange-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-orange-700"
-          >
-            <FaPlus /> Add Article
-          </button>
-        <button
-          onClick={handleAddImageClick}
-          className="bg-indigo-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-indigo-700"
-        >
-          <FaPlus /> Add Image
-        </button>
-        <button
-          onClick={() => setShowExamModal(true)}
-          className="bg-teal-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-teal-700"
-        >
-          <FaPlus /> Add Exam
-        </button>
+      {/* Quick Actions Box */}
+      <div className="mb-8">
+        <div className="bg-white border rounded-lg shadow p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-800">Add Items</h2>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => setShowStudentModal(true)} className="bg-green-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-green-700">
+              <FaPlus /> Student
+            </button>
+            <button onClick={() => setShowTeacherModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-blue-700">
+              <FaPlus /> Teacher
+            </button>
+            <button onClick={() => setShowNoticeModal(true)} className="bg-emerald-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-emerald-700">
+              <FaPlus /> Notice
+            </button>
+            <button onClick={() => setShowAssignmentModal(true)} className="bg-purple-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-purple-700">
+              <FaPlus /> Assignment
+            </button>
+            <button onClick={() => setShowArticleModal(true)} className="bg-orange-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-orange-700">
+              <FaPlus /> Article
+            </button>
+            <button onClick={handleAddImageClick} className="bg-indigo-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-indigo-700">
+              <FaPlus /> Image
+            </button>
+            <button onClick={() => setShowExamModal(true)} className="bg-teal-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-teal-700">
+              <FaPlus /> Exam
+            </button>
+            <button onClick={() => setShowDownloadModal(true)} className="bg-sky-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 hover:bg-sky-700">
+              <FaPlus /> Download
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Add Download Modal */}
+      {showDownloadModal && (
+        <Modal title="Add Download" onClose={() => setShowDownloadModal(false)}>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!dlSelectedCategory) {
+                Swal.fire({ icon: 'warning', title: 'Select Category', text: 'Please select a download category.' });
+                return;
+              }
+              if (!dlFiles || dlFiles.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'No Files', text: 'Please choose one or more files.' });
+                return;
+              }
+              setDlLoading(true);
+              try {
+                const catObj = (dlCategories || []).find((c) => String(c.id) === String(dlSelectedCategory));
+                const folderName = (catObj?.name || dlSelectedCategory)
+                  .toString()
+                  .trim()
+                  .toLowerCase()
+                  .replace(/\s+/g, '-');
+                const bucket = 'downloads';
+
+                // Upload all files in parallel with unique names
+                const uploadResults = await Promise.allSettled(
+                  dlFiles.map(async (file, idx) => {
+                    const unique = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                      ? crypto.randomUUID()
+                      : `${Date.now()}_${idx}`;
+                    const filePath = `${folderName}/${unique}_${file.name}`;
+                    const { error: upErr } = await supabase.storage
+                      .from(bucket)
+                      .upload(filePath, file, { upsert: false });
+                    if (upErr) throw upErr;
+                    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(filePath);
+                    const publicUrl = pub?.publicUrl || '';
+                    return {
+                      category_id: dlSelectedCategory,
+                      file_name: file.name,
+                      file_url: [publicUrl],
+                      description: dlDescription || null,
+                      uploaded_by: currentUser?.email || 'admin',
+                      uploaded_at: new Date().toISOString(),
+                    };
+                  })
+                );
+
+                const rows = uploadResults
+                  .filter((r) => r.status === 'fulfilled')
+                  .map((r) => r.value);
+
+                const failures = uploadResults.filter((r) => r.status === 'rejected');
+
+                if (rows.length === 0) {
+                  throw new Error(failures[0]?.reason?.message || 'All uploads failed.');
+                }
+
+                const { error: insErr } = await supabase.from('download_files').insert(rows);
+                if (insErr) throw insErr;
+
+                await logActivity(
+                  `Added ${rows.length} download file(s) to category ${catObj?.name || dlSelectedCategory}.`,
+                  'downloads',
+                  typeof currentUser !== 'undefined' ? currentUser : {}
+                );
+
+                const msg = failures.length
+                  ? `${rows.length} uploaded, ${failures.length} failed.`
+                  : `${rows.length} file(s) uploaded.`;
+                Swal.fire({ icon: failures.length ? 'warning' : 'success', title: 'Upload Complete', text: msg });
+
+                setShowDownloadModal(false);
+                setDlFiles([]);
+                setDlDescription('');
+                setDlSelectedCategory('');
+              } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Failed', text: err?.message || String(err) });
+              } finally {
+                setDlLoading(false);
+              }
+            }}
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Category</label>
+                <select
+                  className={inputStyle}
+                  value={dlSelectedCategory}
+                  onChange={(e) => setDlSelectedCategory(e.target.value)}
+                >
+                  <option value="">-- Select Category --</option>
+                  {(dlCategories || []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description (optional)</label>
+                <textarea
+                  className={inputStyle}
+                  rows={3}
+                  value={dlDescription}
+                  onChange={(e) => setDlDescription(e.target.value)}
+                  placeholder="Short description for these files"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Files</label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files || []);
+                    if (picked.length === 0) return;
+                    setDlFiles((prev) => {
+                      const combined = [...(prev || []), ...picked];
+                      // de-duplicate by name+size
+                      const seen = new Set();
+                      return combined.filter((f) => {
+                        const key = `${f.name}-${f.size}`;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                      });
+                    });
+                    // allow selecting the same files again
+                    e.target.value = '';
+                  }}
+                  className="block w-full"
+                />
+                {dlFiles && dlFiles.length > 0 && (
+                  <ul className="mt-2 text-sm text-gray-600 list-disc pl-5">
+                    {dlFiles.map((f, idx) => (<li key={idx}>{f.name}</li>))}
+                  </ul>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                  onClick={() => setShowDownloadModal(false)}
+                  disabled={dlLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-2 rounded text-white ${dlLoading ? 'bg-sky-400' : 'bg-sky-600 hover:bg-sky-700'}`}
+                  disabled={dlLoading}
+                >
+                  {dlLoading ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Notifications */}
       <div className="bg-[#eef1fa] p-4 rounded-md shadow-md">

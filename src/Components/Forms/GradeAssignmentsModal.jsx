@@ -7,6 +7,7 @@ import {
   createGrade,
 } from "../../supabaseConfig/supabaseApi";
 import { FaSearch, FaEdit, FaGraduationCap } from "react-icons/fa";
+import Modal from "../Modal";
 
 const GradeAssignmentsModal = ({
   user,
@@ -281,7 +282,7 @@ const GradeAssignmentsModal = ({
   };
 
   return (
-    <div className="w-full max-w-5xl md:max-w-6xl mx-auto">
+    <div className="w-full max-w-full mx-auto">
       {/* Assignment Selector */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
@@ -314,7 +315,7 @@ const GradeAssignmentsModal = ({
           </p>
         </div>
 
-        <div className="max-h-[34rem] overflow-y-auto">
+        <div>
           {filteredSubmissions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -434,18 +435,16 @@ const GradeAssignmentsModal = ({
       </div>
       {/* Feedback/Grade Modal */}
       {showGradeModal && modalSubmission && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-4 rounded shadow-lg w-full max-w-md mx-2">
-            <h2 className="text-lg font-bold mb-4">Give Feedback & Grade</h2>
-            <div className="mb-2">
-              <strong>Student:</strong> {modalSubmission.student?.first_name}{" "}
-              {modalSubmission.student?.last_name}
+        <Modal title="Give Feedback & Grade" onClose={() => setShowGradeModal(false)} size="md" bodyClassName="max-h-[70vh] overflow-y-auto">
+          <div className="space-y-3">
+            <div>
+              <div className="text-sm"><strong>Student:</strong> {modalSubmission.student?.first_name} {modalSubmission.student?.last_name}</div>
             </div>
-            <div className="mb-2">
-              <strong>Notes:</strong>
+            <div>
+              <div className="text-sm font-medium mb-1">Notes</div>
               <div className="mt-1">{renderStudentNotes(modalSubmission.notes)}</div>
             </div>
-            <div className="mb-2">
+            <div>
               <label className="block text-sm font-medium mb-1">Feedback</label>
               <textarea
                 className="w-full border rounded px-2 py-1"
@@ -454,7 +453,7 @@ const GradeAssignmentsModal = ({
                 onChange={(e) => setModalFeedback(e.target.value)}
               />
             </div>
-            <div className="mb-2">
+            <div>
               <label className="block text-sm font-medium mb-1">Rating</label>
               <select
                 className="w-full border rounded px-2 py-1"
@@ -472,7 +471,7 @@ const GradeAssignmentsModal = ({
                 })}
               </select>
             </div>
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium mb-1">Grade</label>
               <input
                 className="w-full border rounded px-2 py-1"
@@ -482,7 +481,7 @@ const GradeAssignmentsModal = ({
                 placeholder="e.g. 90"
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 className="bg-green-500 text-white px-4 py-2 rounded"
                 onClick={handleSaveGrade}
@@ -498,7 +497,7 @@ const GradeAssignmentsModal = ({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

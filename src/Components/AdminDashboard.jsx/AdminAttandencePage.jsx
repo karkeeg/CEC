@@ -432,36 +432,37 @@ const AdminAttandancePage = () => {
             </h3>
             <div style={{ width: '100%', overflowX: 'auto' }}>
   <ResponsiveContainer width={Math.max(attendanceBarData.length * 60, 400)} height={220}>
-    <BarChart
-      data={attendanceBarData}
-      margin={{ top: 10, right: 20, left: 60, bottom: 0 }}
-    >
-      <XAxis 
-        dataKey="date"
-        label={{ value: "Date", angle: 0, position: "insideBottom", style: { textAnchor: "middle" } }}
-        fontSize={12}
-      />
-      <YAxis
-        domain={[0, 100]}
-        tickFormatter={(v) => v + "%"}
-        fontSize={12}
-        label={{
-          value: "Attendance %",
-          angle: -90,
-          position: "insideLeft",
-          style: { textAnchor: "middle" },
-          dx: -30
-        }}
-      />
-      <Tooltip formatter={(v) => v + "%"} />
-      <Bar 
-        dataKey="percent" 
-        fill="#2563eb" 
-        radius={[4, 4, 0, 0]}
-        maxBarSize={50}
-      />
-    </BarChart>
-  </ResponsiveContainer>
+  <BarChart
+    data={attendanceBarData}
+    margin={{ top: 10, right: 20, left: 60, bottom: 0 }}
+  >
+    <XAxis
+      dataKey="date"
+      label={{ value: "Date", angle: 0, position: "insideBottom", style: { textAnchor: "middle" } }}
+      fontSize={12}
+      tick={false}  // This hides the date values on X-axis
+    />
+    <YAxis
+      domain={[0, 100]}
+      tickFormatter={(v) => v + "%"}
+      fontSize={12}
+      label={{
+        value: "Attendance %",
+        angle: -90,
+        position: "insideLeft",
+        style: { textAnchor: "middle" },
+        dx: -30
+      }}
+    />
+    <Tooltip formatter={(v) => v + "%"} />
+    <Bar
+      dataKey="percent"
+      fill="#2563eb"
+      radius={[4, 4, 0, 0]}
+      maxBarSize={50}
+    />
+  </BarChart>
+</ResponsiveContainer>
 </div>
           </div>
           {/* Pie Chart: Present/Absent/Late */}

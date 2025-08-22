@@ -232,28 +232,26 @@ const StudentAnalytics = () => {
 
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6 border rounded-lg shadow-md bg-gradient-to-br from-blue-50 via-white to-blue-100 w-full min-w-0">
-      <h1 className="text-3xl font-bold mb-4 text-gray-800 tracking-tight drop-shadow-sm">
-        Student Analytics Dashboard
-      </h1>
+     
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 min-w-0">
-        <div className="flex items-center bg-[#30B0C733] rounded px-4 py-2 w-full sm:w-80 min-w-0">
-          <input
-            type="text"
-            placeholder="Search subjects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent outline-none text-black flex-1 placeholder-black"
-          />
-          <FaSearch className="text-black ml-2" />
-        </div>
-        <button
-          className="flex items-center gap-2 bg-teal-500 text-white px-6 py-2 rounded font-semibold hover:bg-teal-600 transition"
-          onClick={() => navigate("/student/feedback")}
-        >
-          View feedback <MdFeedback />
-        </button>
-      </div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 sm:gap-6 mb-8">
+  <div className="flex-1 min-w-0">
+    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 tracking-tight leading-tight">
+      Student Analytics Dashboard
+    </h1>
+    <p className="text-sm text-gray-600 mt-2 font-medium">
+      Track your academic progress and performance
+    </p>
+  </div>
+  
+  <button
+    className="flex items-center justify-center gap-2 bg-teal-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-600 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 whitespace-nowrap"
+    onClick={() => navigate("/student/feedback")}
+  >
+    <MdFeedback className="text-lg" />
+    View Feedback
+  </button>
+</div>
       {loading ? (
         <div className="text-center py-10 text-lg">Loading analytics...</div>
       ) : error ? (

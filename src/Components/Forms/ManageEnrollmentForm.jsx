@@ -198,9 +198,9 @@ const ManageEnrollmentForm = ({
         )}
       </form>
       {/* Student dropdown area, visually offset to the right and flows out of the box */}
-      <div className="relative flex-1 max-w-md w-full mt-4 md:mt-0 md:ml-2">
+      <div className="relative flex-1 max-w-md w-full mt-4 md:mt-0 md:ml-2 overflow-visible">
         {showDropdown && (
-          <div className=" z-40 left- md:left-[10%] top-0 bg-gray-50 border border-blue-200 w-full md:w-80 max-h-64 overflow-y-auto rounded-xl shadow-2xl transition">
+          <div className="absolute z-40 left-0 md:left-[10%] top-full mt-2 bg-gray-50 border border-blue-200 w-full md:w-80 max-h-80 overflow-y-auto overflow-x-auto rounded-xl shadow-2xl transition">
             {filteredStudents.length > 0 ? (
             <ul className="p-0 m-0">
               {filteredStudents.map((s) => (
@@ -222,12 +222,14 @@ const ManageEnrollmentForm = ({
                       className="mr-2 scale-100 accent-blue-600"
                       disabled={maxReached && !selectedStudents.includes(s.id)}
                     />
-                    <span className="text-sm font-medium text-gray-800">
-                      {s.first_name} {s.last_name}{" "}
-                        <span className="text-gray-500 text-xs">
-                          ({s.email}) - Year {s.year}
-                        </span>
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-800 truncate">
+                        {s.first_name} {s.last_name}
+                      </div>
+                      <div className="text-gray-500 text-xs truncate">
+                        ({s.email}) - Year {s.year}
+                      </div>
+                    </div>
                   </label>
                 </li>
               ))}

@@ -24,7 +24,12 @@ const navItems = [
   },
   {
     label: "About",
-    dropdown: ["Vision & Mission", "News & Events", "Administration"],
+    dropdown: [
+      { label: "Vision & Mission", link: "/" },
+      { label: "News & Events", link: "/articles" },    
+      { label: "Academic Staff", link: "/about/academic-staff" },
+      { label: "Administrative Staff", link: "/about/administrative-staff" },
+    ],
   },
   {
     label: "Departments",
@@ -67,11 +72,7 @@ const navItems = [
       "CEC Material",
     ],
   },
-  {
-    label: "Staff",
-    dropdown: ["Administration", "Academic"],
-  },
-
+  
   {
     label: "Gallery",
     link: "/gallery",
@@ -376,65 +377,22 @@ const Navbar = () => {
                                 </Link>
                               ))
                             : item.label === "About"
-                            ? item.dropdown.map((sub, subIdx) => {
-                                if (
-                                  sub === "News & Events" ||
-                                  sub === "Articles"
-                                ) {
-                                  return (
-                                    <Link
-                                      to="/articles"
-                                      key={subIdx}
-                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                                    >
-                                      {sub}
-                                    </Link>
-                                  );
-                                }
-                                if (sub === "Administration") {
-                                  return (
-                                    <Link
-                                      to="/staff/administration"
-                                      key={subIdx}
-                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                                    >
-                                      {sub}
-                                    </Link>
-                                  );
-                                }
-                                if (sub === "Vision & Mission") {
-                                  return (
-                                    <a
-                                      href="#campus-section"
-                                      key={subIdx}
-                                      onClick={handleVisionMissionClick}
-                                      className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap cursor-pointer"
-                                    >
-                                      {sub}
-                                    </a>
-                                  );
-                                }
-                                return (
-                                  <Link
-                                    to={`/${item.label
-                                      .toLowerCase()
-                                      .replace(/\s/g, "-")}/${sub
-                                      .toLowerCase()
-                                      .replace(/\s/g, "-")}`}
-                                    key={subIdx}
-                                    className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                                  >
-                                    {sub}
-                                  </Link>
-                                );
-                              })
+                            ? item.dropdown.map((sub, subIdx) => (
+                                <Link
+                                  to={sub.link}
+                                  key={subIdx}
+                                  className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
+                                >
+                                  {sub.label}
+                                </Link>
+                              ))
                             : item.dropdown.map((sub, subIdx) => (
                                 <Link
                                   to={`/${item.label
                                     .toLowerCase()
-                                    .replace(/\s/g, "-")}/${sub
+                                    .split(' ').join('-')}/${sub
                                     .toLowerCase()
-                                    .replace(/\s/g, "-")}`}
+                                    .split(' ').join('-')}`}
                                   key={subIdx}
                                   className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
                                 >
@@ -541,14 +499,13 @@ const Navbar = () => {
                             <span>Dashboard</span>
                           </button>
                         </Link>
+                        <Link to="/profile">
                         <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
                           <FaUser className="text-gray-500" />
                           <span>Profile</span>
                         </button>
-                        <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition">
-                          <FaCog className="text-gray-500" />
-                          <span>Settings</span>
-                        </button>
+                        </Link>
+                       
                         <hr className="my-1" />
                         <button
                           onClick={handleSignOut}
@@ -650,7 +607,7 @@ const Navbar = () => {
                       {openDropdown === idx && (
                         <div className="pl-4 py-1">
                           {item.dropdown.map((cat) => {
-                            const catKey = cat.replace(/ ▸$/, "");
+                            const catKey = cat.replace(/ ▸$/, "").trim();
                             return (
                               <div key={cat}>
                                 <button
@@ -697,42 +654,40 @@ const Navbar = () => {
                       </button>
                       {openDropdown === idx && (
                         <div className="pl-4 py-1">
-                          {item.label === "Download"
-                            ? item.dropdown.map((sub) => (
-                                <Link
-                                  to={`/downloads/${sub.id}`}
-                                  key={`mob-dl-${sub.id}`}
-                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
-                                  onClick={() => setMobileMenu(false)}
-                                >
-                                  {sub.name}
-                                </Link>
-                              ))
-                            : item.label === "Exam"
-                            ? item.dropdown.map((sub) => (
-                                <Link
-                                  to={`/exam/${sub.id}`}
-                                  key={`mob-exam-${sub.id}`}
-                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
-                                  onClick={() => setMobileMenu(false)}
-                                >
-                                  {sub.name}
-                                </Link>
-                              ))
-                            : item.dropdown.map((sub, subIdx) => (
-                                <Link
-                                  to={`/${item.label
-                                    .toLowerCase()
-                                    .replace(/\s/g, "-")}/${sub
-                                    .toLowerCase()
-                                    .replace(/\s/g, "-")}`}
-                                  key={subIdx}
-                                  className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
-                                  onClick={() => setMobileMenu(false)}
-                                >
-                                  {sub}
-                                </Link>
-                              ))}
+                          {item.dropdown.map((sub, subIdx) => {
+                            let linkTo = "";
+                            let displayLabel = "";
+
+                            if (item.label === "Download") {
+                              linkTo = `/downloads/${sub.id}`;
+                              displayLabel = sub.name;
+                            } else if (item.label === "Exam") {
+                              linkTo = `/exam/${sub.id}`;
+                              displayLabel = sub.name;
+                            } else if (item.label === "About") {
+                              linkTo = sub.link;
+                              displayLabel = sub.label;
+                            } else {
+                              // Fallback for other generic dropdowns
+                              const subSlug = (typeof sub === "string" ? sub : (sub?.label || sub?.name || "item"))
+                                .toLowerCase()
+                                .split(" ")
+                                .join("-");
+                              linkTo = `/${item.label.toLowerCase().split(" ").join("-")}/${subSlug}`;
+                              displayLabel = typeof sub === "string" ? sub : (sub?.label || sub?.name || "Item");
+                            }
+
+                            return (
+                              <Link
+                                to={linkTo}
+                                key={subIdx}
+                                className="block px-2 py-1 hover:bg-[#e6f7ff] rounded"
+                                onClick={() => setMobileMenu(false)}
+                              >
+                                {displayLabel}
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
                     </>

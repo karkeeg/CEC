@@ -209,9 +209,9 @@ const Login = () => {
             >
               Continue
             </button>
-            <p>
+            {/* <p>
               Haven't you registered yet ? <Link to={"/register"}>Go on!</Link>{" "}
-            </p>
+            </p> */}
           </form>
         </div>
       </div>

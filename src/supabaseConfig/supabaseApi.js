@@ -1,5 +1,38 @@
 import supabase from "./supabaseClient";
 
+// ------------------- UTILS: Retry & Abort -------------------
+const DEFAULT_RETRY_OPTS = { retries: 2, backoffMs: 300 };
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const isTransient = (error) => {
+  if (!error) return false;
+  const msg = (error.message || "").toLowerCase();
+  // Supabase/PostgREST may surface 429/5xx or network-like issues in error.message
+  return (
+    msg.includes("429") ||
+    msg.includes("rate") ||
+    msg.includes("timeout") ||
+    msg.includes("network") ||
+    msg.includes("fetch") ||
+    msg.includes("5") // rough 5xx hint
+  );
+};
+
+async function withRetry(fn, opts = DEFAULT_RETRY_OPTS) {
+  const { retries, backoffMs } = { ...DEFAULT_RETRY_OPTS, ...(opts || {}) };
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const res = await fn();
+      return res;
+    } catch (err) {
+      if (attempt >= retries || !isTransient(err)) throw err;
+      await sleep(backoffMs * Math.pow(2, attempt));
+      attempt++;
+    }
+  }
+}
+
 // ------------------- ARTICLES -------------------
 export const fetchArticles = async () => {
   const { data, error } = await supabase
@@ -21,12 +54,14 @@ export const fetchArticleBySlug = async (slug) => {
 };
 
 // ------------------- NOTICES -------------------
-export const fetchNotices = async () => {
-  const { data, error } = await supabase
+export const fetchNotices = async (limit = 10000, offset = 0, options = {}) => {
+  let query = supabase
     .from("notices")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(10000);
+    .range(offset, offset + limit - 1);
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
@@ -56,7 +91,11 @@ export const fetchDownloadFilesByCategory = async (categoryId) => {
     .eq("category_id", categoryId)
     .order("uploaded_at", { ascending: false });
   if (error) throw error;
-  return data;
+  // Normalize file_url to a string for consumers
+  return (data || []).map((row) => ({
+    ...row,
+    file_url: Array.isArray(row?.file_url) ? row.file_url[0] : row?.file_url,
+  }));
 };
 
 export const fetchMoreDownloadFiles = async (excludeCategoryId, limit = 3) => {
@@ -69,18 +108,23 @@ export const fetchMoreDownloadFiles = async (excludeCategoryId, limit = 3) => {
     .order("uploaded_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return data;
+  return (data || []).map((row) => ({
+    ...row,
+    file_url: Array.isArray(row?.file_url) ? row.file_url[0] : row?.file_url,
+  }));
 };
 
 // ------------------- DEPARTMENTS -------------------
-export const fetchDepartments = async () => {
-  const { data, error } = await supabase
+export const fetchDepartments = async (limit = 10000, offset = 0, options = {}) => {
+  let query = supabase
     .from("departments")
     .select(
       "id, name, faculty:faculty_id(id, name), description, courses, image_url"
     )
     .order("name", { ascending: true })
-    .limit(10000);
+    .range(offset, offset + limit - 1);
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
@@ -95,7 +139,7 @@ export const fetchDepartmentById = async (id) => {
   const { data, error } = await supabase
     .from("departments")
     .select(
-      "id, name, description, courses, image_url, faculty:faculty_id(id, name)"
+      "id, name, description, courses, image_url, eligibility, duration, affiliated_body, career_prospects, estimated_fees, faculty:faculty_id(id, name)"
     )
     .eq("id", id)
     .single();
@@ -103,40 +147,48 @@ export const fetchDepartmentById = async (id) => {
   return data;
 };
 
-export const createDepartment = async (department) => {
+export const createDepartment = async (department, actor) => {
   // department: { id, name, faculty_id, description, courses, image_url }
   const { data, error } = await supabase
     .from("departments")
     .insert([department]);
   if (error) throw error;
+  await logActivitySafe(`Department "${department.name}" created.`, "department", actor);
   return data;
 };
 
-export const updateDepartment = async (id, updates) => {
+export const updateDepartment = async (id, updates, actor) => {
   // updates: { name, faculty_id, description, courses, image_url }
   const { data, error } = await supabase
     .from("departments")
     .update(updates)
     .eq("id", id);
   if (error) throw error;
+  await logActivitySafe(`Department id=${id} updated.`, "department", actor);
   return data;
 };
 
 // Delete a department by id
-export const deleteDepartment = async (id) => {
+export const deleteDepartment = async (id, actor) => {
   const { error } = await supabase
     .from("departments")
     .delete()
     .eq("id", id);
+  if (!error) {
+    await logActivitySafe(`Department id=${id} deleted.`, "department", actor);
+  }
   return error;
 };
 
 // ------------------- STUDENTS -------------------
-export const updateStudentProfile = async (studentId, updates) => {
+export const updateStudentProfile = async (studentId, updates, actor) => {
   const { data, error } = await supabase
     .from("students")
     .update(updates)
     .eq("id", studentId);
+  if (!error) {
+    await logActivitySafe(`Student id=${studentId} profile updated.`, "student", actor);
+  }
   return { data, error };
 };
 export const fetchStudents = async () => {
@@ -174,26 +226,34 @@ export const fetchStudentProfileById = async (studentId) => {
   return data;
 };
 
-export const updateAdminProfile = async (adminId, updates) => {
+export const updateAdminProfile = async (adminId, updates, actor) => {
   const { data, error } = await supabase
     .from("teachers")
     .update(updates)
     .eq("id", adminId);
+  if (!error) {
+    await logActivitySafe(`Admin id=${adminId} profile updated.`, "admin", actor);
+  }
   return { data, error };
 };
 // ------------------- TEACHERS -------------------
-export const updateTeacherProfile = async (teacherId, updates) => {
+export const updateTeacherProfile = async (teacherId, updates, actor) => {
   const { data, error } = await supabase
     .from("teachers")
     .update(updates)
     .eq("id", teacherId);
+  if (!error) {
+    await logActivitySafe(`Teacher id=${teacherId} profile updated.`, "teacher", actor);
+  }
   return { data, error };
 };
-export const fetchTeachers = async () => {
-  const { data, error } = await supabase
+export const fetchTeachers = async (limit = 10000, offset = 0, options = {}) => {
+  let query = supabase
     .from("teachers")
     .select("*, department:teacher_department(id, name)")
-    .limit(10000);
+    .range(offset, offset + limit - 1);
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
@@ -208,43 +268,48 @@ export const fetchTeacherProfileById = async (teacherId) => {
   return data;
 };
 
-export const deleteTeacher = async (teacherId) => {
+export const deleteTeacher = async (teacherId, actor) => {
   const { error } = await supabase
     .from("teachers")
     .delete()
     .eq("id", teacherId);
+  if (!error) {
+    await logActivitySafe(`Teacher id=${teacherId} deleted.`, "teacher", actor);
+  }
   return { error };
 };
 
 // ------------------- ASSIGNMENTS -------------------
-export const fetchAssignments = async (filters = {}) => {
+export const fetchAssignments = async (filters = {}, limit = 10000, offset = 0, options = {}) => {
   let query = supabase
     .from("assignments")
     .select(
       "id, title, due_date,teacher_id, teacher:teacher_id(first_name, last_name), description, subject:subject_id(name), year, class_id, created_at, files"
     )
-    .limit(10000);
+    .range(offset, offset + limit - 1);
   if (filters.due_date) query = query.gte("due_date", filters.due_date);
   if (filters.teacher_id) query = query.eq("teacher_id", filters.teacher_id);
   if (filters.class_id) query = query.eq("class_id", filters.class_id);
   if (filters.semester) query = query.eq("semester", filters.semester);
   query = query.order("due_date", { ascending: true });
-  const { data, error } = await query;
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
 
-export const fetchAssignmentSubmissions = async (assignmentId) => {
+export const fetchAssignmentSubmissions = async (assignmentId, limit = 10000, offset = 0, options = {}) => {
   let query = supabase
     .from("submissions")
     .select(
       `id, assignment_id, class_id, student_id, submitted_at, files, notes, student:student_id (first_name, middle_name, last_name, email), grade:grades(id, grade, feedback, rated_at, rated_by)`
     )
-    .limit(10000); // join student and grades
+    .range(offset, offset + limit - 1); // join student and grades
   if (assignmentId) {
     query = query.eq("assignment_id", assignmentId);
   }
-  const { data, error } = await query;
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
@@ -298,19 +363,25 @@ export const getAttendanceByStudent = async (studentId, fromDate, toDate) => {
 };
 
 // Create attendance records (array of objects)
-export const createAttendance = async (records) => {
+export const createAttendance = async (records, actor) => {
   // records: array of { student_id, subject_id, date, status, note, teacher_id, class_id, created_at }
   const { error } = await supabase.from("attendance").insert(records);
+  if (!error) {
+    await logActivitySafe(`Attendance inserted for ${records.length} record(s).`, "attendance", actor);
+  }
   return error;
 };
 
 // Update a single attendance record
-export const updateAttendance = async (attendanceId, updates) => {
+export const updateAttendance = async (attendanceId, updates, actor) => {
   // updates: { status, note, subject_id, ... }
   const { error } = await supabase
     .from("attendance")
     .update(updates)
     .eq("id", attendanceId);
+  if (!error) {
+    await logActivitySafe(`Attendance id=${attendanceId} updated.`, "attendance", actor);
+  }
   return error;
 };
 
@@ -328,29 +399,39 @@ export const getAttendanceByClassAndDate = async (classId, date) => {
 };
 
 // ------------------- GALLERY -------------------
-export const fetchGalleryItems = async () => {
-  const { data, error } = await supabase
+export const fetchGalleryItems = async (limit, offset = 0, options = {}) => {
+  let query = supabase
     .from("gallery")
     .select("*")
     .order("created_at", { ascending: false });
+  if (typeof limit === "number" && limit > 0) {
+    query = query.range(offset, offset + limit - 1);
+  }
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
 
-export const addGalleryItems = async (items) => {
+export const addGalleryItems = async (items, actor) => {
   // items: [{ title, description, image_url, created_at }]
   const { data, error } = await supabase.from("gallery").insert(items);
+  if (!error) {
+    await logActivitySafe(`Gallery: ${items?.length || 0} item(s) added.`, "gallery", actor);
+  }
   return { data, error };
 };
 
 // ------------------- CLASSES -------------------
-export const fetchClasses = async () => {
-  const { data, error } = await supabase
+export const fetchClasses = async (limit = 10000, offset = 0, options = {}) => {
+  let query = supabase
     .from("classes")
     .select(
       `class_id, name, subject:subject_id(name), room_no, teacher:teacher_id (first_name, middle_name, last_name), schedule,year, semester, capacity, department_id, description`
     )
-    .limit(10000);
+    .range(offset, offset + limit - 1);
+  if (options?.signal && query.abortSignal) query = query.abortSignal(options.signal);
+  const { data, error } = await withRetry(() => query);
   if (error) throw error;
   return data;
 };
@@ -446,39 +527,48 @@ export const getAssignmentsByTeacher = async (teacherId) => {
   return data || [];
 };
 export const getAssignmentSubmissions = fetchAssignmentSubmissions;
-export const getSubjects = async () => {
-  const { data, error } = await supabase.from("subjects").select("id, name");
-  if (error) throw error;
-  return data;
-};
-export const createAssignment = async (assignment) => {
+export const getSubjects = fetchSubjects;
+export const createAssignment = async (assignment, actor) => {
   const { data, error } = await supabase
     .from("assignments")
     .insert([assignment]);
+  if (!error) {
+    await logActivitySafe(`Assignment "${assignment.title}" created.`, "assignment", actor);
+  }
   return { data, error };
 };
-export const deleteAssignment = async (assignmentId) => {
+export const deleteAssignment = async (assignmentId, actor) => {
   const { error } = await supabase
     .from("assignments")
     .delete()
     .eq("id", assignmentId);
+  if (!error) {
+    await logActivitySafe(`Assignment id=${assignmentId} deleted.`, "assignment", actor);
+  }
   return error;
 };
 export const updateAssignmentSubmissionGrade = async (
   submissionId,
-  updates
+  updates,
+  actor
 ) => {
   const { error } = await supabase
     .from("submissions")
     .update(updates)
     .eq("id", submissionId);
+  if (!error) {
+    await logActivitySafe(`Submission id=${submissionId} updated by grading.`, "submission", actor);
+  }
   return error;
 };
-export const updateAssignment = async (assignmentId, updates) => {
+export const updateAssignment = async (assignmentId, updates, actor) => {
   const { error } = await supabase
     .from("assignments")
     .update(updates)
     .eq("id", assignmentId);
+  if (!error) {
+    await logActivitySafe(`Assignment id=${assignmentId} updated.`, "assignment", actor);
+  }
   return error;
 };
 export const getTeacherDepartmentsWithClasses = async (teacherId) => {
@@ -565,32 +655,41 @@ export const getStudentsByTeacher = async (teacherId) => {
 };
 
 // Update teacher password directly in teachers table
-export const updateTeacherPassword = async (teacherId, newPassword) => {
+export const updateTeacherPassword = async (teacherId, newPassword, actor) => {
   const { error } = await supabase
     .from("teachers")
     .update({ hashed_password: newPassword })
     .eq("id", teacherId);
+  if (!error) {
+    await logActivitySafe(`Teacher password updated for id=${teacherId}.`, "teacher", actor);
+  }
   return error;
 };
 
 // Update student password directly in students table
-export const updateStudentPassword = async (studentId, newPassword) => {
+export const updateStudentPassword = async (studentId, newPassword, actor) => {
   const { error } = await supabase
     .from("students")
     .update({ hashed_password: newPassword })
     .eq("id", studentId);
+  if (!error) {
+    await logActivitySafe(`Student password updated for id=${studentId}.`, "student", actor);
+  }
   return error;
 };
 
 // Update admin password directly in admins table
-export const updateAdminPassword = async (adminId, newPassword) => {
+export const updateAdminPassword = async (adminId, newPassword, actor) => {
   const { error } = await supabase
     .from("admins")
     .update({ hashed_password: newPassword })
     .eq("id", adminId);
+  if (!error) {
+    await logActivitySafe(`Admin password updated for id=${adminId}.`, "admin", actor);
+  }
   return error;
 };
-export const deleteStudent = async (idOrRegNo) => {
+export const deleteStudent = async (idOrRegNo, actor) => {
   // First, delete related records in the 'fees' table
   const { error: feesError } = await supabase
     .from("fees")
@@ -618,28 +717,45 @@ export const deleteStudent = async (idOrRegNo) => {
       .delete()
       .eq("reg_no", idOrRegNo)
       .select("id, reg_no");
+    if (!resp.error) {
+      await logActivitySafe(`Student reg_no=${idOrRegNo} deleted.`, "student", actor);
+    }
     return resp.error || null;
   }
-
+  await logActivitySafe(`Student id=${idOrRegNo} deleted.`, "student", actor);
   return null;
 };
-export const updateStudent = async (reg_no, updates) => {
+export const updateStudent = async (reg_no, updates, actor) => {
   const { error } = await supabase
     .from("students")
     .update(updates)
     .eq("reg_no", reg_no);
+  if (!error) {
+    await logActivitySafe(`Student reg_no=${reg_no} updated.`, "student", actor);
+  }
   return error;
 };
-export const createStudent = async (student) => {
+export const createStudent = async (student, actor) => {
   const { data, error } = await supabase.from("students").insert([student]);
+  if (!error) {
+    const name = [student.first_name, student.last_name].filter(Boolean).join(" ") || student.reg_no || "student";
+    await logActivitySafe(`Student "${name}" created.`, "student", actor);
+  }
   return { data, error };
 };
-export const createTeacher = async (teacher) => {
+export const createTeacher = async (teacher, actor) => {
   const { data, error } = await supabase.from("teachers").insert([teacher]);
+  if (!error) {
+    const name = [teacher.first_name, teacher.last_name].filter(Boolean).join(" ") || teacher.email || "teacher";
+    await logActivitySafe(`Teacher "${name}" created.`, "teacher", actor);
+  }
   return { data, error };
 };
-export const createNotice = async (notice) => {
+export const createNotice = async (notice, actor) => {
   const { data, error } = await supabase.from("notices").insert([notice]);
+  if (!error) {
+    await logActivitySafe(`Notice "${notice.title}" published.`, "notice", actor);
+  }
   return { data, error };
 };
 export const getGradesByTeacher = async (teacherId) => {
@@ -700,16 +816,22 @@ export const getAllFees = async () => {
   return allFees;
 };
 
-export const createFee = async (fee) => {
+export const createFee = async (fee, actor) => {
   const { data, error } = await supabase.from("fees").insert([fee]);
+  if (!error) {
+    await logActivitySafe(`Fee created for student_id=${fee.student_id}.`, "fee", actor);
+  }
   return { data, error };
 };
 
-export const updateFee = async (id, updates) => {
+export const updateFee = async (id, updates, actor) => {
   const { data, error } = await supabase
     .from("fees")
     .update(updates)
     .eq("id", id);
+  if (!error) {
+    await logActivitySafe(`Fee id=${id} updated.`, "fee", actor);
+  }
   return { data, error };
 };
 
@@ -728,28 +850,39 @@ export const checkCredentials = async (table, email, password) => {
   return null;
 };
 
-export const updateStudentClass = async (studentId, classId) => {
-  return await supabase
+export const updateStudentClass = async (studentId, classId, actor) => {
+  const res = await supabase
     .from("students")
     .update({ class_id: classId })
     .eq("id", studentId);
+  if (!res.error) {
+    await logActivitySafe(`Student id=${studentId} moved to class_id=${classId}.`, "class", actor);
+  }
+  return res;
 };
 
-export const enrollStudentsInClass = async (studentIds, classId) => {
+export const enrollStudentsInClass = async (studentIds, classId, actor) => {
   // studentIds: array of student_id
   const records = studentIds.map((student_id) => ({
     student_id,
     class_id: classId,
   }));
   const { error } = await supabase.from("student_classes").insert(records);
+  if (!error) {
+    await logActivitySafe(`Enrolled ${studentIds.length} student(s) to class_id=${classId}.`, "class", actor);
+  }
   return error;
 };
 
-export const createClass = async (classData) => {
-  return await supabase.from("classes").insert([classData]);
+export const createClass = async (classData, actor) => {
+  const res = await supabase.from("classes").insert([classData]);
+  if (!res.error) {
+    await logActivitySafe(`Class "${classData.name || classData.class_id}" created.`, "class", actor);
+  }
+  return res;
 };
 
-export const updateClass = async (classId, updates) => {
+export const updateClass = async (classId, updates, actor) => {
   const { data, error } = await supabase
     .from("classes")
     .update(updates)
@@ -760,6 +893,7 @@ export const updateClass = async (classId, updates) => {
     console.error("Error updating class:", error);
     throw error;
   }
+  await logActivitySafe(`Class id=${classId} updated.`, "class", actor);
   
   return data;
 };
@@ -788,12 +922,15 @@ export const getStudentCountByClass = async (classId) => {
   return count;
 };
 
-export const removeStudentFromClass = async (studentId, classId) => {
+export const removeStudentFromClass = async (studentId, classId, actor) => {
   const { error } = await supabase
     .from("student_classes")
     .delete()
     .eq("student_id", studentId)
     .eq("class_id", classId);
+  if (!error) {
+    await logActivitySafe(`Removed student_id=${studentId} from class_id=${classId}.`, "class", actor);
+  }
   return error;
 };
 
@@ -828,19 +965,28 @@ export const fetchRecentNotices = async (limit = 10) => {
   return data || [];
 };
 
-export const updateNotice = async (notice_id, updates) => {
+// Alias used by UI components
+// export const getRecentNotices = fetchRecentNotices;
+
+export const updateNotice = async (notice_id, updates, actor) => {
   const { data, error } = await supabase
     .from("notices")
     .update(updates)
     .eq("notice_id", notice_id);
+  if (!error) {
+    await logActivitySafe(`Notice id=${notice_id} updated.`, "notice", actor);
+  }
   return { data, error };
 };
 
-export const deleteNotice = async (notice_id) => {
+export const deleteNotice = async (notice_id, actor) => {
   const { data, error } = await supabase
     .from("notices")
     .delete()
     .eq("notice_id", notice_id);
+  if (!error) {
+    await logActivitySafe(`Notice id=${notice_id} deleted.`, "notice", actor);
+  }
   return { data, error };
 };
 
@@ -861,11 +1007,89 @@ export const logActivity = async (message, type = "notice", user = {}) => {
   return { error };
 };
 
+// Helper to normalize actor object and log safely (non-throwing)
+const _actorInfo = (actor) => {
+  if (!actor) return { user_id: null, user_role: null, user_name: null };
+  const { id, user_id, role, user_role, name, user_name, first_name, middle_name, last_name, display_name, email } = actor || {};
+  const actorId = user_id ?? id ?? null;
+  const actorRole = user_role ?? role ?? null;
+  const nameParts = [first_name, middle_name, last_name].filter(Boolean);
+  const fullName = user_name ?? name ?? display_name ?? (nameParts.length ? nameParts.join(" ") : null);
+  const actorName = fullName || email || null;
+  return { user_id: actorId, user_role: actorRole, user_name: actorName };
+};
+
+// Attempt to read actor info from localStorage (browser-only)
+const getDefaultActorFromStorage = () => {
+  try {
+    if (typeof window === "undefined") return null;
+    const role = localStorage.getItem("role");
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) return null;
+    const u = JSON.parse(rawUser);
+    // Shape best-effort actor
+    const actor = {
+      id: u?.id ?? u?.user_id ?? null,
+      role: role ?? u?.role ?? null,
+      first_name: u?.first_name,
+      middle_name: u?.middle_name,
+      last_name: u?.last_name,
+      display_name: u?.display_name || u?.name,
+      email: u?.email,
+    };
+    const info = _actorInfo(actor);
+    if (!info.user_id && !info.user_role && !info.user_name) return null;
+    return info;
+  } catch {
+    return null;
+  }
+};
+
+export const logActivitySafe = async (message, type = "notice", actor) => {
+  try {
+    let info = _actorInfo(actor);
+    // If no actor provided or missing basics, try default from storage
+    if (!info.user_id && !info.user_role && !info.user_name) {
+      const fallback = getDefaultActorFromStorage();
+      if (fallback) info = fallback;
+    }
+    await logActivity(message, type, info);
+  } catch (e) {
+    console.warn("logActivitySafe failed:", e?.message || e);
+  }
+};
+
 export const fetchNotifications = async () => {
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
     .order("date", { ascending: false });
+  return { data, error };
+};
+
+// Paginated notifications: returns { data, error }
+export const fetchNotificationsPaged = async (limit = 10, offset = 0) => {
+  const from = offset;
+  const to = offset + limit - 1;
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .order("date", { ascending: false })
+    .range(from, to);
+  return { data, error };
+};
+
+// Only global notifications (no actor), for student/teacher visibility
+export const fetchNotificationsGlobalPaged = async (limit = 10, offset = 0) => {
+  const from = offset;
+  const to = offset + limit - 1;
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .is("user_id", null)
+    .is("user_role", null)
+    .order("date", { ascending: false })
+    .range(from, to);
   return { data, error };
 };
 
@@ -1089,16 +1313,14 @@ export const getAssignmentSubmissionRateBySubject = async (subjectId) => {
     return { submitted: 0, total: 0 };
   const assignmentIds = assignments.map((a) => a.id);
   if (!assignmentIds.length) return { submitted: 0, total: 0 };
-  // For each assignment, check if there is at least one submission
-  let submitted = 0;
-  for (const id of assignmentIds) {
-    const { data: subs, error: sError } = await supabase
-      .from("submissions")
-      .select("id")
-      .eq("assignment_id", id);
-    if (!sError && subs && subs.length > 0) submitted++;
-  }
-  return { submitted, total: assignmentIds.length };
+  // Single batched query: get submissions for all assignments and count distinct assignment_ids
+  const { data: subsAll, error: sError } = await supabase
+    .from("submissions")
+    .select("assignment_id")
+    .in("assignment_id", assignmentIds);
+  if (sError) return { submitted: 0, total: assignmentIds.length };
+  const submittedSet = new Set((subsAll || []).map((s) => s.assignment_id));
+  return { submitted: submittedSet.size, total: assignmentIds.length };
 };
 
 /**
@@ -1124,14 +1346,13 @@ export const getTeacherStudentPerformanceStats = async (teacherId) => {
       needsAttentionNames: [],
     };
   }
-  // 2. Get all students in these classes
-  let allStudents = [];
-  for (const classId of classIds) {
-    const students = await getStudentsByClass(classId);
-    allStudents = allStudents.concat(
-      (students || []).map((item) => item.student?.id).filter(Boolean)
-    );
-  }
+  // 2. Get all students in these classes (batched)
+  const { data: scRows, error: scError } = await supabase
+    .from("student_classes")
+    .select("student_id, class_id")
+    .in("class_id", classIds);
+  if (scError) throw scError;
+  let allStudents = (scRows || []).map((r) => r.student_id).filter(Boolean);
   // Remove duplicates
   allStudents = Array.from(new Set(allStudents));
   const totalStudents = allStudents.length;
@@ -1150,31 +1371,26 @@ export const getTeacherStudentPerformanceStats = async (teacherId) => {
   // 3. Get all assignments for this teacher
   const assignments = await getAssignmentsByTeacher(teacherId);
   const assignmentIds = assignments.map((a) => a.id);
-  // 4. Get all submissions and grades directly (like TeacherAnalytics)
+  // 4. Get all submissions for these assignments in one query, including grades
   let allGradeValues = [];
   let studentGradeMap = {};
   let allSubmissions = [];
-
-  for (const assignment of assignments) {
-    const submissions = await fetchAssignmentSubmissions(assignment.id);
-    allSubmissions = allSubmissions.concat(submissions || []);
-
-    for (const submission of submissions) {
-      // Extract grade directly from submission (like TeacherAnalytics)
+  if (assignmentIds.length > 0) {
+    const { data: subs, error: subsError } = await supabase
+      .from("submissions")
+      .select("id, student_id, assignment_id, submitted_at, grade:grades(grade)")
+      .in("assignment_id", assignmentIds);
+    if (subsError) throw subsError;
+    allSubmissions = subs || [];
+    for (const submission of allSubmissions) {
       const gradeValue = submission.grade?.grade;
-
       if (gradeValue !== undefined && gradeValue !== null) {
         const numericGrade = Number(gradeValue);
-
         if (!isNaN(numericGrade)) {
           allGradeValues.push(numericGrade);
-
-          // Track grades per student for performance stats
           const studentId = submission.student_id;
           if (studentId) {
-            if (!studentGradeMap[studentId]) {
-              studentGradeMap[studentId] = [];
-            }
+            if (!studentGradeMap[studentId]) studentGradeMap[studentId] = [];
             studentGradeMap[studentId].push(numericGrade);
           }
         }
@@ -1217,69 +1433,50 @@ export const getTeacherStudentPerformanceStats = async (teacherId) => {
     });
   }
 
+  // Fetch attendance for all students in a single query over the last 30 days
+  const fromISO = thirtyDaysAgo.toISOString().split("T")[0];
+  const toISO = now.toISOString().split("T")[0];
+  const { data: attendanceAll, error: attError } = await supabase
+    .from("attendance")
+    .select("id, student_id, status, date")
+    .in("student_id", allStudents)
+    .gte("date", fromISO)
+    .lte("date", toISO);
+  if (attError) throw attError;
+  const attendanceByStudent = {};
+  for (const a of attendanceAll || []) {
+    if (!attendanceByStudent[a.student_id]) attendanceByStudent[a.student_id] = [];
+    attendanceByStudent[a.student_id].push(a);
+  }
+
   for (const studentId of allStudents) {
-    // Attendance
-    const attendance = await getAttendanceByStudent(
-      studentId,
-      thirtyDaysAgo.toISOString().split("T")[0],
-      now.toISOString().split("T")[0]
-    );
-    if (attendance && attendance.length > 0) {
-      const presentCount = attendance.filter(
-        (a) => a.status === "present"
-      ).length;
+    const attendance = attendanceByStudent[studentId] || [];
+    if (attendance.length > 0) {
+      const presentCount = attendance.filter((a) => a.status === "present").length;
       const totalSessions = attendance.length;
-      const attendanceRate =
-        totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
+      const attendanceRate = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
       totalAttendance += attendanceRate;
-      // Recent activity (attendance)
-      const recentAttendance = attendance.filter(
-        (a) => new Date(a.date) >= sevenDaysAgo
-      );
+      const recentAttendance = attendance.filter((a) => new Date(a.date) >= sevenDaysAgo);
       if (recentAttendance.length > 0) {
         recentActivity++;
       }
     }
     // Grades - use the pre-calculated student grade map
     const studentGrades = studentGradeMap[studentId] || [];
-
     if (studentGrades.length > 0) {
-      const avgGrade =
-        studentGrades.reduce((sum, grade) => sum + grade, 0) /
-        studentGrades.length;
-
+      const avgGrade = studentGrades.reduce((sum, grade) => sum + grade, 0) / studentGrades.length;
       const studentName = studentNameMap[studentId] || `Student ${studentId}`;
-
       if (avgGrade >= 85) {
         highPerformers++;
-        highPerformerNames.push({
-          name: studentName,
-          averageGrade: Math.round(avgGrade),
-        });
+        highPerformerNames.push({ name: studentName, averageGrade: Math.round(avgGrade) });
       } else if (avgGrade < 60) {
         needsAttention++;
-        needsAttentionNames.push({
-          name: studentName,
-          averageGrade: Math.round(avgGrade),
-        });
+        needsAttentionNames.push({ name: studentName, averageGrade: Math.round(avgGrade) });
       }
-
-      console.log(
-        `Student ${studentName}: ${
-          studentGrades.length
-        } grades, avg: ${avgGrade.toFixed(2)}, grades: [${studentGrades.join(
-          ", "
-        )}]`
-      );
-
-      // Recent activity (assignment submission)
+      console.log(`Student ${studentName}: ${studentGrades.length} grades, avg: ${avgGrade.toFixed(2)}, grades: [${studentGrades.join(", ")} ]`);
       const recentSubmission = allSubmissions.find((s) => {
         const submittedAt = s.submitted_at ? new Date(s.submitted_at) : null;
-        return (
-          s.student_id === studentId &&
-          submittedAt &&
-          submittedAt >= sevenDaysAgo
-        );
+        return s.student_id === studentId && submittedAt && submittedAt >= sevenDaysAgo;
       });
       if (recentSubmission) recentActivity++;
     }
@@ -1359,26 +1556,211 @@ export const getExamItemsByCategory = async (categoryId, limit) => {
 
 // Create a new exam item
 // exam: { details, files, category, created_at? }
-export const createExamItem = async (exam) => {
+export const createExamItem = async (exam, actor) => {
   const { data, error } = await supabase.from("exam").insert([exam]);
+  if (!error) {
+    await logActivitySafe(`Exam item created (category=${exam?.category || "n/a"}).`, "exam", actor);
+  }
   return { data, error };
 };
 
 // Update an exam item by id
-export const updateExamItem = async (id, updates) => {
+export const updateExamItem = async (id, updates, actor) => {
   const { data, error } = await supabase
     .from("exam")
     .update(updates)
     .eq("id", id)
     .select();
+  if (!error) {
+    await logActivitySafe(`Exam item id=${id} updated.`, "exam", actor);
+  }
   return { data, error };
 };
 
 // Delete an exam item by id
-export const deleteExamItem = async (id) => {
+export const deleteExamItem = async (id, actor) => {
   const { data, error } = await supabase
     .from("exam")
     .delete()
     .eq("id", id);
+  if (!error) {
+    await logActivitySafe(`Exam item id=${id} deleted.`, "exam", actor);
+  }
   return { data, error };
+};
+
+// ------------------- LIGHTWEIGHT COUNTS -------------------
+export const countStudents = async () => {
+  const { count, error } = await supabase
+    .from("students")
+    .select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+export const countTeachers = async () => {
+  const { count, error } = await supabase
+    .from("teachers")
+    .select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+export const countAssignments = async () => {
+  const { count, error } = await supabase
+    .from("assignments")
+    .select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+export const countNotices = async () => {
+  const { count, error } = await supabase
+    .from("notices")
+    .select("notice_id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+export const countClasses = async () => {
+  const { count, error } = await supabase
+    .from("classes")
+    .select("class_id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+export const countDepartments = async () => {
+  const { count, error } = await supabase
+    .from("departments")
+    .select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+};
+
+// ------------------- GROUPED EXPORTS (non-breaking) -------------------
+export const StudentsAPI = {
+  fetch: fetchStudents,
+  fetchById: fetchStudentProfileById,
+  create: createStudent,
+  updateByRegNo: updateStudent,
+  updateProfile: updateStudentProfile,
+  updatePassword: updateStudentPassword,
+  delete: deleteStudent,
+  attendanceByStudent: getAttendanceByStudent,
+  assignmentsForStudent: getAssignmentsForStudent,
+  submissionsForStudent: getSubmissionsForStudent,
+  feedbackForStudent: getFeedbackForStudent,
+  count: countStudents,
+};
+
+export const TeachersAPI = {
+  fetch: fetchTeachers,
+  fetchById: fetchTeacherProfileById,
+  create: createTeacher,
+  delete: deleteTeacher,
+  updateProfile: updateTeacherProfile,
+  updatePassword: updateTeacherPassword,
+  departmentsWithClasses: getTeacherDepartmentsWithClasses,
+  classes: getClassesByTeacher,
+  assignments: getAssignmentsByTeacher,
+  grades: getGradesByTeacher,
+  count: countTeachers,
+};
+
+export const ClassesAPI = {
+  fetch: fetchClasses,
+  fetchById: getClassById,
+  create: createClass,
+  update: updateClass,
+  enrollStudents: enrollStudentsInClass,
+  removeStudent: removeStudentFromClass,
+  updateStudentClass,
+  studentsByClass: getStudentsByClass,
+  countStudents: getStudentCountByClass,
+  rooms: fetchRooms,
+  sections: fetchSections,
+  count: countClasses,
+};
+
+export const AssignmentsAPI = {
+  fetch: fetchAssignments,
+  fetchSubmissions: fetchAssignmentSubmissions,
+  create: createAssignment,
+  update: updateAssignment,
+  delete: deleteAssignment,
+  updateSubmissionGrade: updateAssignmentSubmissionGrade,
+  recent: fetchRecentAssignments,
+  count: countAssignments,
+};
+
+export const AttendanceAPI = {
+  fetch: fetchAttendance,
+  create: createAttendance,
+  update: updateAttendance,
+  byStudent: getAttendanceByStudent,
+  byClassAndDate: getAttendanceByClassAndDate,
+  byDateRange: getAttendanceByDateRange,
+};
+
+export const DepartmentsAPI = {
+  fetch: fetchDepartments,
+  fetchById: fetchDepartmentById,
+  create: createDepartment,
+  update: updateDepartment,
+  delete: deleteDepartment,
+  count: countDepartments,
+};
+
+export const NoticesAPI = {
+  fetch: fetchNotices,
+  fetchTitles: fetchNoticeTitles,
+  recent: fetchRecentNotices,
+  create: createNotice,
+  update: updateNotice,
+  delete: deleteNotice,
+  count: countNotices,
+};
+
+export const ExamsAPI = {
+  fetchCategories: fetchExamCategories,
+  fetchItems: fetchExamItems,
+  fetchItemsByCategory: getExamItemsByCategory,
+  createItem: createExamItem,
+  updateItem: updateExamItem,
+  deleteItem: deleteExamItem,
+};
+
+export const GalleryAPI = {
+  fetch: fetchGalleryItems,
+  add: addGalleryItems,
+};
+
+export const SubjectsAPI = {
+  fetch: fetchSubjects,
+  get: getSubjects,
+};
+
+export const GradesAPI = {
+  create: createGrade,
+  update: updateGrade,
+  getBySubmissionId: getGradeBySubmissionId,
+};
+
+export const AuthAPI = {
+  signIn,
+  signUp,
+  signOut,
+  getSession,
+  updateUserProfile,
+  updateUserPassword,
+  checkCredentials,
+};
+
+export const NotificationsAPI = {
+  fetch: fetchNotifications,
+  fetchPaged: fetchNotificationsPaged,
+  fetchGlobalPaged: fetchNotificationsGlobalPaged,
+  log: logActivity,
+  logSafe: logActivitySafe,
 };

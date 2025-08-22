@@ -9,6 +9,15 @@ html {
   scrollbar-width: none;
 }
 
+/* Hide scrollbar but keep scrolling (cross-browser) */
+.scrollbar-hidden {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;            /* Chrome, Safari, Opera */
+}
+
 /* PDF Export Styles */
 .pdf-export table {
   border-collapse: collapse;

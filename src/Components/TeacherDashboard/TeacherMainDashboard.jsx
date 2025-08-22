@@ -556,26 +556,17 @@ const TeacherMainDashboard = () => {
               )}
               {/* Activity Detail Modal */}
               {selectedActivity && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                  <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
-                    <button
-                      className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl"
-                      onClick={() => setSelectedActivity(null)}
-                      aria-label="Close"
-                    >
-                      &times;
-                    </button>
-                    <h3 className="text-xl font-bold mb-4">Activity Details</h3>
-                    <div className="mb-2">
+                <Modal title="Activity Details" onClose={() => setSelectedActivity(null)}>
+                  <div className="space-y-3">
+                    <div>
                       <strong>Title:</strong> {selectedActivity.title}
                     </div>
-                    <div className="mb-2">
-                      <strong>Date:</strong>{" "}
-                      {new Date(selectedActivity.created_at).toLocaleString()}
+                    <div>
+                      <strong>Date:</strong> {new Date(selectedActivity.created_at).toLocaleString()}
                     </div>
                     {/* Add more details here if available in selectedActivity */}
                   </div>
-                </div>
+                </Modal>
               )}
             </div>
           </div>
@@ -1088,7 +1079,7 @@ const TeacherMainDashboard = () => {
           title="Grade Assignments"
           onClose={() => setShowGradeModal(false)}
           size="xl"
-          bodyClassName="max-h-[75vh]"
+          bodyClassName="max-h-[80vh] overflow-y-auto"
         >
           <GradeAssignmentsModal
             user={user}

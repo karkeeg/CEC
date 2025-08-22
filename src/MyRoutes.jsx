@@ -32,6 +32,8 @@ import Notices from "./Pages/Notices";
 import NoticeDetail from "./Pages/NoticeDetail";
 import DownloadPage from "./Pages/DownloadPage";
 import AdministrationPage from "./Pages/AdministrationPage";
+import AcademicStaffPage from "./Pages/AcademicStaffPage";
+import AdministrativeStaffPage from "./Pages/AdministrativeStaffPage";
 import ExamCategory from "./Pages/ExamCategory";
 import Profile from "./Components/StudentDashboard/Profile";
 import ForgotPassword from "./Pages/ForgotPassword";
@@ -65,10 +67,11 @@ const MyRoutes = () => {
           <Route path="/notices" element={<Notices />} />
           <Route path="/notices/:id" element={<NoticeDetail />} />
           <Route path="/downloads/:id" element={<DownloadPage />} />
-          <Route
-            path="/staff/administration"
-            element={<AdministrationPage />}
-          />
+          <Route path="/staff/administration"
+            element={<AdministrationPage />} />
+          <Route path="/about/academic-staff" element={<AcademicStaffPage />} />
+          <Route path="/about/administrative-staff" element={<AdministrativeStaffPage />} />
+          
            <Route path="/exam/:id" element={<ExamCategory />} />
         </Route>
         <Route path="/login" element={<Login />} />

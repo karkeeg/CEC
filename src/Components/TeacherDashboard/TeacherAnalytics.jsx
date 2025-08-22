@@ -363,51 +363,9 @@ const TeacherAnalytics = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 break-words min-w-0">
             Analytics
           </h1>
-        </div>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 rounded-lg flex items-center gap-2 font-semibold shadow w-full md:w-auto justify-center">
-          Export pdf <FaFileExport />
-        </button>
+        </div>       
       </div>
-      {/* Filters Row
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4 min-w-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="font-semibold text-base sm:text-lg text-gray-700">
-            Semester
-          </span>
-          <select
-            value={semester}
-            onChange={(e) => setSemester(e.target.value)}
-            className="bg-blue-100 text-blue-900 px-3 sm:px-4 py-2 rounded font-semibold"
-          >
-            <option>Semester I</option>
-            <option>Semester II</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="font-semibold text-base sm:text-lg text-gray-700">
-            Courses:
-          </span>
-          {selectedCourses.map((course, idx) => (
-            <select
-              key={idx}
-              value={course}
-              onChange={(e) => {
-                const newCourses = [...selectedCourses];
-                newCourses[idx] = e.target.value;
-                setSelectedCourses(newCourses);
-              }}
-              className="bg-blue-100 text-blue-900 px-3 sm:px-4 py-2 rounded font-semibold"
-            >
-              <option>Physics</option>
-              <option>Math</option>
-              <option>C programming</option>
-              <option>English</option>
-              <option>Statistics</option>
-            </select>
-          ))}
-        </div>
-      </div> */}
-
+     
       {/* Summary Section: Stat Cards */}
       <div className="mb-8">
         {/* Stats Cards */}
@@ -479,7 +437,6 @@ const TeacherAnalytics = () => {
       </div>
       {/* Main Analytics Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 min-w-0">
-        {/* Left Column: Performance Overview & Absence Alerts */}
         <div className="flex flex-col gap-4 sm:gap-8 min-w-0">
           {/* Performance Overview */}
           <div className="bg-blue-100 rounded-xl p-3 sm:p-4 shadow flex flex-col items-center min-w-0">
