@@ -192,7 +192,7 @@ const AdminHeader = ({ onHamburgerClick }) => {
                 </div>
               </div>
               {notifications.length === 0 ? (
-                <div className="px-4 py-4 text-gray-500">No notifications.</div>
+                <div className="px-4 py-4 text-gray-500">No notification.</div>
               ) : (
                 <>
                   {[...notifications]
