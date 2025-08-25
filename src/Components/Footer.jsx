@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaFacebookF, FaYoutube, FaInstagram } from "react-icons/fa";
 import logo from "../assets/logo.png";
-import { Link } from "react-router-dom";
-import emailjs from "emailjs-com";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
+import { fetchDownloadCategories } from "../supabaseConfig/supabaseApi";
+import { sendInquiry } from "../utils/emailService";
 
 const Footer = () => {
   const [formData, setFormData] = useState({
@@ -13,51 +14,58 @@ const Footer = () => {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [downloadCats, setDownloadCats] = useState([]);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cats = await fetchDownloadCategories();
+        setDownloadCats(cats || []);
+      } catch (e) {
+        setDownloadCats([]);
+      }
+    })();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-
-    emailjs
-      .send(
-        "service_nhdcjry",
-        "template_z430wpr",
-        formData,
-        "oyORtlfQbRmDt0zE5"
-      )
-      .then(() => {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success!',
-          text: 'Message sent successfully!',
-          customClass: {
-            popup: 'swal-small'
-          }
-        });
-        setFormData({ name: "", email: "", message: "" });
-      })
-      .catch((err) => {
-        console.error("EmailJS error:", err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error!',
-          text: 'Failed to send message.',
-          customClass: {
-            popup: 'swal-small'
-          }
-        });
-      })
-      .finally(() => {
-        setSubmitting(false);
+    try {
+      await sendInquiry({
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
+        title: "Website Inquiry",
+        time: new Date().toLocaleString(),
       });
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Message sent successfully!',
+        customClass: { popup: 'swal-small' }
+      });
+      setFormData({ name: "", email: "", message: "" });
+    } catch (err) {
+      console.error("Inquiry email error:", err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to send message.',
+        customClass: { popup: 'swal-small' }
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <footer className="bg-[#1f459f] text-white w-full">
+    <footer id="contact" className="bg-[#1f459f] text-white w-full scroll-mt-24">
       <div
         className="max-w-[1440px] mx-auto flex flex-col lg:flex-row flex-wrap gap-16 px-6 md:px-12 lg:px-[120px] py-[64px]"
         style={{ minHeight: "460px" }}
@@ -138,16 +146,30 @@ const Footer = () => {
             <h4 className="text-lg font-bold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm font-semibold text-gray-300">
               <li>
-                <a href="#">INTRODUCTION</a>
+                <Link
+                  to="/"
+                  onClick={(e) => {
+                    if (location.pathname === "/") {
+                      e.preventDefault();
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
+                >
+                  INTRODUCTION
+                </Link>
               </li>
               <li>
                 <a href="#">ADMISSIONS</a>
               </li>
               <li>
-                <a href="#">DOWNLOADS</a>
+                {downloadCats.length > 0 ? (
+                  <Link to={`/downloads/${downloadCats[0].id}`}>DOWNLOADS</Link>
+                ) : (
+                  <span className="opacity-70 cursor-not-allowed">DOWNLOADS</span>
+                )}
               </li>
               <li>
-                <a href="#">NOTICE</a>
+                <Link to="/notices">NOTICE</Link>
               </li>
             </ul>
           </div>

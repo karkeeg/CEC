@@ -418,6 +418,11 @@ const MainDashboard = () => {
     await fetchStats();
     if (student && student.name && student.email) {
       try {
+        await sendConfirmationEmail({
+          to_name: student.name,
+          to_email: student.email,
+          role: "student",
+        });
         Swal.fire({
         icon: 'success',
         title: 'Email Sent',

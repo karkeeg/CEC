@@ -7,6 +7,7 @@ body {
 }
 html {
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 
 /* Hide scrollbar but keep scrolling (cross-browser) */
