@@ -11,9 +11,9 @@ const AdminHeader = ({ onHamburgerClick }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [allNotifications, setAllNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   const PAGE_SIZE = 10;
   const [badgeUnreadCount, setBadgeUnreadCount] = useState(0);
 
@@ -67,61 +67,50 @@ const AdminHeader = ({ onHamburgerClick }) => {
     persistRead(next);
   };
 
-  // Load initial page when dropdown opens
+  // Load all notifications when dropdown opens
   useEffect(() => {
-    const loadInitial = async () => {
+    const loadNotifications = async () => {
       if (!showNotifDropdown) return;
       setIsLoading(true);
       try {
-        const { data, error } = await fetchNotificationsPaged(PAGE_SIZE, 0);
+        // Fetch all notifications (using a larger page size)
+        const { data, error } = await fetchNotificationsPaged(100, 0);
         if (!error) {
-          setNotifications(data || []);
-          setOffset((data?.length || 0));
-          setHasMore((data?.length || 0) === PAGE_SIZE);
+          // Sort by date (newest first)
+          const sorted = (data || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+          setAllNotifications(sorted);
+          // Show only the first PAGE_SIZE notifications
+          setNotifications(sorted.slice(0, PAGE_SIZE));
+          setShowAll(false);
         }
-      } catch (_) {
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+        setAllNotifications([]);
         setNotifications([]);
-        setHasMore(false);
       } finally {
         setIsLoading(false);
       }
     };
-    loadInitial();
+    loadNotifications();
   }, [showNotifDropdown]);
 
-  const loadMore = async () => {
-    if (isLoading || !hasMore) return;
-    setIsLoading(true);
-    try {
-      const { data, error } = await fetchNotificationsPaged(PAGE_SIZE, offset);
-      if (!error) {
-        const next = data || [];
-        setNotifications((prev) => [...prev, ...next]);
-        setOffset(offset + next.length);
-        setHasMore(next.length === PAGE_SIZE);
-      }
-    } catch (_) {
-      // ignore
-    } finally {
-      setIsLoading(false);
+  // Toggle between showing all notifications and just the first PAGE_SIZE
+  const toggleShowAll = () => {
+    if (showAll) {
+      setNotifications(allNotifications.slice(0, PAGE_SIZE));
+    } else {
+      setNotifications(allNotifications);
     }
-  };
-
-  const onScroll = (e) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 24) {
-      loadMore();
-    }
+    setShowAll(!showAll);
   };
 
   // Background polling for unread badge
   useEffect(() => {
     let timer;
-    const computeBadge = async () => {
+    const computeBadge = () => {
       try {
-        const { data } = await fetchNotificationsPaged(10, 0);
-        const list = data || [];
-        const count = list.reduce((acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc), 0);
+        // Use the already loaded notifications for unread count
+        const count = allNotifications.reduce((acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc), 0);
         setBadgeUnreadCount(count);
       } catch {
         // ignore
@@ -130,7 +119,7 @@ const AdminHeader = ({ onHamburgerClick }) => {
     computeBadge();
     timer = setInterval(computeBadge, 30000);
     return () => timer && clearInterval(timer);
-  }, [readIds]);
+  }, [readIds, allNotifications]);
 
   const getUserDisplayName = () => {
     if (user?.user_metadata?.display_name) {
@@ -186,7 +175,7 @@ const AdminHeader = ({ onHamburgerClick }) => {
             >
               <div className="px-4 py-2 text-lg font-semibold bg-[#1E449D] text-white rounded-t-md flex items-center justify-between">
                 <span>Notifications</span>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2">
                   <button onClick={markAllAsUnread} className="text-xs text-white hover:underline">Mark all unread</button>
                   <button onClick={markAllAsRead} className="text-xs text-white hover:underline">Mark all read</button>
                 </div>
@@ -216,17 +205,16 @@ const AdminHeader = ({ onHamburgerClick }) => {
                         </div>
                       );
                     })}
-                  <div className="flex gap-2 justify-center mt-2 py-2">
-                    {hasMore && (
+                  {allNotifications.length > PAGE_SIZE && (
+                    <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-2 text-center">
                       <button
-                        disabled={isLoading}
-                        className={`px-3 py-1 rounded text-white ${isLoading ? "bg-blue-300" : "bg-blue-500 hover:bg-blue-600"}`}
-                        onClick={loadMore}
+                        onClick={toggleShowAll}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                       >
-                        {isLoading ? "Loading..." : "Load more"}
+                        {showAll ? 'Show Less' : `Show All (${allNotifications.length})`}
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

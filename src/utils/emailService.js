@@ -24,7 +24,7 @@ let title = "Registration Confirmation ";
 
 
   await emailjs.send(
-    "service_3a5hpe6",
+    SERVICE_ID,
     templateId,
     {
       title,

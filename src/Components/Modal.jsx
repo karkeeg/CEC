@@ -5,15 +5,17 @@ const Modal = ({ title, children, onClose, size = "md", contentClassName = "", b
     size === "sm"
       ? "max-w-md"
       : size === "lg"
-      ? "max-w-2xl"
-      : size === "xl"
       ? "max-w-4xl"
-      : "max-w-lg"; // md default
+      : size === "xl"
+      ? "max-w-6xl"
+      : size === "full"
+      ? "max-w-[95vw] w-[780px]"
+      : "max-w-2xl"; // md default
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div
-        className={`bg-white rounded-2xl w-full ${sizeClass} relative shadow-lg max-h-[90vh] flex flex-col mx-4 ${contentClassName}`}
+        className={`bg-white rounded-2xl w-full ${sizeClass} relative shadow-lg max-h-[90vh] flex flex-col mx-auto my-4 ${contentClassName}`}
         style={{ overflow: "visible" }}
       >
         {/* Modal Header */}

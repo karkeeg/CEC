@@ -683,6 +683,7 @@ const TeacherMainDashboard = () => {
         <Modal
           title="Take Attendance"
           onClose={() => setShowAttendanceModal(false)}
+          size="full"
         >
           <AttendanceForm
             user={user}

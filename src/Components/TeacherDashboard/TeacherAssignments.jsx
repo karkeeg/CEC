@@ -369,7 +369,7 @@ const TeacherAssignments = () => {
                   key={cls.id || cls.class_id}
                   value={cls.id || cls.class_id}
                 >
-                  {cls.name} ({cls.department})
+                  {cls.name}
                 </option>
               ))}
             </select>
