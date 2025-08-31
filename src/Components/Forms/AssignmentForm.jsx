@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   createAssignment,
+  getAllClasses,
   getAllSubjects,
   getAllTeachers,
   logActivity,
 } from "../../supabaseConfig/supabaseApi";
 import supabase from "../../supabaseConfig/supabaseClient";
 import Swal from 'sweetalert2';
+import { fetchClasses } from './../../supabaseConfig/supabaseApi';
 
 const inputStyle = "border border-gray-300 rounded px-3 py-2 w-full";
 
@@ -38,6 +40,7 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
   });
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [currentTeacherName, setCurrentTeacherName] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -49,6 +52,15 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
         if (data) setSubjects(data);
       } catch (error) {
         console.error("Error fetching subjects:", error);
+      }
+    };
+
+    const fetchClass = async () => {
+      try {
+        const data = await getAllClasses();
+        if (data) setClasses(data);
+      } catch (error) {
+        console.error("Error fetching classes:", error);
       }
     };
     const fetchTeachers = async () => {
@@ -70,6 +82,7 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
     };
     fetchSubjects();
     fetchTeachers();
+    fetchClass();
   }, [currentUser]);
 
   const handleChange = (e) => {
@@ -167,6 +180,9 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
         onChange={handleChange}
         rows={3}
       />
+      <div className="flex flex-col md:flex-row gap-2">
+
+      
       <select
         name="subject_id"
         className={inputStyle}
@@ -180,6 +196,20 @@ export const AssignmentForm = ({ onClose, onSuccess, currentUser }) => {
           </option>
         ))}
       </select>
+      <select
+        name="class_id"
+        className={inputStyle}
+        value={form.class_id}
+        onChange={handleChange}
+      >
+        <option value="">Select Classes*</option>
+        {classes.map((c) => (
+          <option key={c.class_id} value={c.class_id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      </div>
       <input
         name="due_date"
         type="datetime-local"

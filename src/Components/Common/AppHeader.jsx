@@ -12,7 +12,6 @@ import {
   fetchAssignmentSubmissions,
   fetchNotificationsGlobalPaged,
 } from "../../supabaseConfig/supabaseApi";
-// Removed Modal for notifications per request
 
 const typeBgClass = {
   notice: "bg-blue-100",
@@ -31,27 +30,27 @@ const typeBgClass = {
 const AppHeader = ({ onHamburgerClick }) => {
   const { user, profile, role: roleCtx, signOut } = useUser();
   const navigate = useNavigate();
-  const role = roleCtx || profile?.role || user?.role || "student"; // expected: 'admin' | 'teacher' | 'student'
+  const role = roleCtx || profile?.role || user?.role || "student";
   const userId = profile?.id || user?.id || null;
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [allNotifications, setAllNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const PAGE_SIZE = 10;
-  // Badge state to reflect new/unread count even when modal is closed
+
   const [badgeUnreadCount, setBadgeUnreadCount] = useState(0);
 
-  // Unread tracking per user+role via localStorage
   const storageKey = useMemo(() => {
     if (!userId) return null;
     return `notif_read_${role}_${userId}`;
   }, [role, userId]);
   const [readIds, setReadIds] = useState(new Set());
 
-  // Sync read IDs whenever the storage key (user/role) changes
   useEffect(() => {
     try {
       if (!storageKey) {
@@ -63,7 +62,6 @@ const AppHeader = ({ onHamburgerClick }) => {
     } catch {
       setReadIds(new Set());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
   const persistRead = (nextSet) => {
@@ -96,21 +94,20 @@ const AppHeader = ({ onHamburgerClick }) => {
     persistRead(next);
   };
 
-  const unreadCount = notifications.reduce((acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc), 0);
+  const unreadCount = notifications.reduce(
+    (acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc),
+    0
+  );
 
-  // Load initial page when dropdown opens (role-aware)
   useEffect(() => {
-    const loadInitial = async () => {
+    const loadNotifications = async () => {
       if (!showNotifDropdown) return;
       setIsLoading(true);
       try {
+        let items = [];
         if (role === "admin") {
-          const { data, error } = await fetchNotificationsPaged(PAGE_SIZE, 0);
-          if (!error) {
-            setNotifications(data || []);
-            setOffset((data?.length || 0));
-            setHasMore((data?.length || 0) === PAGE_SIZE);
-          }
+          const { data, error } = await fetchNotificationsPaged(50, 0);
+          if (!error) items = data || [];
         } else if (role === "student" && userId) {
           const now = new Date();
           const fromDate = new Date();
@@ -121,27 +118,18 @@ const AppHeader = ({ onHamburgerClick }) => {
             getAttendanceByStudent(userId, fromDate.toISOString(), now.toISOString()).catch(() => []),
             fetchNotificationsGlobalPaged(20, 0).then(r => r.data || []).catch(() => []),
           ]);
-          const items = [];
           for (const n of notices || []) {
             items.push({ id: `notice_${n.notice_id}`, type: "notice", message: `Notice: ${n.title}`, date: n.created_at });
           }
           for (const a of assignments || []) {
-            items.push({ id: `assign_${a.id}`, type: "assignment", message: `New assignment: ${a.title} (${a.subject?.name || "Subject"}) due ${new Date(a.due_date).toLocaleString()}`, date: a.due_date });
+            items.push({ id: `assign_${a.id}`, type: "assignment", message: `New assignment: ${a.title}`, date: a.due_date });
           }
           for (const att of attendance || []) {
-            items.push({ id: `att_${att.id}`, type: "attendance", message: `Attendance marked ${att.status} on ${att.date}`, date: att.date });
+            items.push({ id: `att_${att.id}`, type: "attendance", message: `Attendance marked ${att.status}`, date: att.date });
           }
-          // Global notifications (from notifications table, actor null)
           for (const g of globalPage || []) {
             items.push({ id: `global_${g.id || g.date}`, type: g.type || "notice", message: g.message, date: g.date });
           }
-          items.sort((a, b) => new Date(b.date) - new Date(a.date));
-          // client-side pagination
-          setNotifications(items.slice(0, PAGE_SIZE));
-          setOffset(PAGE_SIZE);
-          setHasMore(items.length > PAGE_SIZE);
-          // keep full list in closure for loadMore
-          window.__roleItemsCache = items;
         } else if (role === "teacher" && userId) {
           const now = new Date();
           const fromDate = new Date();
@@ -151,153 +139,66 @@ const AppHeader = ({ onHamburgerClick }) => {
             getAssignmentsByTeacher(userId).catch(() => []),
             fetchNotificationsGlobalPaged(20, 0).then(r => r.data || []).catch(() => []),
           ]);
-          const items = [];
           for (const n of notices || []) {
             items.push({ id: `notice_${n.notice_id}`, type: "notice", message: `Notice: ${n.title}`, date: n.created_at });
           }
-          const dueSoonThreshold = new Date();
-          dueSoonThreshold.setDate(dueSoonThreshold.getDate() + 7);
           for (const a of teacherAssignments || []) {
-            // upcoming due item
-            if (a.due_date && new Date(a.due_date) <= dueSoonThreshold) {
-              items.push({ id: `assign_due_${a.id}` , type: "assignment", message: `Assignment due soon: ${a.title} (${a.subject?.name || "Subject"}) on ${new Date(a.due_date).toLocaleString()}`, date: a.due_date });
-            }
-            // submission items
             try {
               const subs = await fetchAssignmentSubmissions(a.id);
               for (const s of subs || []) {
-                items.push({ id: `sub_${s.id}`, type: "submission", message: `New submission for ${a.title} by ${s.student?.first_name ? `${s.student.first_name} ${s.student.last_name || ""}`.trim() : (s.student?.reg_no || "student")}` , date: s.submitted_at || s.created_at || a.created_at });
+                items.push({ id: `sub_${s.id}`, type: "submission", message: `New submission for ${a.title}`, date: s.submitted_at || s.created_at });
               }
             } catch {}
           }
-          // Global notifications (from notifications table, actor null)
           for (const g of globalPage || []) {
             items.push({ id: `global_${g.id || g.date}`, type: g.type || "notice", message: g.message, date: g.date });
           }
-          items.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setNotifications(items.slice(0, PAGE_SIZE));
-          setOffset(PAGE_SIZE);
-          setHasMore(items.length > PAGE_SIZE);
-          window.__roleItemsCache = items;
         }
+        items.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setAllNotifications(items);
+        setNotifications(items.slice(0, PAGE_SIZE));
+        setShowAll(false);
+        setHasMore(items.length > PAGE_SIZE);
+        setOffset(PAGE_SIZE);
       } catch {
+        setAllNotifications([]);
         setNotifications([]);
-        setHasMore(false);
       } finally {
         setIsLoading(false);
       }
     };
-    loadInitial();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadNotifications();
   }, [showNotifDropdown, role, userId]);
 
   const loadMore = async () => {
-    if (isLoading || !hasMore) return;
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      if (role === "admin") {
-        const { data, error } = await fetchNotificationsPaged(PAGE_SIZE, offset);
-        if (!error) {
-          const next = data || [];
-          setNotifications((prev) => [...prev, ...next]);
-          setOffset(offset + next.length);
-          setHasMore(next.length === PAGE_SIZE);
-        }
-      } else {
-        const all = window.__roleItemsCache || [];
-        const next = all.slice(offset, offset + PAGE_SIZE);
-        setNotifications((prev) => [...prev, ...next]);
-        setOffset(offset + next.length);
-        setHasMore(all.length > offset + next.length);
-      }
-    } catch {
-      // ignore
+      const nextItems = allNotifications.slice(offset, offset + PAGE_SIZE);
+      setNotifications((prev) => [...prev, ...nextItems]);
+      setOffset(offset + nextItems.length);
+      setHasMore(allNotifications.length > offset + nextItems.length);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onScroll = (e) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 24) {
-      loadMore();
-    }
-  };
-
-  // Background polling to update unread/new badge even when modal is closed
   useEffect(() => {
     let timer;
     const computeBadge = async () => {
       try {
-        let firstPage = [];
-        if (role === "admin") {
-          const { data } = await fetchNotificationsPaged(10, 0);
-          firstPage = data || [];
-        } else if (role === "student" && userId) {
-          const now = new Date();
-          const fromDate = new Date();
-          fromDate.setDate(now.getDate() - 7);
-          const [notices, assignments, attendance, globalPage] = await Promise.all([
-            getRecentNotices(20).catch(() => []),
-            getAssignmentsForStudent(userId, fromDate.toISOString()).catch(() => []),
-            getAttendanceByStudent(userId, fromDate.toISOString(), now.toISOString()).catch(() => []),
-            fetchNotificationsGlobalPaged(10, 0).then(r => r.data || []).catch(() => []),
-          ]);
-          const items = [];
-          for (const n of notices || []) {
-            items.push({ id: `notice_${n.notice_id}`, date: n.created_at, type: "notice", message: n.title });
-          }
-          for (const a of assignments || []) {
-            items.push({ id: `assign_${a.id}`, date: a.due_date, type: "assignment", message: a.title });
-          }
-          for (const att of attendance || []) {
-            items.push({ id: `att_${att.id}`, date: att.date, type: "attendance", message: att.status });
-          }
-          for (const g of globalPage || []) {
-            items.push({ id: `global_${g.id || g.date}`, date: g.date, type: g.type || "notice", message: g.message });
-          }
-          items.sort((a, b) => new Date(b.date) - new Date(a.date));
-          firstPage = items.slice(0, 10);
-        } else if (role === "teacher" && userId) {
-          const now = new Date();
-          const [notices, teacherAssignments, globalPage] = await Promise.all([
-            getRecentNotices(20).catch(() => []),
-            getAssignmentsByTeacher(userId).catch(() => []),
-            fetchNotificationsGlobalPaged(10, 0).then(r => r.data || []).catch(() => []),
-          ]);
-          const items = [];
-          for (const n of notices || []) {
-            items.push({ id: `notice_${n.notice_id}`, date: n.created_at, type: "notice", message: n.title });
-          }
-          const dueSoonThreshold = new Date();
-          dueSoonThreshold.setDate(dueSoonThreshold.getDate() + 7);
-          for (const a of teacherAssignments || []) {
-            if (a.due_date && new Date(a.due_date) <= dueSoonThreshold) {
-              items.push({ id: `assign_due_${a.id}`, date: a.due_date, type: "assignment", message: a.title });
-            }
-            try {
-              const subs = await fetchAssignmentSubmissions(a.id);
-              for (const s of subs || []) {
-                items.push({ id: `sub_${s.id}`, date: s.submitted_at || s.created_at || a.created_at, type: "submission", message: a.title });
-              }
-            } catch {}
-          }
-          for (const g of globalPage || []) {
-            items.push({ id: `global_${g.id || g.date}`, date: g.date, type: g.type || "notice", message: g.message });
-          }
-          items.sort((a, b) => new Date(b.date) - new Date(a.date));
-          firstPage = items.slice(0, 10);
-        }
-        const count = firstPage.reduce((acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc), 0);
+        const latest = allNotifications.slice(0, 10);
+        const count = latest.reduce(
+          (acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc),
+          0
+        );
         setBadgeUnreadCount(count);
-      } catch {
-        // ignore badge errors
-      }
+      } catch {}
     };
     computeBadge();
     timer = setInterval(computeBadge, 30000);
-    return () => timer && clearInterval(timer);
-  }, [role, userId, readIds]);
+    return () => clearInterval(timer);
+  }, [readIds, allNotifications]);
 
   const getUserDisplayName = () => {
     if (profile?.first_name || profile?.last_name) {
@@ -338,59 +239,83 @@ const AppHeader = ({ onHamburgerClick }) => {
               </span>
             )}
           </div>
-          {showNotifDropdown && (
-            <div
-              className="absolute right-0  w-80 bg-white rounded-md shadow-lg  z-50 max-h-96 overflow-y-auto scrollbar-hidden"
-            >
-              <div className="px-4 py-2 text-lg font-semibold bg-[#1E449D] text-white rounded-t-md flex items-center justify-between">
-                <span>Notifications</span>
-                <div className="flex items-center gap-3">
-                  <button onClick={markAllAsUnread} className="text-xs text-white hover:underline">Mark all unread</button>
-                  <button onClick={markAllAsRead} className="text-xs text-white hover:underline">Mark all read</button>
+         {showNotifDropdown && (
+  <div className="absolute right-0 w-80 bg-white rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hidden border border-gray-200">
+    {/* Header */}
+    <div className="px-4 py-2 text-lg font-semibold bg-gradient-to-r from-[#1E449D] to-[#2A5AC9] text-white rounded-t-xl flex items-center justify-between">
+      <span>Notifications</span>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={markAllAsUnread}
+          className="text-xs text-white/90 hover:text-white underline transition"
+        >
+          Mark all unread
+        </button>
+        <button
+          onClick={markAllAsRead}
+          className="text-xs text-white/90 hover:text-white underline transition"
+        >
+          Mark all read
+        </button>
+      </div>
+    </div>
+
+    {/* Body */}
+    {notifications.length === 0 ? (
+      <div className="px-4 py-6 text-gray-500 text-center italic">
+        No notifications.
+      </div>
+    ) : (
+      <>
+        {[...notifications]
+          .sort((a, b) => {
+            const aUnread = a.id && !readIds.has(a.id);
+            const bUnread = b.id && !readIds.has(b.id);
+            if (aUnread !== bUnread) return aUnread ? -1 : 1;
+            return new Date(b.date) - new Date(a.date);
+          })
+          .map((notif, idx) => {
+            const isUnread = notif.id && !readIds.has(notif.id);
+            return (
+              <div
+                key={notif.id || idx}
+                className={`px-4 py-3 border-b last:border-b-0 transition rounded-md m-1 cursor-pointer ${
+                  typeBgClass[notif.type] || typeBgClass.default
+                } ${isUnread ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"}`}
+                onClick={() => toggleReadOne(notif.id)}
+              >
+                <div className="font-medium text-gray-900 text-sm">
+                  {notif.message}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {new Date(notif.date).toLocaleString()}
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1 italic">
+                  {isUnread ? "Click to mark as read" : "Click to mark as unread"}
                 </div>
               </div>
-              {notifications.length === 0 ? (
-                <div className="px-4 py-4 text-gray-500">No notifications.</div>
-              ) : (
-                <>
-                  {[...notifications]
-                    .sort((a, b) => {
-                      const aUnread = a.id && !readIds.has(a.id);
-                      const bUnread = b.id && !readIds.has(b.id);
-                      if (aUnread !== bUnread) return aUnread ? -1 : 1;
-                      return new Date(b.date) - new Date(a.date);
-                    })
-                    .map((notif, idx) => {
-                      const isUnread = notif.id && !readIds.has(notif.id);
-                      return (
-                        <div
-                          key={notif.id || idx}
-                          className={`px-4 py-2 border-b last:border-b-0 ${
-                            typeBgClass[notif.type] || typeBgClass.default
-                          } ${isUnread ? "bg-opacity-90" : "opacity-100"}`}
-                          onClick={() => toggleReadOne(notif.id)}
-                        >
-                          <div className="font-medium text-gray-900">{notif.message}</div>
-                          <div className="text-xs text-gray-500">{new Date(notif.date).toLocaleString()}</div>
-                          <div className="text-[10px] text-gray-400 mt-1">{isUnread ? "(click to mark read)" : "(click to mark unread)"}</div>
-                        </div>
-                      );
-                    })}
-                  <div className="flex gap-2 justify-center mt-2 py-2">
-                    {hasMore && (
-                      <button
-                        disabled={isLoading}
-                        className={`px-3 py-1 rounded text-white ${isLoading ? "bg-blue-300" : "bg-blue-500 hover:bg-blue-600"}`}
-                        onClick={loadMore}
-                      >
-                        {isLoading ? "Loading..." : "Load more"}
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+            );
+          })}
+        <div className="flex gap-2 justify-center mt-3 py-2">
+          {hasMore && (
+            <button
+              disabled={isLoading}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium shadow transition ${
+                isLoading
+                  ? "bg-blue-300 text-white cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+              onClick={loadMore}
+            >
+              {isLoading ? "Loading..." : "Show More"}
+            </button>
           )}
+        </div>
+      </>
+    )}
+  </div>
+)}
+
         </div>
 
         {/* Profile Dropdown */}

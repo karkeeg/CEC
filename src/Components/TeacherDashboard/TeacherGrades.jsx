@@ -376,7 +376,7 @@ const TeacherGrades = () => {
                 <option value="">All Assignments</option>
                 {assignments.map((assignment) => (
                   <option key={assignment.id} value={assignment.id}>
-                    {assignment.title} - {assignment.class?.name}
+                    {assignment.title} {assignment.class?.name}
                   </option>
                 ))}
               </select>
