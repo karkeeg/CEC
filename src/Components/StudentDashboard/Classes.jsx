@@ -127,7 +127,7 @@ const Classes = () => {
 
         {/* Card Layout */}
         {loading ? (
-          <p className="p-4">Loading classes...</p>
+          <p className="p-4">Loading classes....</p>
         ) : error ? (
           <p className="p-4 text-red-600">Error: {error.message}</p>
         ) : (
