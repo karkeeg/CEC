@@ -1589,6 +1589,144 @@ export const deleteExamItem = async (id, actor) => {
   return { data, error };
 };
 
+// ------------------- GRADE CALCULATION -------------------
+
+/**
+ * Calculate average grade for a student or class
+ * @param {string} [studentId] - Optional student ID
+ * @param {string} [classId] - Optional class ID (requires teacherId if provided)
+ * @param {string} [teacherId] - Required if classId is provided
+ * @returns {Promise<{averageGrade: number, totalGrades: number}>} Average grade and count of grades
+ */
+/**
+ * Get submission statistics for a teacher's assignments
+ * @param {string} teacherId - ID of the teacher
+ * @returns {Promise<Array>} Array of assignment submission stats
+ */
+export const getTeacherSubmissionStats = async (teacherId) => {
+  try {
+    if (!teacherId) {
+      throw new Error('teacherId is required');
+    }
+
+    // 1. Get all assignments for the teacher
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from('assignments')
+      .select('id, title, class_id, due_date')
+      .eq('teacher_id', teacherId);
+
+    if (assignmentsError) throw assignmentsError;
+    if (!assignments || assignments.length === 0) return [];
+
+    // 2. Process each assignment to get submission stats
+    const results = await Promise.all(
+      assignments.map(async (assignment) => {
+        // Get total students in the class
+        const { count: totalStudents, error: countError } = await supabase
+          .from('student_classes')
+          .select('student_id', { count: 'exact', head: true })
+          .eq('class_id', assignment.class_id);
+
+        if (countError) throw countError;
+
+        // Get number of submissions for this assignment
+        const { count: submissionCount, error: subsError } = await supabase
+          .from('submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('assignment_id', assignment.id);
+
+        if (subsError) throw subsError;
+
+        const submissionRate = totalStudents > 0 
+          ? Math.round((submissionCount / totalStudents) * 100) 
+          : 0;
+
+        return {
+          assignmentId: assignment.id,
+          title: assignment.title,
+          classId: assignment.class_id,
+          dueDate: assignment.due_date,
+          totalStudents,
+          submissions: submissionCount,
+          submissionRate, // percentage
+          isLate: new Date(assignment.due_date) < new Date()
+        };
+      })
+    );
+
+    return results;
+  } catch (error) {
+    console.error('Error getting teacher submission stats:', error);
+    return [];
+  }
+};
+
+export const getAverageGrade = async ({ studentId, classId, teacherId } = {}) => {
+  try {
+    if (!studentId && !classId) {
+      throw new Error('Either studentId or classId must be provided');
+    }
+
+    if (classId && !teacherId) {
+      throw new Error('teacherId is required when classId is provided');
+    }
+
+    let query = supabase
+      .from('grades')
+      .select('grade, submissions!inner(assignment_id, student_id, assignment:assignments!inner(teacher_id))');
+
+    if (studentId) {
+      query = query.eq('submissions.student_id', studentId);
+    }
+
+    if (classId) {
+      // Get all students in the class
+      const { data: classStudents } = await supabase
+        .from('student_classes')
+        .select('student_id')
+        .eq('class_id', classId);
+      
+      if (!classStudents || classStudents.length === 0) {
+        return { averageGrade: 0, totalGrades: 0 };
+      }
+      
+      const studentIds = classStudents.map(s => s.student_id);
+      query = query.in('submissions.student_id', studentIds);
+    }
+
+    // Filter by teacher if class is specified
+    if (teacherId) {
+      query = query.eq('submissions.assignment.teacher_id', teacherId);
+    }
+
+    const { data: grades, error } = await query;
+    
+    if (error) throw error;
+    if (!grades || grades.length === 0) {
+      return { averageGrade: 0, totalGrades: 0 };
+    }
+
+    const validGrades = grades
+      .map(g => parseFloat(g.grade))
+      .filter(grade => !isNaN(grade) && grade >= 0 && grade <= 100);
+
+    if (validGrades.length === 0) {
+      return { averageGrade: 0, totalGrades: 0 };
+    }
+
+    const sum = validGrades.reduce((acc, grade) => acc + grade, 0);
+    const average = sum / validGrades.length;
+
+    return {
+      averageGrade: parseFloat(average.toFixed(2)),
+      totalGrades: validGrades.length
+    };
+  } catch (error) {
+    console.error('Error calculating average grade:', error);
+    return { averageGrade: 0, totalGrades: 0, error: error.message };
+  }
+};
+
 // ------------------- LIGHTWEIGHT COUNTS -------------------
 export const countStudents = async () => {
   const { count, error } = await supabase

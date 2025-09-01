@@ -36,11 +36,7 @@ const AppHeader = ({ onHamburgerClick }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [allNotifications, setAllNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
   const PAGE_SIZE = 10;
 
   const [badgeUnreadCount, setBadgeUnreadCount] = useState(0);
@@ -85,8 +81,12 @@ const AppHeader = ({ onHamburgerClick }) => {
     persistRead(next);
   };
 
-  const toggleReadOne = (id) => {
+  const toggleReadOne = (id, e) => {
     if (!id) return;
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     const next = new Set(readIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -99,95 +99,111 @@ const AppHeader = ({ onHamburgerClick }) => {
     0
   );
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!showNotifDropdown) return;
-      setIsLoading(true);
-      try {
-        let items = [];
-        if (role === "admin") {
-          const { data, error } = await fetchNotificationsPaged(50, 0);
-          if (!error) items = data || [];
-        } else if (role === "student" && userId) {
-          const now = new Date();
-          const fromDate = new Date();
-          fromDate.setDate(now.getDate() - 30);
-          const [notices, assignments, attendance, globalPage] = await Promise.all([
-            getRecentNotices(50).catch(() => []),
-            getAssignmentsForStudent(userId, fromDate.toISOString()).catch(() => []),
-            getAttendanceByStudent(userId, fromDate.toISOString(), now.toISOString()).catch(() => []),
-            fetchNotificationsGlobalPaged(20, 0).then(r => r.data || []).catch(() => []),
-          ]);
-          for (const n of notices || []) {
-            items.push({ id: `notice_${n.notice_id}`, type: "notice", message: `Notice: ${n.title}`, date: n.created_at });
-          }
-          for (const a of assignments || []) {
-            items.push({ id: `assign_${a.id}`, type: "assignment", message: `New assignment: ${a.title}`, date: a.due_date });
-          }
-          for (const att of attendance || []) {
-            items.push({ id: `att_${att.id}`, type: "attendance", message: `Attendance marked ${att.status}`, date: att.date });
-          }
-          for (const g of globalPage || []) {
-            items.push({ id: `global_${g.id || g.date}`, type: g.type || "notice", message: g.message, date: g.date });
-          }
-        } else if (role === "teacher" && userId) {
-          const now = new Date();
-          const fromDate = new Date();
-          fromDate.setDate(now.getDate() - 30);
-          const [notices, teacherAssignments, globalPage] = await Promise.all([
-            getRecentNotices(50).catch(() => []),
-            getAssignmentsByTeacher(userId).catch(() => []),
-            fetchNotificationsGlobalPaged(20, 0).then(r => r.data || []).catch(() => []),
-          ]);
-          for (const n of notices || []) {
-            items.push({ id: `notice_${n.notice_id}`, type: "notice", message: `Notice: ${n.title}`, date: n.created_at });
-          }
-          for (const a of teacherAssignments || []) {
-            try {
-              const subs = await fetchAssignmentSubmissions(a.id);
-              for (const s of subs || []) {
-                items.push({ id: `sub_${s.id}`, type: "submission", message: `New submission for ${a.title}`, date: s.submitted_at || s.created_at });
-              }
-            } catch {}
-          }
-          for (const g of globalPage || []) {
-            items.push({ id: `global_${g.id || g.date}`, type: g.type || "notice", message: g.message, date: g.date });
-          }
-        }
-        items.sort((a, b) => new Date(b.date) - new Date(a.date));
-        setAllNotifications(items);
-        setNotifications(items.slice(0, PAGE_SIZE));
-        setShowAll(false);
-        setHasMore(items.length > PAGE_SIZE);
-        setOffset(PAGE_SIZE);
-      } catch {
-        setAllNotifications([]);
-        setNotifications([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadNotifications();
-  }, [showNotifDropdown, role, userId]);
-
-  const loadMore = async () => {
-    if (isLoading) return;
+  const loadNotifications = async () => {
+    if (!showNotifDropdown) return;
     setIsLoading(true);
     try {
-      const nextItems = allNotifications.slice(offset, offset + PAGE_SIZE);
-      setNotifications((prev) => [...prev, ...nextItems]);
-      setOffset(offset + nextItems.length);
-      setHasMore(allNotifications.length > offset + nextItems.length);
+      let items = [];
+
+      if (role === "student" && userId) {
+        const now = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(now.getDate() - 30);
+        const [notices, assignments, attendance] = await Promise.all([
+          getRecentNotices(10).catch(() => []),
+          getAssignmentsForStudent(userId, fromDate.toISOString()).catch(() => []),
+          getAttendanceByStudent(userId, fromDate.toISOString(), now.toISOString()).catch(() => []),
+        ]);
+
+        items = [
+          ...(notices?.map((n) => ({
+            id: `notice_${n.notice_id}`,
+            type: "notice",
+            message: `Notice: ${n.title}`,
+            date: n.created_at,
+          })) || []),
+          ...(assignments?.map((a) => ({
+            id: `assign_${a.id}`,
+            type: "assignment",
+            message: `New assignment: ${a.title} (${a.subject?.name || "Subject"})`,
+            date: a.due_date,
+          })) || []),
+          ...(attendance?.map((att) => ({
+            id: `att_${att.id}`,
+            type: "attendance",
+            message: `Attendance marked ${att.status}`,
+            date: att.date,
+          })) || []),
+        ];
+      } else if (role === "teacher" && userId) {
+        const [notices, teacherAssignments] = await Promise.all([
+          getRecentNotices(10).catch(() => []),
+          getAssignmentsByTeacher(userId).catch(() => []),
+        ]);
+
+        const teacherItems = [];
+        
+        // Add notices
+        if (notices?.length) {
+          teacherItems.push(...notices.map(n => ({
+            id: `notice_${n.notice_id}`,
+            type: "notice",
+            message: `Notice: ${n.title}`,
+            date: n.created_at,
+          })));
+        }
+
+        // Process assignments and submissions
+        if (teacherAssignments?.length) {
+          for (const assignment of teacherAssignments) {
+            teacherItems.push({
+              id: `assign_${assignment.id}`,
+              type: "assignment",
+              message: `Your assignment: ${assignment.title}`,
+              date: assignment.due_date,
+            });
+
+            try {
+              const submissions = await fetchAssignmentSubmissions(assignment.id);
+              if (submissions?.length) {
+                teacherItems.push(...submissions.map((s, idx) => ({
+                  id: `sub_${s.id}_${idx}`,
+                  type: "submission",
+                  message: `New submission for ${assignment.title}`,
+                  date: s.submitted_at || s.created_at,
+                })));
+              }
+            } catch (error) {
+              console.error("Error fetching submissions:", error);
+            }
+          }
+        }
+        
+        items = teacherItems;
+      }
+
+      // Sort by date (newest first) and take top 10
+      const sortedItems = items.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setNotifications(sortedItems.slice(0, 10));
+      
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    loadNotifications();
+  }, [showNotifDropdown, role, userId]);
+
+
+  useEffect(() => {
     let timer;
     const computeBadge = async () => {
       try {
-        const latest = allNotifications.slice(0, 10);
+        const latest = notifications.slice(0, 10);
         const count = latest.reduce(
           (acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc),
           0
@@ -198,7 +214,7 @@ const AppHeader = ({ onHamburgerClick }) => {
     computeBadge();
     timer = setInterval(computeBadge, 30000);
     return () => clearInterval(timer);
-  }, [readIds, allNotifications]);
+  }, [readIds, notifications]);
 
   const getUserDisplayName = () => {
     if (profile?.first_name || profile?.last_name) {
@@ -239,83 +255,69 @@ const AppHeader = ({ onHamburgerClick }) => {
               </span>
             )}
           </div>
-         {showNotifDropdown && (
-  <div className="absolute right-0 w-80 bg-white rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hidden border border-gray-200">
-    {/* Header */}
-    <div className="px-4 py-2 text-lg font-semibold bg-gradient-to-r from-[#1E449D] to-[#2A5AC9] text-white rounded-t-xl flex items-center justify-between">
-      <span>Notifications</span>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={markAllAsUnread}
-          className="text-xs text-white/90 hover:text-white underline transition"
-        >
-          Mark all unread
-        </button>
-        <button
-          onClick={markAllAsRead}
-          className="text-xs text-white/90 hover:text-white underline transition"
-        >
-          Mark all read
-        </button>
-      </div>
-    </div>
-
-    {/* Body */}
-    {notifications.length === 0 ? (
-      <div className="px-4 py-6 text-gray-500 text-center italic">
-        No notifications.
-      </div>
-    ) : (
-      <>
-        {[...notifications]
-          .sort((a, b) => {
-            const aUnread = a.id && !readIds.has(a.id);
-            const bUnread = b.id && !readIds.has(b.id);
-            if (aUnread !== bUnread) return aUnread ? -1 : 1;
-            return new Date(b.date) - new Date(a.date);
-          })
-          .map((notif, idx) => {
-            const isUnread = notif.id && !readIds.has(notif.id);
-            return (
-              <div
-                key={notif.id || idx}
-                className={`px-4 py-3 border-b last:border-b-0 transition rounded-md m-1 cursor-pointer ${
-                  typeBgClass[notif.type] || typeBgClass.default
-                } ${isUnread ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"}`}
-                onClick={() => toggleReadOne(notif.id)}
-              >
-                <div className="font-medium text-gray-900 text-sm">
-                  {notif.message}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {new Date(notif.date).toLocaleString()}
-                </div>
-                <div className="text-[10px] text-gray-400 mt-1 italic">
-                  {isUnread ? "Click to mark as read" : "Click to mark as unread"}
+          {showNotifDropdown && (
+            <div className="absolute right-0 w-80 bg-white rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hidden border border-gray-200">
+              {/* Header */}
+              <div className="px-4 py-2 text-lg font-semibold bg-gradient-to-r from-[#1E449D] to-[#2A5AC9] text-white rounded-t-xl flex items-center justify-between">
+                <span>Notifications</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={markAllAsUnread}
+                    className="text-xs text-white/90 hover:text-white underline transition"
+                  >
+                    Mark all unread
+                  </button>
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs text-white/90 hover:text-white underline transition"
+                  >
+                    Mark all read
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        <div className="flex gap-2 justify-center mt-3 py-2">
-          {hasMore && (
-            <button
-              disabled={isLoading}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium shadow transition ${
-                isLoading
-                  ? "bg-blue-300 text-white cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
-              onClick={loadMore}
-            >
-              {isLoading ? "Loading..." : "Show More"}
-            </button>
-          )}
-        </div>
-      </>
-    )}
-  </div>
-)}
 
+              {/* Body */}
+              {notifications.length === 0 ? (
+                <div className="px-4 py-6 text-gray-500 text-center italic">
+                  No notifications.
+                </div>
+              ) : (
+                <>
+                  {[...notifications]
+                    .sort((a, b) => {
+                      const aUnread = a.id && !readIds.has(a.id);
+                      const bUnread = b.id && !readIds.has(b.id);
+                      if (aUnread !== bUnread) return aUnread ? -1 : 1;
+                      return new Date(b.date) - new Date(a.date);
+                    })
+                    .map((notif, idx) => {
+                      const isUnread = notif.id && !readIds.has(notif.id);
+                      return (
+                        <div
+                          key={notif.id || idx}
+                          className={`px-4 py-3 border-b last:border-b-0 transition rounded-md m-1 cursor-pointer ${
+                            isUnread 
+                              ? `${typeBgClass[notif.type] || typeBgClass.default} bg-opacity-50 hover:bg-opacity-75`
+                              : 'bg-white'
+                          }`}
+                          onClick={(e) => toggleReadOne(notif.id, e)}
+                        >
+                          <div className="font-medium text-gray-900 text-sm">
+                            {notif.message}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {new Date(notif.date).toLocaleString()}
+                          </div>
+                          <div className="text-[10px] text-gray-500 mt-1 italic">
+                            {isUnread ? "Click to mark as read" : "Click to mark as unread"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Profile Dropdown */}

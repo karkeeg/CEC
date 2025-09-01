@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   getAllClasses,
   fetchDepartments,
@@ -12,6 +12,7 @@ import {
   FaDoorOpen,
   FaChalkboardTeacher,
   FaInfoCircle,
+  FaSearch,
 } from "react-icons/fa";
 import Modal from "../Modal";
 
@@ -32,6 +33,7 @@ const Classes = () => {
   const [enrolledClassIds, setEnrolledClassIds] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [departmentMap, setDepartmentMap] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -73,10 +75,28 @@ const Classes = () => {
     fetchAllDepartments();
   }, []);
 
-  // Only show classes the student is enrolled in
-  const filteredClasses = classes.filter((cls) =>
-    enrolledClassIds.includes(cls.class_id || cls.id)
-  );
+  // Filter classes based on search term and enrollment
+  const filteredClasses = useMemo(() => {
+    return classes.filter((cls) => {
+      // Check if student is enrolled
+      const isEnrolled = enrolledClassIds.includes(cls.class_id || cls.id);
+      if (!isEnrolled) return false;
+
+      // If no search term, return all enrolled classes
+      if (!searchTerm.trim()) return true;
+
+      const searchLower = searchTerm.toLowerCase();
+      const className = String(cls.name || '').toLowerCase();
+      const subjectName = String(cls.subject?.name || '').toLowerCase();
+      const teacherName = cls.teacher ? 
+        `${cls.teacher.first_name || ''} ${cls.teacher.middle_name || ''} ${cls.teacher.last_name || ''}`.toLowerCase() : '';
+
+      // Search in class name, subject name, or teacher name
+      return className.includes(searchLower) || 
+             subjectName.includes(searchLower) || 
+             teacherName.includes(searchLower);
+    });
+  }, [classes, enrolledClassIds, searchTerm]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-black w-full">
@@ -96,9 +116,12 @@ const Classes = () => {
           <div className="relative w-full sm:w-1/2 lg:w-2/5">
             <input
               type="text"
-              placeholder="Search classes..."
+              placeholder="Search by class, subject, or teacher..."
               className="w-full py-2.5 sm:py-3 pl-4 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm sm:text-base"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <FaSearch className="absolute right-3 top-3.5 text-gray-400" />
           </div>
         </div>
 

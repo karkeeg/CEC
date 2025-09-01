@@ -139,7 +139,7 @@ function VideoSection() {
 
         {/* Subtitle */}
         <p className="mt-4 sm:mt-6 md:mt-8 text-sm sm:text-base md:text-lg lg:text-xl text-gray-300 font-light max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl leading-relaxed">
-          Building Tomorrow's Engineers Today
+          Building Tomorrow's Engineering and Health Professionals!
         </p>
 
         {/* Click hint */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import supabase from "../../supabaseConfig/supabaseClient"; // adjust path
-import { FaLink, FaSearch, FaDownload, FaCheck, FaClock, FaChartBar } from "react-icons/fa";
+import { FaLink, FaSearch, FaDownload, FaCheck, FaClock, FaChartBar, FaFileAlt, FaTimes, FaCloudUploadAlt, FaSpinner, FaExclamationTriangle, FaInfoCircle } from "react-icons/fa";
+import Modal from "../Modal";
 import Swal from 'sweetalert2';
 import { Doughnut, Line, Bar } from "react-chartjs-2";
 import { IoMdArrowDropdown } from "react-icons/io";
@@ -637,211 +638,343 @@ const barOptions = {
           </div>
         </div>
 
-      
         {/* Analytics Section */}
-        
-      <div className="bg-white rounded-xl shadow-lg p-6">
-  <div className="flex items-center gap-2 mb-6">
-    <div className="p-2 bg-green-100 rounded-lg">
-      <IoBookOutline className="text-green-600" />
-    </div>
-    <h2 className="text-xl font-bold text-gray-800">
-      Subject Performance
-    </h2>
-  </div>
-  <div className="h-80">
-    <Bar data={subjectBarData} options={barOptions} />
-  </div>
-</div>
-
-    </div>
-
-      {/* View Modal */}
-      {viewModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-blue-900">
-                  {viewModal.title}
-                </h2>
-                <button
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                  onClick={() => setViewModal(null)}
-                >
-                  ×
-                </button>
-              </div>
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <IoBookOutline className="text-green-600" />
             </div>
-            
-            <div className="px-6 py-4 space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              Subject Performance
+            </h2>
+          </div>
+          <div className="h-80">
+            <Bar data={subjectBarData} options={barOptions} />
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced View Modal */}
+      {viewModal && (
+        <Modal 
+          key="view-modal"
+          title={
+            <div>
+              <h2 className="text-xl font-bold">{viewModal.title}</h2>
+              <p className="text-sm font-normal">{viewModal.subject?.name || 'No Subject'}</p>
+            </div>
+          }
+          onClose={() => setViewModal(null)}
+          size="xl"
+          contentClassName="max-h-[95vh] h-[80vh] overflow-y-auto"
+        >
+          <div className="">
+            {/* Status Badge */}
+            <div>
               {submissionStatus[viewModal.id]?.submitted ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold text-sm mb-2">
-                    ✓ Submitted
-                  </span>
-                  <div className="text-sm text-gray-600">
-                    <strong>Status:</strong> Assignment has been submitted successfully!
-                  </div>
+                <div className="inline-flex items-center bg-green-100 text-green-800 text-sm font-medium  rounded-full">
+                  <FaCheck className="mr-1.5" /> Submitted
                 </div>
               ) : isOverdue(viewModal) ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold text-sm mb-2">
-                    Overdue
-                  </span>
-                  <div className="text-sm text-red-600">
-                    Submission not allowed. The due date has passed.
-                  </div>
+                <div className="inline-flex items-center bg-red-100 text-red-800 text-sm font-medium  rounded-full">
+                  <FaClock className="mr-1.5" /> Overdue
                 </div>
               ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold text-sm mb-2">
-                    Pending
-                  </span>
-                  <div className="text-sm text-yellow-700">
-                    Assignment is pending submission
+                <div className="inline-flex items-center bg-yellow-100 text-yellow-800 text-sm font-medium  rounded-full">
+                  <FaClock className="mr-1.5" /> Pending Submission
+                </div>
+              )}
+            </div>
+
+            {/* Assignment Details */}
+            <div className="p-6 space-y-6">
+              {/* Meta Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-500">Due Date</p>
+                  <p className="font-medium">
+                    {new Date(viewModal.due_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Assigned By</p>
+                  <p className="font-medium">
+                    {viewModal.teacher?.first_name} {viewModal.teacher?.last_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Subject</p>
+                  <p className="font-medium">{viewModal.subject?.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="font-medium">
+                    {submissionStatus[viewModal.id]?.submitted 
+                      ? 'Submitted' 
+                      : isOverdue(viewModal) 
+                        ? 'Overdue' 
+                        : 'Pending'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Assignment Description */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Description</h3>
+                <div className="prose max-w-none text-gray-700 bg-white p-4 border border-gray-200 rounded-lg">
+                  {viewModal.description || 'No description provided for this assignment.'}
+                </div>
+              </div>
+
+              {/* Attached Files */}
+              {viewModal.files && viewModal.files.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Attached Files</h3>
+                  <div className="space-y-2">
+                    {(Array.isArray(viewModal.files) ? viewModal.files : [viewModal.files])
+                      .filter(Boolean)
+                      .map((fileUrl, idx) => (
+                        <a
+                          key={idx}
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="p-2 bg-blue-50 rounded-lg mr-3">
+                            <FaFileAlt className="text-blue-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {fileUrl.split('/').pop()?.split('?')[0] || 'Download File'}
+                            </p>
+                          </div>
+                          <FaDownload className="text-gray-400" />
+                        </a>
+                      ))}
                   </div>
                 </div>
               )}
 
-              <div className="space-y-3">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <strong className="text-gray-700">Subject:</strong>
-                      <span className="ml-2 text-gray-600">{viewModal.subject?.name ?? "Unknown"}</span>
+              {/* Submission Details */}
+              {submissionStatus[viewModal.id]?.submitted && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3">Your Submission</h3>
+                  
+                  {/* Submitted Files */}
+                  {submissionStatus[viewModal.id]?.files?.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Submitted Files</h4>
+                      <div className="space-y-2">
+                        {submissionStatus[viewModal.id].files.map((fileUrl, idx) => (
+                          <a
+                            key={idx}
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center p-2 bg-white rounded border border-gray-200 hover:bg-gray-50"
+                          >
+                            <FaFileAlt className="text-blue-500 mr-2" />
+                            <span className="text-sm text-blue-600 hover:underline truncate flex-1">
+                              {fileUrl.split('/').pop()?.split('?')[0] || 'Download File'}
+                            </span>
+                            <FaDownload className="text-gray-400" size={12} />
+                          </a>
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  {/* Submission Notes */}
+                  {submissionStatus[viewModal.id]?.notes && (
                     <div>
-                      <strong className="text-gray-700">Due Date:</strong>
-                      <span className="ml-2 text-gray-600">
-                        {new Date(viewModal.due_date).toLocaleDateString()}
-                      </span>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Submission Notes</h4>
+                      <div className="bg-white p-3 rounded border border-gray-200 text-sm text-gray-700">
+                        {submissionStatus[viewModal.id].notes}
+                      </div>
                     </div>
-                    <div>
-                      <strong className="text-gray-700">Assigned By:</strong>
-                      <span className="ml-2 text-gray-600">{viewModal.teacher_id}</span>
-                    </div>
+                  )}
+
+                  {/* Submission Time */}
+                  <div className="mt-3 text-sm text-gray-500">
+                    Submitted on {new Date().toLocaleString()}
                   </div>
                 </div>
-
-                <div>
-                  <strong className="text-gray-700">Description:</strong>
-                  <p className="mt-2 text-gray-600 bg-gray-50 rounded-lg p-3">
-                    {viewModal.description || "No description provided."}
-                  </p>
-                </div>
-
-                {submissionStatus[viewModal.id]?.submitted && submissionStatus[viewModal.id]?.files && (
-                  <div>
-                    <strong className="text-gray-700">Submitted Files:</strong>
-                    <ul className="mt-2 space-y-2">
-                      {submissionStatus[viewModal.id].files.map((fileUrl, idx) => {
-                        const fileName = fileUrl.split("/").pop().split("?")[0];
-                        return (
-                          <li key={idx} className="bg-gray-50 rounded-lg p-3">
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline flex items-center gap-2"
-                            >
-                              <FaDownload />
-                              {fileName}
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-
-                {submissionStatus[viewModal.id]?.submitted && submissionStatus[viewModal.id]?.notes && (
-                  <div>
-                    <strong className="text-gray-700">Submission Notes:</strong>
-                    <p className="mt-2 text-gray-600 bg-gray-50 rounded-lg p-3">
-                      {submissionStatus[viewModal.id].notes}
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-xl">
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-xl flex justify-end space-x-3">
               <button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
                 onClick={() => setViewModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 Close
               </button>
+              {!submissionStatus[viewModal.id]?.submitted && !isOverdue(viewModal) && (
+                <button
+                  onClick={() => {
+                    setSubmitModal(viewModal);
+                    setViewModal(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Submit Assignment
+                </button>
+              )}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Submit Modal */}
+      {/* Enhanced Submit Modal */}
       {submitModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-            <div className="border-b border-gray-200 px-6 py-4 rounded-t-xl">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-green-900">
-                  Submit Assignment
-                </h2>
-                <button
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                  onClick={() => setSubmitModal(null)}
-                >
-                  ×
-                </button>
-              </div>
+        <Modal
+          key="submit-modal"
+          title={
+            <div>
+              <h2 className="text-xl font-bold">Submit Assignment</h2>
+              <p className="text-sm font-normal">{submitModal.title}</p>
             </div>
-            
-            <div className="px-6 py-4 space-y-4">
-              <div className="bg-green-50 rounded-lg p-4">
-                <strong className="text-gray-700">Assignment:</strong>
-                <span className="ml-2 text-gray-600">{submitModal.title}</span>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Add any notes about your submission..."
-                  value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload File *
-                </label>
-                <input
-                  type="file"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.png"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG
-                </p>
-              </div>
-            </div>
+          }
+          onClose={() => setSubmitModal(null)}
+          size="md"
+        >
+          <div className="p-6 space-y-6">
+            {/* Due Date Warning */}
+            {new Date(submitModal.due_date) < new Date() ? (
+                <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaExclamationTriangle className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">
+                        This assignment is <span className="font-bold">overdue</span>. Submissions may not be accepted.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaInfoCircle className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        Due {new Date(submitModal.due_date).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <div className="border-t border-gray-200 px-6 py-4 rounded-b-xl">
+              {/* File Upload */}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload your work <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                    <div className="space-y-1 text-center">
+                      <FaCloudUploadAlt className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600">
+                        <label
+                          htmlFor="file-upload"
+                          className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none"
+                        >
+                          <span>Upload a file</span>
+                          <input
+                            id="file-upload"
+                            name="file-upload"
+                            type="file"
+                            className="sr-only"
+                            onChange={(e) => setFile(e.target.files[0])}
+                            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                          />
+                        </label>
+                        <p className="pl-1">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PDF, DOC, DOCX, TXT, JPG, PNG up to 10MB
+                      </p>
+                      {file && (
+                        <p className="text-sm text-gray-900 mt-2">
+                          <FaFileAlt className="inline mr-2 text-blue-500" />
+                          {file.name}
+                          <button
+                            onClick={() => setFile(null)}
+                            className="ml-2 text-gray-400 hover:text-red-500"
+                          >
+                            <FaTimes />
+                          </button>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submission Notes */}
+                <div>
+                  <label htmlFor="submission-notes" className="block text-sm font-medium text-gray-700 mb-2">
+                    Submission Notes (Optional)
+                  </label>
+                  <div className="mt-1">
+                    <textarea
+                      id="submission-notes"
+                      name="submission-notes"
+                      rows={4}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-3"
+                      placeholder="Add any additional notes about your submission..."
+                      value={submissionNotes}
+                      onChange={(e) => setSubmissionNotes(e.target.value)}
+                    />
+                  </div>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Include any comments or context about your submission.
+                  </p>
+                </div>
+              </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end space-x-3">
               <button
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                type="button"
+                onClick={() => setSubmitModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
                 onClick={() => handleSubmitAssignment(submitModal)}
                 disabled={submitting || !file}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  submitting || !file
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
-                {submitting ? "Submitting..." : "Submit Assignment"}
+                {submitting ? (
+                  <span className="flex items-center">
+                    <FaSpinner className="animate-spin mr-2" />
+                    Submitting...
+                  </span>
+                ) : (
+                  'Submit Assignment'
+                )}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -44,8 +44,12 @@ const AdminHeader = ({ onHamburgerClick }) => {
     } catch {}
   };
 
-  const toggleReadOne = (id) => {
+  const toggleReadOne = (id, e) => {
     if (!id) return;
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     const next = new Set(readIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -142,7 +146,9 @@ const AdminHeader = ({ onHamburgerClick }) => {
     class: "bg-orange-100",
     attendance: "bg-pink-100",
     fee: "bg-red-100",
-    default: "bg-gray-100"
+    department: "bg-teal-100",
+    admin: "bg-slate-100",
+    default: "bg-gray-100",
   };
 
   return (
@@ -196,12 +202,18 @@ const AdminHeader = ({ onHamburgerClick }) => {
                       return (
                         <div
                           key={notif.id || idx}
-                          className={`px-4 py-2 border-b last:border-b-0 ${typeBgClass[notif.type] || typeBgClass.default} ${isUnread ? "bg-opacity-90" : "opacity-100"}`}
-                          onClick={() => toggleReadOne(notif.id)}
+                          className={`px-4 py-2 border-b last:border-b-0 transition rounded-md m-1 cursor-pointer ${
+                            isUnread
+                              ? `${typeBgClass[notif.type] || typeBgClass.default} bg-opacity-50 hover:bg-opacity-75`
+                              : "bg-white"
+                          }`}
+                          onClick={(e) => toggleReadOne(notif.id, e)}
                         >
                           <div className="font-medium text-gray-900">{notif.message}</div>
                           <div className="text-xs text-gray-500">{new Date(notif.date).toLocaleString()}</div>
-                          <div className="text-[10px] text-gray-400 mt-1">{isUnread ? "(click to mark read)" : "(click to mark unread)"}</div>
+                          <div className="text-[10px] text-gray-500 mt-1 italic">
+                            {isUnread ? "Click to mark as read" : "Click to mark as unread"}
+                          </div>
                         </div>
                       );
                     })}
