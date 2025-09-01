@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../Modal";
+import Swal from "sweetalert2";
 
 const DepartmentForm = ({
   mode = "add",
@@ -47,6 +48,11 @@ const DepartmentForm = ({
       image_url: imageUrl,
     });
     setSubmitting(false);
+
+    // a confirmation alert if the form is updated successfully using sweet alert
+     Swal("Success", `Department ${mode === "add" ? "added" : "updated"} successfully!`, "success");
+    
+
   };
 
   return (
@@ -144,7 +150,7 @@ const DepartmentForm = ({
           <img
             src={URL.createObjectURL(image)}
             alt="Preview"
-            className="w-full h-40 object-contain rounded"
+            className="w-full h-20 object-contain rounded"
           />
         )}
         <div className="flex justify-end gap-2 mt-4">

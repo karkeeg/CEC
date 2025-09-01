@@ -9,8 +9,11 @@ const Modal = ({ title, children, onClose, size = "md", contentClassName = "", b
       : size === "xl"
       ? "max-w-6xl"
       : size === "full"
-      ? "max-w-[95vw] w-[780px]"
-      : "max-w-2xl"; // md default
+     
+      ? "max-w-[95vw] w-[840px]"
+      : size === "xl" 
+       ?"max-w-xl w-[340px] h-[80vh]"
+            : "max-w-2xl"; 
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">

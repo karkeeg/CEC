@@ -298,7 +298,7 @@ const Feedback = () => {
       {/* Modal for viewing feedback details */}
       {viewModal && (
         <Modal title={"Feedback Details"} onClose={() => setViewModal(null)}>
-          <div className="p-4 max-w-md w-full">
+          <div className="p-4 w-full">
             <div className="mb-2">
               <strong>Assignment:</strong> {viewModal.assignment?.title || "-"}
             </div>

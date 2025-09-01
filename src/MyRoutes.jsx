@@ -41,6 +41,8 @@ import ChangePassword from "./Pages/ChangePassword";
 import AdminExamSchedules from "./Components/AdminDashboard.jsx/AdminExamSchedules";
 import AdminExamForms from "./Components/AdminDashboard.jsx/AdminExamForms";
 import AdminExamResults from "./Components/AdminDashboard.jsx/AdminExamResults";
+import Courses from "./Components/Courses";
+import CourseApplication from "./Components/CourseApplication";
 
 // Teacher Dashboard Components
 import TeacherDashboardLayout from "./Pages/TeacherDashboardLayout";
@@ -65,6 +67,8 @@ const MyRoutes = () => {
           <Route path="/department/:id" element={<DepartmentDetail />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/notices" element={<Notices />} />
+          <Route path="/courses" element={<CourseApplication />} />
+          <Route path="/departments" element={<Courses />} />
           <Route path="/notices/:id" element={<NoticeDetail />} />
           <Route path="/downloads/:id" element={<DownloadPage />} />
           <Route path="/staff/administration"

@@ -52,7 +52,7 @@ const DepartmentDetail = () => {
 
   return (
     <section className="bg-gray-50 min-h-screen py-6">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4">
         
         {/* Back to Home Button */}
         <div className="mb-4">
@@ -80,9 +80,16 @@ const DepartmentDetail = () => {
         {/* Main Content Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           
-          {/* Full Width Department Image */}
+          
+          {/* Content Section */}
+          <div className="p-8 md:p-12">
+            {/* Department Name */}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl  font-bold text-gray-900 mb-6 leading-tight">
+              {department.name}
+            </h1>
+             {/* Full Width Department Image */}
           {department.image_url && (
-            <div className="w-full h-64 md:h-80 lg:h-96 overflow-hidden">
+            <div className="w-full h-64 md:h-80 lg:h-96 my-8 overflow-hidden">
               <img
                 src={department.image_url}
                 alt={department.name}
@@ -92,19 +99,22 @@ const DepartmentDetail = () => {
               />
             </div>
           )}
-
-          {/* Content Section */}
-          <div className="p-8 md:p-12">
-            {/* Department Name */}
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-              {department.name}
-            </h1>
-            
             {/* Department Description */}
             <div className="prose prose-lg max-w-none">
               <p className="text-gray-700 text-lg md:text-xl leading-relaxed">
                 {department.description}
               </p>
+            </div>
+
+            <div className="mt-8 text-right">
+              <a
+                href="https://forms.gle/64XJ3QpGFZ7t42H88"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1"
+              >
+                Apply Now
+              </a>
             </div>
           </div>
         </div>

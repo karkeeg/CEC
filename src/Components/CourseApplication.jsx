@@ -22,7 +22,7 @@ const getDepartmentIcon = (name) => {
   return <FaUniversity className="text-4xl text-gray-400 mb-2 mx-auto" />;
 };
 
-const Courses = () => {
+const CourseApplication = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,20 +40,20 @@ const Courses = () => {
   if (loading) {
     return <div className="p-10 text-center text-xl">Loading...</div>;
   }
+
   return (
-    <section className="w-full bg-slate-100 pt-16 pb-8 px-4 sm:px-8 lg:px-16">
-      <div className="max-w-[1440px] mx-auto flex flex-col gap-16">
+    <section className="w-full bg-slate-100 min-h-screen py-8 px-4 sm:px-8 lg:px-16">
+      <div className="max-w-[1440px] mx-auto flex flex-col gap-8 py-8">
         {/* Header */}
         <div className="text-center">
-          <h3 className="text-xl font-bold mb-2">Academic Programs</h3>
           <h2 className="text-4xl font-bold">
-            Explore <span className="text-blue-600">Departments</span>
+            Apply for your <span className="text-blue-600">Preferred Course</span>
           </h2>
+          <p className="mt-2 text-gray-600">Select a department to view available courses</p>
         </div>
 
-        {/* Vertically Scrollable Card Grid */}
-        <div className="h-[400px] overflow-y-auto pr-2 no-scrollbar">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {/* Card Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {departments.map((dept) => (
             <Link
               to={`/department/${dept.id}`}
@@ -66,10 +66,10 @@ const Courses = () => {
               </span>
             </Link>
           ))}
-          </div>
         </div>
       </div>
     </section>
   );
 };
-export default Courses;
+
+export default CourseApplication;

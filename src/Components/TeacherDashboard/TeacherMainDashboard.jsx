@@ -760,7 +760,7 @@ const TeacherMainDashboard = () => {
                           {reportData.assignmentDetails.length > 0
                             ? Math.round(
                                 reportData.assignmentDetails.reduce(
-                                  (sum, a) => sum + a.averageGrade,
+                                  (sum, a) => sum+ a.averageGrade,
                                   0
                                 ) / reportData.assignmentDetails.length
                               )

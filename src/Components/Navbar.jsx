@@ -60,7 +60,11 @@ const navItems = [
   },
   {
     label: "Exam",
-    dropdown: ["Schedule", "Results", "Online Form"],
+    dropdown: [
+      { id: "schedule", name: "Schedule" },
+      { id: "results", name: "Results" },
+      { id: "online-form", name: "Online Form" }
+    ],
   },
   {
     label: "Download",
@@ -76,6 +80,16 @@ const navItems = [
   {
     label: "Gallery",
     link: "/gallery",
+  },
+  {
+    label: "Notices",
+    link: "/notices",
+  },
+  
+  {
+    label: "Apply Now",
+    link: "/courses",
+    isSpecial: true,
   },
 ];
 
@@ -352,9 +366,12 @@ const Navbar = () => {
 
                       {openDropdown === idx && (
                         <div
-                          className="absolute left-0 top-full min-w-[160px] bg-white text-[#1b3e94] rounded shadow-lg py-2 z-20"
+                          className="absolute left-0 top-full mt-1 min-w-[200px] bg-white text-[#1b3e94] rounded-md shadow-xl py-2 z-50 border border-gray-100"
                           onMouseEnter={() => setOpenDropdown(idx)}
                           onMouseLeave={() => setOpenDropdown(null)}
+                          style={{
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                          }}
                         >
                           {item.label === "Download"
                             ? item.dropdown.map((sub) => (
@@ -367,15 +384,20 @@ const Navbar = () => {
                                 </Link>
                               ))
                             : item.label === "Exam"
-                            ? item.dropdown.map((sub) => (
-                                <Link
-                                  to={`/exam/${sub.id}`}
-                                  key={`exam-${sub.id}`}
-                                  className="block px-4 py-2 hover:bg-[#e6f7ff] hover:text-[#3cb4d4] whitespace-nowrap"
-                                >
-                                  {sub.name}
-                                </Link>
-                              ))
+                            ? item.dropdown.map((sub, subIdx) => {
+                                // Handle both string and object formats
+                                const id = sub.id || sub.toLowerCase().replace(/\s+/g, '-');
+                                const name = sub.name || sub;
+                                return (
+                                  <Link
+                                    to={`/exam/${id}`}
+                                    key={`exam-${subIdx}`}
+                                    className="block w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-600 whitespace-nowrap transition-colors duration-150"
+                                  >
+                                    {name}
+                                  </Link>
+                                );
+                              })
                             : item.label === "About"
                             ? item.dropdown.map((sub, subIdx) => (
                                 <Link
@@ -405,22 +427,25 @@ const Navbar = () => {
                   ) : (
                     <Link
                       to={item.link}
-                      className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition"
+                      className={`px-2 py-2 rounded transition relative overflow-hidden group ${item.isSpecial ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium shadow-lg hover:shadow-xl hover:text-black hover:shadow-blue-400/30' : 'hover:bg-[#3cb4d4]'}`}
                     >
                       {item.label}
+                      {item.isSpecial && (
+                        <span className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-300 opacity-0 "></span>
+                      )}
                     </Link>
                   )}
                 </li>
               ))}
               {/* Add Notices item */}
-              <li className="relative">
+              {/* <li className="relative">
                 <Link
                   to="/notices"
                   className="px-3 py-2 hover:bg-[#3cb4d4] rounded transition"
                 >
                   Notices
                 </Link>
-              </li>
+              </li> */}
             </ul>
           </div>
           {/* Right: User/Icons (hidden on xl and below) */}
@@ -662,8 +687,15 @@ const Navbar = () => {
                               linkTo = `/downloads/${sub.id}`;
                               displayLabel = sub.name;
                             } else if (item.label === "Exam") {
-                              linkTo = `/exam/${sub.id}`;
-                              displayLabel = sub.name;
+                              // Handle both object and string formats for Exam items
+                              if (typeof sub === 'object' && sub !== null) {
+                                linkTo = `/exam/${sub.id}`;
+                                displayLabel = sub.name;
+                              } else {
+                                const id = sub.toLowerCase().replace(/\s+/g, '-');
+                                linkTo = `/exam/${id}`;
+                                displayLabel = sub;
+                              }
                             } else if (item.label === "About") {
                               linkTo = sub.link;
                               displayLabel = sub.label;
