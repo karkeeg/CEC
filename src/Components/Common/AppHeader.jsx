@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { FaBell, FaBars, FaSignOutAlt } from "react-icons/fa";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FaBell, FaBars, FaSignOutAlt, FaSyncAlt, FaSpinner } from "react-icons/fa";
 import { FaCircleUser } from "react-icons/fa6";
 import { useUser } from "../../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -12,19 +12,58 @@ import {
   fetchAssignmentSubmissions,
   fetchNotificationsGlobalPaged,
 } from "../../supabaseConfig/supabaseApi";
+import { formatDistanceToNow, format, isToday, isYesterday, isThisYear, differenceInDays } from 'date-fns';
 
-const typeBgClass = {
-  notice: "bg-blue-100",
-  assignment: "bg-purple-100",
-  submission: "bg-green-100",
-  student: "bg-cyan-100",
-  teacher: "bg-yellow-100",
-  class: "bg-orange-100",
-  attendance: "bg-pink-100",
-  fee: "bg-red-100",
-  department: "bg-teal-100",
-  admin: "bg-slate-100",
-  default: "bg-gray-100",
+// Add caching constants
+const NOTIFICATION_CACHE = {
+  KEY: (userId) => `notif_cache_${userId}`,
+  TTL: 5 * 60 * 1000, // 5 minutes
+  VERSION: 'v1'
+};
+
+const typeStyles = {
+  notice: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Notice' },
+  assignment: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Assignment' },
+  submission: { bg: 'bg-green-100', text: 'text-green-800', label: 'Submission' },
+  attendance: { bg: 'bg-pink-100', text: 'text-pink-800', label: 'Attendance' },
+  student: { bg: 'bg-cyan-100', text: 'text-cyan-800', label: 'Student' },
+  teacher: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Teacher' },
+  class: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Class' },
+  fee: { bg: 'bg-red-100', text: 'text-red-800', label: 'Fee' },
+  department: { bg: 'teal-100', text: 'text-teal-800', label: 'Department' },
+  admin: { bg: 'bg-slate-100', text: 'text-slate-800', label: 'Admin' },
+  default: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Notification' },
+};
+
+// For backward compatibility
+const typeBgClass = Object.fromEntries(
+  Object.entries(typeStyles).map(([key, value]) => [key, value.bg])
+);
+
+const formatNotificationDate = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const daysDiff = differenceInDays(now, date);
+
+  if (isToday(date)) {
+    // For today, show time (e.g., "2:30 PM")
+    return format(date, 'h:mm a');
+  } else if (isYesterday(date) || daysDiff <= 1) {
+    // For yesterday or up to 1 day ago, show "Yesterday"
+    return 'Yesterday';
+  } else if (daysDiff <= 2) {
+    // For 2 days ago, show "2d ago"
+    return '2d ago';
+  } else if (daysDiff <= 30) {
+    // For up to 30 days, show days ago
+    return `${daysDiff}d ago`;
+  } else if (isThisYear(date)) {
+    // For this year, show month and day (e.g., "Mar 15")
+    return format(date, 'MMM d');
+  } else {
+    // For older dates, show full date (e.g., "Mar 15, 2023")
+    return format(date, 'MMM d, yyyy');
+  }
 };
 
 const AppHeader = ({ onHamburgerClick }) => {
@@ -41,12 +80,15 @@ const AppHeader = ({ onHamburgerClick }) => {
 
   const [badgeUnreadCount, setBadgeUnreadCount] = useState(0);
 
+  // Use a more persistent storage key that doesn't change with role
   const storageKey = useMemo(() => {
     if (!userId) return null;
-    return `notif_read_${role}_${userId}`;
-  }, [role, userId]);
+    return `notif_read_${userId}`; // Removed role from key to persist across role changes
+  }, [userId]);
+  
   const [readIds, setReadIds] = useState(new Set());
 
+  // Load read IDs on mount and when storageKey changes
   useEffect(() => {
     try {
       if (!storageKey) {
@@ -54,18 +96,31 @@ const AppHeader = ({ onHamburgerClick }) => {
         return;
       }
       const raw = localStorage.getItem(storageKey);
-      setReadIds(new Set(raw ? JSON.parse(raw) : []));
-    } catch {
+      if (raw) {
+        const savedIds = JSON.parse(raw);
+        if (Array.isArray(savedIds)) {
+          setReadIds(new Set(savedIds));
+          return;
+        }
+      }
+      // If no saved data or invalid format, initialize with empty set
+      setReadIds(new Set());
+      localStorage.setItem(storageKey, JSON.stringify([]));
+    } catch (error) {
+      console.error('Error loading read notifications:', error);
       setReadIds(new Set());
     }
   }, [storageKey]);
 
-  const persistRead = (nextSet) => {
+  const persistRead = useCallback((nextSet) => {
     try {
       if (!storageKey) return;
-      localStorage.setItem(storageKey, JSON.stringify([...nextSet]));
-    } catch {}
-  };
+      const idsArray = Array.from(nextSet);
+      localStorage.setItem(storageKey, JSON.stringify(idsArray));
+    } catch (error) {
+      console.error('Error saving read status:', error);
+    }
+  }, [storageKey]);
 
   const markAllAsRead = () => {
     const next = new Set(readIds);
@@ -99,8 +154,49 @@ const AppHeader = ({ onHamburgerClick }) => {
     0
   );
 
-  const loadNotifications = async () => {
-    if (!showNotifDropdown) return;
+  // Add caching utility functions
+  const getCachedNotifications = useCallback(() => {
+    if (!userId) return null;
+    try {
+      const cached = localStorage.getItem(NOTIFICATION_CACHE.KEY(userId));
+      if (!cached) return null;
+      
+      const { data, timestamp, version } = JSON.parse(cached);
+      if (version !== NOTIFICATION_CACHE.VERSION) return null;
+      if (Date.now() - timestamp > NOTIFICATION_CACHE.TTL) return null;
+      
+      return data;
+    } catch {
+      return null;
+    }
+  }, [userId]);
+
+  const cacheNotifications = useCallback((data) => {
+    if (!userId) return;
+    try {
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+        version: NOTIFICATION_CACHE.VERSION
+      };
+      localStorage.setItem(NOTIFICATION_CACHE.KEY(userId), JSON.stringify(cacheData));
+    } catch (error) {
+      console.error('Failed to cache notifications:', error);
+    }
+  }, [userId]);
+
+  const loadNotifications = useCallback(async (force = false) => {
+    if (!userId) return;
+    
+    // Try to load from cache first if not forcing a refresh
+    if (!force) {
+      const cached = getCachedNotifications();
+      if (cached) {
+        setNotifications(cached);
+        // Don't return here, continue to fetch fresh data in background
+      }
+    }
+
     setIsLoading(true);
     try {
       let items = [];
@@ -184,36 +280,50 @@ const AppHeader = ({ onHamburgerClick }) => {
 
       // Sort by date (newest first) and take top 10
       const sortedItems = items.sort((a, b) => new Date(b.date) - new Date(a.date));
-      setNotifications(sortedItems.slice(0, 10));
+      const latestItems = sortedItems.slice(0, 10);
+      
+      setNotifications(latestItems);
+      cacheNotifications(latestItems);
       
     } catch (error) {
       console.error("Error loading notifications:", error);
-      setNotifications([]);
+      // If there's an error, try to show cached data if available
+      const cached = getCachedNotifications();
+      if (cached) {
+        setNotifications(cached);
+      } else {
+        setNotifications([]);
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showNotifDropdown, role, userId, getCachedNotifications, cacheNotifications]);
 
+  // Load notifications on mount and when dependencies change
   useEffect(() => {
+    // Initial load
     loadNotifications();
-  }, [showNotifDropdown, role, userId]);
+    
+    // Set up interval to refresh notifications every 30 seconds
+    const intervalId = setInterval(() => loadNotifications(true), 30000);
+    
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, [userId, role, loadNotifications]);
 
 
+  // Update badge count whenever notifications or read status changes
   useEffect(() => {
-    let timer;
-    const computeBadge = async () => {
-      try {
-        const latest = notifications.slice(0, 10);
-        const count = latest.reduce(
-          (acc, n) => (n.id && !readIds.has(n.id) ? acc + 1 : acc),
-          0
-        );
-        setBadgeUnreadCount(count);
-      } catch {}
-    };
-    computeBadge();
-    timer = setInterval(computeBadge, 30000);
-    return () => clearInterval(timer);
+    try {
+      const latest = notifications.slice(0, 10);
+      const count = latest.reduce(
+        (acc, n) => (n?.id && !readIds.has(n.id) ? acc + 1 : 0),
+        0
+      );
+      setBadgeUnreadCount(count);
+    } catch (error) {
+      console.error('Error computing badge count:', error);
+    }
   }, [readIds, notifications]);
 
   const getUserDisplayName = () => {
@@ -244,13 +354,13 @@ const AppHeader = ({ onHamburgerClick }) => {
 
       <div className="flex items-center gap-4">
         <div className="relative">
-          <div className="relative inline-block">
+          <div className="relative inline-flex items-center">
             <FaBell
               className="text-white text-lg cursor-pointer hover:text-blue-200 transition"
               onClick={() => setShowNotifDropdown((prev) => !prev)}
             />
             {(badgeUnreadCount > 0 || unreadCount > 0) && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold animate-bounce">
                 {badgeUnreadCount || unreadCount}
               </span>
             )}
@@ -273,6 +383,20 @@ const AppHeader = ({ onHamburgerClick }) => {
                   >
                     Mark all read
                   </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => loadNotifications(true)}
+                      className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                      title="Refresh notifications"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaSyncAlt className="text-sm" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -302,14 +426,21 @@ const AppHeader = ({ onHamburgerClick }) => {
                           }`}
                           onClick={(e) => toggleReadOne(notif.id, e)}
                         >
-                          <div className="font-medium text-gray-900 text-sm">
-                            {notif.message}
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium text-gray-900 text-sm">
+                              {notif.message}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${typeStyles[notif.type]?.text || 'text-gray-600'} ${typeStyles[notif.type]?.bg || 'bg-gray-100'} font-medium`}>
+                              {typeStyles[notif.type]?.label || 'Notification'}
+                            </span>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {new Date(notif.date).toLocaleString()}
-                          </div>
-                          <div className="text-[10px] text-gray-500 mt-1 italic">
-                            {isUnread ? "Click to mark as read" : "Click to mark as unread"}
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-xs text-gray-500" title={format(new Date(notif.date), 'PPpp')}>
+                              {formatNotificationDate(notif.date)}
+                            </span>
+                            <span className="text-[10px] text-gray-500 italic">
+                              {isUnread ? "Mark as read" : "Mark as unread"}
+                            </span>
                           </div>
                         </div>
                       );
