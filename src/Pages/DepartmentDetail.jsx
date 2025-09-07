@@ -39,7 +39,7 @@ const DepartmentDetail = () => {
         <div className="text-center">
           <div className="text-red-600 text-xl mb-4">{error}</div>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Home
@@ -53,11 +53,10 @@ const DepartmentDetail = () => {
   return (
     <section className="bg-gray-50 min-h-screen py-6">
       <div className="max-w-6xl mx-auto px-4">
-        
         {/* Back to Home Button */}
         <div className="mb-4">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="inline-flex items-center text-gray-600 hover:text-gray-800 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
             <svg
@@ -79,42 +78,48 @@ const DepartmentDetail = () => {
 
         {/* Main Content Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          
-          
-          {/* Content Section */}
-          <div className="p-8 md:p-12">
-            {/* Department Name */}
-            <h1 className="text-3xl md:text-4xl lg:text-5xl  font-bold text-gray-900 mb-6 leading-tight">
+          {/* Header Section with Title and Apply Button */}
+          <div className="p-8 md:p-12 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
               {department.name}
             </h1>
-             {/* Full Width Department Image */}
-          {department.image_url && (
-            <div className="w-full h-64 md:h-80 lg:h-96 my-8 overflow-hidden">
-              <img
-                src={department.image_url}
-                alt={department.name}
-                loading="lazy"
-                className="w-full h-full object-contain"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            </div>
-          )}
-            {/* Department Description */}
-            <div className="prose prose-lg max-w-none">
-              <p className="text-gray-700 text-lg md:text-xl leading-relaxed">
-                {department.description}
-              </p>
-            </div>
 
-            <div className="mt-8 text-right">
-              <a
-                href="https://forms.gle/64XJ3QpGFZ7t42H88"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1"
-              >
-                Apply Now
-              </a>
+            <a
+              href="https://forms.gle/64XJ3QpGFZ7t42H88"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 whitespace-nowrap"
+            >
+              Apply Now
+            </a>
+          </div>
+
+          {/* Content Section with Image and Description */}
+          <div className="p-8 md:p-12">
+            <div className="flex flex-col lg:flex-row gap-8">
+              {/* Image on the left */}
+              {department.image_url && (
+                <div className="w-full lg:w-1/2 h-74 md:h-96 lg:h-108 overflow-hidden">
+                  <img
+                    src={department.image_url}
+                    alt={department.name}
+                    loading="lazy"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Description on the right with fixed width */}
+              <div className="w-full lg:w-1/2">
+                <div className="prose prose-lg max-w-none">
+                  <p className="text-gray-700 text-lg md:text-xl leading-relaxed">
+                    {department.description}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
