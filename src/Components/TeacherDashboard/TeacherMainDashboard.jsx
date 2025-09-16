@@ -43,9 +43,9 @@ import Loader from "../Loader";
 
 // Cache keys for localStorage
 const CACHE_KEYS = {
-  DASHBOARD_STATS: 'teacher_dashboard_stats',
-  DASHBOARD_DATA: 'teacher_dashboard_data',
-  CACHE_TIMESTAMP: 'teacher_dashboard_timestamp'
+  DASHBOARD_STATS: "teacher_dashboard_stats",
+  DASHBOARD_DATA: "teacher_dashboard_data",
+  CACHE_TIMESTAMP: "teacher_dashboard_timestamp",
 };
 
 // Cache duration: 5 minutes
@@ -91,19 +91,21 @@ const TeacherMainDashboard = () => {
     try {
       const cachedStats = localStorage.getItem(CACHE_KEYS.DASHBOARD_STATS);
       const cachedData = localStorage.getItem(CACHE_KEYS.DASHBOARD_DATA);
-      
+
       if (cachedStats && cachedData) {
         const statsData = JSON.parse(cachedStats);
         const dashboardData = JSON.parse(cachedData);
-        
+
         setStats(statsData);
         setRecentActivities(dashboardData.recentActivities || []);
         setPerformanceData(dashboardData.performanceData || []);
         setCompletionData(dashboardData.completionData || []);
-        setTodaysSchedule(dashboardData.todaysSchedule || { classes: [], assignments: [] });
+        setTodaysSchedule(
+          dashboardData.todaysSchedule || { classes: [], assignments: [] }
+        );
         setTeacherAssignments(dashboardData.teacherAssignments || []);
         setAttendanceData(dashboardData.attendanceData || []);
-        
+
         return true;
       }
     } catch (error) {
@@ -115,8 +117,14 @@ const TeacherMainDashboard = () => {
   // Save data to cache
   const saveToCache = (statsData, dashboardData) => {
     try {
-      localStorage.setItem(CACHE_KEYS.DASHBOARD_STATS, JSON.stringify(statsData));
-      localStorage.setItem(CACHE_KEYS.DASHBOARD_DATA, JSON.stringify(dashboardData));
+      localStorage.setItem(
+        CACHE_KEYS.DASHBOARD_STATS,
+        JSON.stringify(statsData)
+      );
+      localStorage.setItem(
+        CACHE_KEYS.DASHBOARD_DATA,
+        JSON.stringify(dashboardData)
+      );
       localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
     } catch (error) {
       console.error("Error saving dashboard cache:", error);
@@ -149,146 +157,153 @@ const TeacherMainDashboard = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-      try {
-        const [assignmentsData, teacherClasses, attendanceRecords] =
-          await Promise.all([
-            getAssignmentsByTeacher(user.id),
-            getClassesByTeacher(user.id),
-            fetchAttendance({ teacher_id: user.id }),
-          ]);
+    try {
+      const [assignmentsData, teacherClasses, attendanceRecords] =
+        await Promise.all([
+          getAssignmentsByTeacher(user.id),
+          getClassesByTeacher(user.id),
+          fetchAttendance({ teacher_id: user.id }),
+        ]);
 
-        // Set state variables for use in reports
-        setTeacherAssignments(assignmentsData || []);
-        setAttendanceData(attendanceRecords || []);
+      // Set state variables for use in reports
+      setTeacherAssignments(assignmentsData || []);
+      setAttendanceData(attendanceRecords || []);
 
-        // Get students for teacher's classes (with deduplication)
-        const teacherStudents = await getStudentsByTeacher(user.id);
-        const studentsInTeacherClasses = teacherStudents?.length || 0;
+      // Get students for teacher's classes (with deduplication)
+      const teacherStudents = await getStudentsByTeacher(user.id);
+      const studentsInTeacherClasses = teacherStudents?.length || 0;
 
-        // Calculate attendance rate from actual data
-        let attendanceRate = 0;
-        if (attendanceRecords && attendanceRecords.length > 0) {
-          const totalRecords = attendanceRecords.length;
-          const presentRecords = attendanceRecords.filter(
-            (record) => record.status === "present"
-          ).length;
-          attendanceRate = Math.round((presentRecords / totalRecords) * 100);
-        }
+      // Calculate attendance rate from actual data
+      let attendanceRate = 0;
+      if (attendanceRecords && attendanceRecords.length > 0) {
+        const totalRecords = attendanceRecords.length;
+        const presentRecords = attendanceRecords.filter(
+          (record) => record.status === "present"
+        ).length;
+        attendanceRate = Math.round((presentRecords / totalRecords) * 100);
+      }
 
-        setStats({
-          totalStudents: studentsInTeacherClasses,
-          totalClasses: teacherClasses?.length || 0,
-          totalAssignments: assignmentsData?.length || 0,
-          attendanceRate: attendanceRate,
+      setStats({
+        totalStudents: studentsInTeacherClasses,
+        totalClasses: teacherClasses?.length || 0,
+        totalAssignments: assignmentsData?.length || 0,
+        attendanceRate: attendanceRate,
+      });
+
+      const recentTeacherAssignments = (assignmentsData || []).slice(0, 3);
+      setRecentActivities(recentTeacherAssignments || []);
+      const gradesData = await getGradesByTeacher(user.id);
+      setPerformanceData(gradesData || []);
+      const completion = (assignmentsData || []).map((a) => ({
+        name: a.title,
+        completion: a.total_count
+          ? Math.round((a.completed_count / a.total_count) * 100)
+          : 0,
+      }));
+      setCompletionData(completion);
+      const today = new Date().toISOString().split("T")[0];
+
+      // Filter classes for today's schedule
+      let todaysClasses = [];
+      if (teacherClasses && teacherClasses.length > 0) {
+        // Check if classes have schedule information
+        todaysClasses = teacherClasses.filter((c) => {
+          // Check for schedule in different possible fields
+          const schedule =
+            c.schedule || c.class_schedule || c.day_of_week || c.time;
+
+          if (!schedule) return false;
+
+          // If it's a day of week, check if it matches today
+          const today = new Date();
+          const dayNames = [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+          ];
+          const todayName = dayNames[today.getDay()];
+
+          if (schedule.toLowerCase().includes(todayName)) {
+            return true;
+          }
+
+          // If it's a date, check if it matches today
+          const todayDate = today.toISOString().split("T")[0];
+          if (schedule.includes(todayDate)) {
+            return true;
+          }
+
+          return false;
         });
 
-        const recentTeacherAssignments = (assignmentsData || []).slice(0, 3);
-        setRecentActivities(recentTeacherAssignments || []);
-        const gradesData = await getGradesByTeacher(user.id);
-        setPerformanceData(gradesData || []);
-        const completion = (assignmentsData || []).map((a) => ({
-          name: a.title,
-          completion: a.total_count
-            ? Math.round((a.completed_count / a.total_count) * 100)
-            : 0,
-        }));
-        setCompletionData(completion);
+        console.log("Today's classes found:", todaysClasses.length);
+      }
+
+      // Filter assignments due today
+      let todaysAssignments = [];
+      if (assignmentsData && assignmentsData.length > 0) {
         const today = new Date().toISOString().split("T")[0];
 
+        todaysAssignments = assignmentsData.filter((a) => {
+          if (!a.due_date) return false;
 
-        // Filter classes for today's schedule
-        let todaysClasses = [];
-        if (teacherClasses && teacherClasses.length > 0) {
-          // Check if classes have schedule information
-          todaysClasses = teacherClasses.filter((c) => {
-            // Check for schedule in different possible fields
-            const schedule = c.schedule || c.class_schedule || c.day_of_week || c.time;
-            
-            if (!schedule) return false;
-            
-            // If it's a day of week, check if it matches today
-            const today = new Date();
-            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-            const todayName = dayNames[today.getDay()];
-            
-            if (schedule.toLowerCase().includes(todayName)) {
-              return true;
-            }
-            
-            // If it's a date, check if it matches today
-            const todayDate = today.toISOString().split('T')[0];
-            if (schedule.includes(todayDate)) {
-              return true;
-            }
-            
-            return false;
-          });
-          
-          console.log("Today's classes found:", todaysClasses.length);
-        }
+          // Handle different date formats
+          let dueDate;
+          if (a.due_date.includes("T")) {
+            dueDate = a.due_date.split("T")[0];
+          } else if (a.due_date.includes(" ")) {
+            dueDate = a.due_date.split(" ")[0];
+          } else {
+            dueDate = a.due_date;
+          }
 
-        // Filter assignments due today
-        let todaysAssignments = [];
-        if (assignmentsData && assignmentsData.length > 0) {
-          const today = new Date().toISOString().split('T')[0];
-          
-          todaysAssignments = assignmentsData.filter((a) => {
-            if (!a.due_date) return false;
-            
-            // Handle different date formats
-            let dueDate;
-            if (a.due_date.includes('T')) {
-              dueDate = a.due_date.split('T')[0];
-            } else if (a.due_date.includes(' ')) {
-              dueDate = a.due_date.split(' ')[0];
-            } else {
-              dueDate = a.due_date;
-            }
-            
-            return dueDate === today;
-          });
-          
-          console.log("Today's assignments due:", todaysAssignments.length);
-        }
-        // Debug schedule data
-        console.log("Today:", today);
-        console.log("Teacher Classes:", teacherClasses);
-        console.log("Today's Classes:", todaysClasses);
-        console.log("Today's Assignments:", todaysAssignments);
-
-        setTodaysSchedule({
-          classes: todaysClasses,
-          assignments: todaysAssignments,
+          return dueDate === today;
         });
 
-        // Save to cache
-        const dashboardData = {
-          recentActivities: recentTeacherAssignments || [],
-          performanceData: gradesData || [],
-          completionData: completion,
-          todaysSchedule: {
-            classes: todaysClasses,
-            assignments: todaysAssignments,
-          },
-          teacherAssignments: assignmentsData || [],
-          attendanceData: attendanceRecords || []
-        };
-        
-        const statsData = {
-          totalStudents: studentsInTeacherClasses,
-          totalClasses: teacherClasses?.length || 0,
-          totalAssignments: assignmentsData?.length || 0,
-          attendanceRate: attendanceRate,
-        };
-        
-        saveToCache(statsData, dashboardData);
-        
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
+        console.log("Today's assignments due:", todaysAssignments.length);
       }
-    };
+      // Debug schedule data
+      console.log("Today:", today);
+      console.log("Teacher Classes:", teacherClasses);
+      console.log("Today's Classes:", todaysClasses);
+      console.log("Today's Assignments:", todaysAssignments);
+
+      setTodaysSchedule({
+        classes: todaysClasses,
+        assignments: todaysAssignments,
+      });
+
+      // Save to cache
+      const dashboardData = {
+        recentActivities: recentTeacherAssignments || [],
+        performanceData: gradesData || [],
+        completionData: completion,
+        todaysSchedule: {
+          classes: todaysClasses,
+          assignments: todaysAssignments,
+        },
+        teacherAssignments: assignmentsData || [],
+        attendanceData: attendanceRecords || [],
+      };
+
+      const statsData = {
+        totalStudents: studentsInTeacherClasses,
+        totalClasses: teacherClasses?.length || 0,
+        totalAssignments: assignmentsData?.length || 0,
+        attendanceRate: attendanceRate,
+      };
+
+      saveToCache(statsData, dashboardData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchReportData = async (type) => {
     if (!user?.id) return;
@@ -341,8 +356,12 @@ const TeacherMainDashboard = () => {
         case "grades":
           // Fetch real grades and map to student names via submissions
           const teacherGrades = await getGradesByTeacher(user.id);
-          const submissionIds = (teacherGrades || []).map((g) => g.submission_id).filter(Boolean);
-          const submissionsWithStudents = await getSubmissionsWithStudentsByIds(submissionIds);
+          const submissionIds = (teacherGrades || [])
+            .map((g) => g.submission_id)
+            .filter(Boolean);
+          const submissionsWithStudents = await getSubmissionsWithStudentsByIds(
+            submissionIds
+          );
           const subMap = new Map(
             (submissionsWithStudents || []).map((s) => [s.id, s.student])
           );
@@ -460,10 +479,8 @@ const TeacherMainDashboard = () => {
             (
               <div className="text-sm text-gray-600 mb-3">
                 {todaysSchedule.classes.length > 0 ||
-                  todaysSchedule.assignments.length > 0 ? (
-                  <span className="text-blue-600">
-                    📅 Today's schedule
-                  </span>
+                todaysSchedule.assignments.length > 0 ? (
+                  <span className="text-blue-600">📅 Today's schedule</span>
                 ) : (
                   <span className="text-orange-600">
                     📋 No classes or assignments scheduled for today
@@ -556,13 +573,17 @@ const TeacherMainDashboard = () => {
               )}
               {/* Activity Detail Modal */}
               {selectedActivity && (
-                <Modal title="Activity Details" onClose={() => setSelectedActivity(null)}>
+                <Modal
+                  title="Activity Details"
+                  onClose={() => setSelectedActivity(null)}
+                >
                   <div className="space-y-3">
                     <div>
                       <strong>Title:</strong> {selectedActivity.title}
                     </div>
                     <div>
-                      <strong>Date:</strong> {new Date(selectedActivity.created_at).toLocaleString()}
+                      <strong>Date:</strong>{" "}
+                      {new Date(selectedActivity.created_at).toLocaleString()}
                     </div>
                     {/* Add more details here if available in selectedActivity */}
                   </div>
@@ -683,7 +704,7 @@ const TeacherMainDashboard = () => {
         <Modal
           title="Take Attendance"
           onClose={() => setShowAttendanceModal(false)}
-          size="full"
+          size="4xl"
         >
           <AttendanceForm
             user={user}
@@ -760,7 +781,7 @@ const TeacherMainDashboard = () => {
                           {reportData.assignmentDetails.length > 0
                             ? Math.round(
                                 reportData.assignmentDetails.reduce(
-                                  (sum, a) => sum+ a.averageGrade,
+                                  (sum, a) => sum + a.averageGrade,
                                   0
                                 ) / reportData.assignmentDetails.length
                               )
@@ -911,7 +932,11 @@ const TeacherMainDashboard = () => {
                             <div className="flex justify-between items-center mb-2">
                               <h4 className="font-medium text-gray-800">
                                 {grade?.student
-                                  ? `${grade.student.first_name || ""} ${grade.student.last_name || ""}`.trim() || grade.student.email || "Student"
+                                  ? `${grade.student.first_name || ""} ${
+                                      grade.student.last_name || ""
+                                    }`.trim() ||
+                                    grade.student.email ||
+                                    "Student"
                                   : "Student"}
                               </h4>
                               <div className="flex items-center space-x-2">
