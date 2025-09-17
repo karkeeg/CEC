@@ -17,9 +17,9 @@ import Loader from "../Loader";
 
 // Cache keys for localStorage
 const CACHE_KEYS = {
-  STUDENTS: 'teacher_students_cache',
-  PERFORMANCE: 'teacher_performance_cache',
-  CACHE_TIMESTAMP: 'teacher_data_timestamp'
+  STUDENTS: "teacher_students_cache",
+  PERFORMANCE: "teacher_performance_cache",
+  CACHE_TIMESTAMP: "teacher_data_timestamp",
 };
 
 // Cache duration: 5 minutes
@@ -59,20 +59,20 @@ const TeacherStudents = () => {
     try {
       const cachedStudents = localStorage.getItem(CACHE_KEYS.STUDENTS);
       const cachedPerformance = localStorage.getItem(CACHE_KEYS.PERFORMANCE);
-      
+
       if (cachedStudents && cachedPerformance) {
         const studentsData = JSON.parse(cachedStudents);
         const performanceData = JSON.parse(cachedPerformance);
-        
+
         setStudents(studentsData);
         setPerformanceStats(performanceData);
-        
+
         // Extract unique years for filter dropdown
         const uniqueYears = Array.from(
           new Set(studentsData.map((s) => s.year))
         ).filter(Boolean);
         setYears(uniqueYears.sort());
-        
+
         return true;
       }
     } catch (error) {
@@ -85,7 +85,10 @@ const TeacherStudents = () => {
   const saveToCache = (studentsData, performanceData) => {
     try {
       localStorage.setItem(CACHE_KEYS.STUDENTS, JSON.stringify(studentsData));
-      localStorage.setItem(CACHE_KEYS.PERFORMANCE, JSON.stringify(performanceData));
+      localStorage.setItem(
+        CACHE_KEYS.PERFORMANCE,
+        JSON.stringify(performanceData)
+      );
       localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
     } catch (error) {
       console.error("Error saving to cache:", error);
@@ -111,7 +114,7 @@ const TeacherStudents = () => {
       // Fetch both students and performance data in parallel
       const [studentsData, performanceData] = await Promise.all([
         getStudentsByTeacher(user?.id),
-        getTeacherStudentPerformanceStats(user.id)
+        getTeacherStudentPerformanceStats(user.id),
       ]);
 
       // Set students data
@@ -122,18 +125,19 @@ const TeacherStudents = () => {
       setYears(uniqueYears.sort());
 
       // Set performance data
-      setPerformanceStats(performanceData || {
-        totalStudents: 0,
-        averageAttendance: 0,
-        averageGrade: 0,
-        highPerformers: 0,
-        needsAttention: 0,
-        recentActivity: 0,
-      });
+      setPerformanceStats(
+        performanceData || {
+          totalStudents: 0,
+          averageAttendance: 0,
+          averageGrade: 0,
+          highPerformers: 0,
+          needsAttention: 0,
+          recentActivity: 0,
+        }
+      );
 
       // Save to cache
       saveToCache(studentsData || [], performanceData || {});
-
     } catch (error) {
       console.error("Error fetching data:", error);
       setStudents([]);
@@ -149,13 +153,10 @@ const TeacherStudents = () => {
     localStorage.removeItem(CACHE_KEYS.STUDENTS);
     localStorage.removeItem(CACHE_KEYS.PERFORMANCE);
     localStorage.removeItem(CACHE_KEYS.CACHE_TIMESTAMP);
-    
+
     // Fetch fresh data
     await fetchAllData();
   };
-
-
-  
 
   const filteredStudents = students.filter((s) => {
     const matchesName = `${s.first_name} ${s.middle_name ?? ""} ${s.last_name}`
@@ -169,7 +170,6 @@ const TeacherStudents = () => {
   // Show all filtered students for scrollable table
   const visibleStudents = filteredStudents;
 
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -177,11 +177,21 @@ const TeacherStudents = () => {
           <Loader message="Loading teacher dashboard..." />
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${studentsLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  studentsLoading ? "bg-blue-500 animate-pulse" : "bg-green-500"
+                }`}
+              ></div>
               <span className="text-sm text-gray-600">Students Data</span>
             </div>
             <div className="flex items-center justify-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${performanceLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  performanceLoading
+                    ? "bg-blue-500 animate-pulse"
+                    : "bg-green-500"
+                }`}
+              ></div>
               <span className="text-sm text-gray-600">Performance Stats</span>
             </div>
           </div>
@@ -230,7 +240,7 @@ const TeacherStudents = () => {
           </div>
 
           {/* Average Attendance Card */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+          {/* <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
@@ -256,7 +266,7 @@ const TeacherStudents = () => {
                 </svg>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Average Grade Card */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
@@ -490,7 +500,9 @@ const TeacherStudents = () => {
                   visibleStudents.map((student, index) => (
                     <tr
                       key={student.id}
-                      className={`border-b hover:bg-blue-50 ${index >= 8 ? 'bg-gray-50' : ''}`}
+                      className={`border-b hover:bg-blue-50 ${
+                        index >= 8 ? "bg-gray-50" : ""
+                      }`}
                     >
                       <td className="px-4 py-3">
                         {student.first_name} {student.middle_name ?? ""}{" "}
@@ -506,7 +518,6 @@ const TeacherStudents = () => {
                         >
                           View
                         </button>
-                        
                       </td>
                     </tr>
                   ))
@@ -517,7 +528,8 @@ const TeacherStudents = () => {
           {/* Scroll indicator */}
           {visibleStudents.length > 8 && (
             <div className="text-center py-2 text-sm text-gray-500 bg-gray-100">
-              Showing {Math.min(8, visibleStudents.length)} of {visibleStudents.length} students - Scroll down to see more
+              Showing {Math.min(8, visibleStudents.length)} of{" "}
+              {visibleStudents.length} students - Scroll down to see more
             </div>
           )}
         </div>
